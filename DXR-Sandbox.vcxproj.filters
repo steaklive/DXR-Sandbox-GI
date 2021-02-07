@@ -1,0 +1,225 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\Shaders">
+      <UniqueIdentifier>{40097630-fa5f-417e-a488-a85966aa1e0c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Shaders\Raytracing">
+      <UniqueIdentifier>{fb6df612-0434-4745-826e-5dd996559201}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\External">
+      <UniqueIdentifier>{f49a3986-2627-4ab0-a4bd-e7f4f6975ed4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\External\Microsoft">
+      <UniqueIdentifier>{dc862cc8-05f7-45fe-b67e-3d0a0ba33459}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\External\NVIDIA">
+      <UniqueIdentifier>{efde4483-951f-4148-9820-a54cfc288426}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\External\ImGUI">
+      <UniqueIdentifier>{3bfb73e6-68a6-401e-a627-3b55dadfd3bd}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="source\Common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\DXRSTimer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\DXRSScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\DXRSModelMaterial.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\DXRSModel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\DXRSMesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\DXRSGraphics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\DXRSDepthBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\DXRSRenderTarget.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\DescriptorHeap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\DXRSBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\PipelineStateObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\RootSignature.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\RaytracingPipelineGenerator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\ShaderBindingTableGenerator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="external\ImGUI\imconfig.h">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="external\ImGUI\imgui.h">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="external\ImGUI\imgui_impl_dx12.h">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="external\ImGUI\imgui_impl_win32.h">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="external\ImGUI\imgui_internal.h">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="external\ImGUI\imstb_rectpack.h">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="external\ImGUI\imstb_textedit.h">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="external\ImGUI\imstb_truetype.h">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="source\DXRSExampleGIScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\DXRSExampleRTScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="DXR-Sandbox.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="DXRS.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\DXRSModelMaterial.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\DXRSModel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\DXRS.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\DXRSGraphics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\DXRSMesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\DXRSDepthBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\DXRSRenderTarget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\DescriptorHeap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\DXRSBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\PipelineStateObject.cpp">
+      <Filter>Source Files\External\Microsoft</Filter>
+    </ClCompile>
+    <ClCompile Include="source\RootSignature.cpp">
+      <Filter>Source Files\External\Microsoft</Filter>
+    </ClCompile>
+    <ClCompile Include="source\RaytracingPipelineGenerator.cpp">
+      <Filter>Source Files\External\NVIDIA</Filter>
+    </ClCompile>
+    <ClCompile Include="source\ShaderBindingTableGenerator.cpp">
+      <Filter>Source Files\External\NVIDIA</Filter>
+    </ClCompile>
+    <ClCompile Include="external\ImGUI\imgui.cpp">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="external\ImGUI\imgui_demo.cpp">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="external\ImGUI\imgui_draw.cpp">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="external\ImGUI\imgui_impl_dx12.cpp">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="external\ImGUI\imgui_impl_win32.cpp">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="external\ImGUI\imgui_widgets.cpp">
+      <Filter>Source Files\External\ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="source\DXRSExampleRTScene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\DXRSExampleGIScene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="content\shaders\GBuffer.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="content\shaders\Lighting.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="content\shaders\Composite.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="content\shaders\Common.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="content\shaders\RayGen.hlsl">
+      <Filter>Source Files\Shaders\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="content\shaders\Miss.hlsl">
+      <Filter>Source Files\Shaders\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="content\shaders\Hit.hlsl">
+      <Filter>Source Files\Shaders\Raytracing</Filter>
+    </FxCompile>
+    <FxCompile Include="content\shaders\ShadowMapping.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>
