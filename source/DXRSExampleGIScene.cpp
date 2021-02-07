@@ -23,6 +23,7 @@ DXRSExampleGIScene::~DXRSExampleGIScene()
 
 	delete mLightingCB;
 	delete mLightsInfoCB;
+	delete mShadowMappingCB;
 	delete mGbufferCB;
 	delete mCameraBuffer;
 }
@@ -41,6 +42,8 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 
 	mDragonModel = U_PTR<DXRSModel>(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\dragon.fbx"), true, XMMatrixIdentity(), XMFLOAT4(0, 1, 0, 0.0)));
 	mRoomModel = U_PTR<DXRSModel>(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\room.fbx"), true, XMMatrixIdentity(), XMFLOAT4(0.7, 0.7, 0.7, 0.0)));
+	mSphereModel_1 = U_PTR<DXRSModel>(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere.fbx"), true, XMMatrixIdentity(), XMFLOAT4(0.0, 0.2, 0.9, 0.0)));
+	mSphereModel_2 = U_PTR<DXRSModel>(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere.fbx"), true, XMMatrixIdentity(), XMFLOAT4(0.8, 0.4, 0.1, 0.0)));
 
 	mSandboxFramework->FinalizeResources();
 	ID3D12Device* device = mSandboxFramework->GetD3DDevice();
@@ -153,7 +156,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	shadowrasterizer.FillMode = D3D12_FILL_MODE_SOLID;
 	shadowrasterizer.CullMode = D3D12_CULL_MODE_BACK;
 	shadowrasterizer.FrontCounterClockwise = FALSE;
-	shadowrasterizer.SlopeScaledDepthBias = 3.0f;
+	shadowrasterizer.SlopeScaledDepthBias = 10.0f;
 	shadowrasterizer.DepthBias = 0.05f;
 	shadowrasterizer.DepthClipEnable = FALSE;
 	shadowrasterizer.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
@@ -567,6 +570,28 @@ void DXRSExampleGIScene::Render()
 			commandList->SetGraphicsRootDescriptorTable(1, srvHandle.GetGPUHandle());
 
 			mDragonModel->Render(commandList);
+		}	
+		//sphere_1
+		{
+			cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mGbufferCB->GetCBV());
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mSphereModel_1->GetCB()->GetCBV());
+
+			commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
+			commandList->SetGraphicsRootDescriptorTable(1, srvHandle.GetGPUHandle());
+
+			mSphereModel_1->Render(commandList);
+		}	
+		//sphere_2
+		{
+			cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mGbufferCB->GetCBV());
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mSphereModel_2->GetCB()->GetCBV());
+
+			commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
+			commandList->SetGraphicsRootDescriptorTable(1, srvHandle.GetGPUHandle());
+
+			mSphereModel_2->Render(commandList);
 		}
 
 	}
@@ -609,6 +634,24 @@ void DXRSExampleGIScene::Render()
 
 			commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
 			mDragonModel->Render(commandList);
+		}		
+		//sphere_1
+		{
+			cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mShadowMappingCB->GetCBV());
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mSphereModel_1->GetCB()->GetCBV());
+
+			commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
+			mSphereModel_1->Render(commandList);
+		}
+		//sphere_1
+		{
+			cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mShadowMappingCB->GetCBV());
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mSphereModel_2->GetCB()->GetCBV());
+
+			commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
+			mSphereModel_2->Render(commandList);
 		}
 
 		//reset back
@@ -725,8 +768,14 @@ void DXRSExampleGIScene::Update(DXRSTimer const& timer)
 
 	UpdateLights();
 
-	XMMATRIX local = mWorld * XMMatrixScaling(0.3f, 0.3f, 0.3f);
-	mDragonModel->UpdateWorldMatrix(local);
+	XMMATRIX local = mWorld * XMMatrixScaling(0.4f, 0.4f, 0.4f);
+	mDragonModel->UpdateWorldMatrix(local);	
+	
+	local = mWorld * XMMatrixTranslation(-20.0f, -1.0f, -18.0f) * XMMatrixScaling(0.45f, 0.45f, 0.45f);
+	mSphereModel_1->UpdateWorldMatrix(local);
+
+	local = mWorld * XMMatrixTranslation(-15.0f, -1.0f, -21.0f) * XMMatrixScaling(1.15f, 1.15f, 1.15f);
+	mSphereModel_2->UpdateWorldMatrix(local);
 
 	local = mWorld * XMMatrixScaling(8.0f, 8.0f, 8.0f) * XMMatrixRotationX(-3.14f / 2.0f);
 	mRoomModel->UpdateWorldMatrix(local);
@@ -751,7 +800,7 @@ void DXRSExampleGIScene::UpdateImGui()
 		ImGui::SliderFloat4("Light Color", mDirectionalLightColor, 0.0f, 1.0f);
 		ImGui::SliderFloat4("Light Direction", mDirectionalLightDir, -1.0f, 1.0f);
 		ImGui::SliderFloat("Light Intensity", &mDirectionalLightIntensity, 0.0f, 5.0f);
-		ImGui::SliderFloat("Orbit camera radius", &mCameraRadius, 5.0f, 75.0f);
+		ImGui::SliderFloat("Orbit camera radius", &mCameraRadius, 5.0f, 175.0f);
 		ImGui::End();
 	}
 }

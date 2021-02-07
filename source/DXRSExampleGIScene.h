@@ -47,6 +47,8 @@ private:
 	U_PTR<CommonStates>                                  mStates;
 
 	U_PTR<DXRSModel>                                     mDragonModel;
+	U_PTR<DXRSModel>                                     mSphereModel_1;
+	U_PTR<DXRSModel>                                     mSphereModel_2;
 	U_PTR<DXRSModel>                                     mRoomModel;
 
 	// Gbuffer
@@ -99,7 +101,7 @@ private:
 
 	// Directional light
 	float mDirectionalLightColor[4]{ 0.9, 0.9, 0.9, 1.0 };
-	float mDirectionalLightDir[4]{ 0.0, 0.0f, -1.0f, 1.0 };
+	float mDirectionalLightDir[4]{ 0.191, 1.0f, 0.574f, 1.0 };
 	float mDirectionalLightIntensity = 1.7f;
 
 	// Shadows
@@ -132,7 +134,7 @@ private:
 	DXRSBuffer* mCameraBuffer;
 	float mCameraTheta = -1.5f * XM_PI;
 	float mCameraPhi = XM_PI / 3;
-	float mCameraRadius = 65.0f;
+	float mCameraRadius = 45.0f;
 	Vector3 mCameraEye{ 0.0f, 0.0f, 0.0f };
 	XMMATRIX mCameraView;
 	XMMATRIX mCameraProjection;

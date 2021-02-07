@@ -1,1 +1,2 @@
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-Sandbox\bin\x64\Release\DXR-Sandbox.exe
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Release\DXR-Sandbox-GI.exe
