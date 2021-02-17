@@ -51,8 +51,9 @@ PSInput VSMain(VSInput input)
 Texture2D<float4> albedoBuffer : register(t0);
 Texture2D<float4> normalBuffer : register(t1);
 Texture2D<float4> worldPosBuffer : register(t2);
-Texture2D<float> depthBuffer : register(t3);
-Texture2D<float> shadowBuffer : register(t4);
+Texture2D<float4> rsmBuffer : register(t3);
+Texture2D<float> depthBuffer : register(t4);
+Texture2D<float> shadowBuffer : register(t5);
 
 float CalculateShadow(float3 ShadowCoord)
 {
@@ -85,6 +86,7 @@ PSOutput PSMain(PSInput input)
     float4 normal = normalBuffer[input.position.xy];
 	float4 albedo = albedoBuffer[input.position.xy];
 	float4 worldPos = worldPosBuffer[input.position.xy];
+    float4 rsm = rsmBuffer[input.position.xy];
     
     float4 lightSpacePos = mul(ShadowViewProjection, worldPos);
     float4 shadowcoord = lightSpacePos / lightSpacePos.w;
@@ -98,6 +100,6 @@ PSOutput PSMain(PSInput input)
     float lightIntensity = LightIntensity;
 	float NdotL = saturate(dot(normal.xyz, lightDir));
 
-    output.diffuse.rgb = (lightIntensity * NdotL * shadow) * lightColor * albedo.rgb;
+    output.diffuse.rgb = rsm.rgb + (lightIntensity * NdotL * shadow) * lightColor * albedo.rgb;
     return output;
 }

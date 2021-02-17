@@ -10,6 +10,8 @@
 #include "RootSignature.h"
 #include "PipelineStateObject.h"
 
+#define RSM_SAMPLES_COUNT 512
+
 class DXRSExampleGIScene
 {
 public:
@@ -23,6 +25,7 @@ public:
 
 private:
 	void Update(DXRSTimer const& timer);
+	void UpdateBuffers(DXRSTimer const& timer);
 	void Render();
 	void SetProjectionMatrix();
 	void UpdateLights();
@@ -49,6 +52,7 @@ private:
 	U_PTR<DXRSModel>                                     mDragonModel;
 	U_PTR<DXRSModel>                                     mSphereModel_1;
 	U_PTR<DXRSModel>                                     mSphereModel_2;
+	U_PTR<DXRSModel>                                     mBlockModel;
 	U_PTR<DXRSModel>                                     mRoomModel;
 
 	// Gbuffer
@@ -65,6 +69,30 @@ private:
 		XMMATRIX InvViewProjection;
 		XMFLOAT4 CameraPos;
 		XMFLOAT4 ScreenSize;
+		XMFLOAT4 LightColor;
+	};
+
+	// RSM
+	RootSignature                                        mRSMRS;
+	RootSignature                                        mRSMBuffersRS;
+	DXRSRenderTarget*			                         mRSMRT;
+	std::vector<DXRSRenderTarget*>                       mRSMBuffersRTs;
+	GraphicsPSO                                          mRSMPSO;
+	GraphicsPSO											 mRSMBuffersPSO;
+	DXRSBuffer* mRSMCB;
+	DXRSBuffer* mRSMCB2;
+
+	__declspec(align(16)) struct RSMCBData
+	{
+		XMMATRIX ShadowViewProjection;
+		float RSMIntensity;
+		float RSMRMax;
+		//int RSMSamplesCount;
+	};
+
+	__declspec(align(16)) struct RSMCBDataRandomValues
+	{
+		XMFLOAT4 xi[RSM_SAMPLES_COUNT];
 	};
 
 	// Composite
@@ -117,6 +145,8 @@ private:
 	__declspec(align(16)) struct ShadowMappingCBData
 	{
 		XMMATRIX LightViewProj;
+		XMFLOAT4 LightColor;
+		XMFLOAT4 LightDir;
 	};
 
 	// Camera
@@ -139,6 +169,10 @@ private:
 	XMMATRIX mCameraView;
 	XMMATRIX mCameraProjection;
 	XMFLOAT2 mLastMousePosition;
+
+	float mRSMIntensity = 0.146f;
+	float mRSMRMax = 0.015f;
+	bool mRSMEnabled = true;
 
 	XMMATRIX mWorld;
 };

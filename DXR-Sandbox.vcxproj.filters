@@ -221,5 +221,8 @@
     <FxCompile Include="content\shaders\ShadowMapping.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="content\shaders\RSM.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
