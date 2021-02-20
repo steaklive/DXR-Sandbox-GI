@@ -332,7 +332,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		//calculation
 		{
 			//RTs
-			mRSMRT = new DXRSRenderTarget(device, descriptorManager, 1920, 1080, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Indirect Illumination");
+			mRSMRT = new DXRSRenderTarget(device, descriptorManager, 1920 / 4, 1080 / 4, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Indirect Illumination");
 
 			//create root signature
 			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -525,8 +525,24 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		shadowSampler.BorderColor[2] = 1.0f;
 		shadowSampler.BorderColor[3] = 1.0f; 
 
-		mLightingRS.Reset(2, 1);
-		mLightingRS.InitStaticSampler(0, shadowSampler, D3D12_SHADER_VISIBILITY_PIXEL);
+		D3D12_SAMPLER_DESC bilinearSampler;
+		bilinearSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		bilinearSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		bilinearSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		bilinearSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		//bilinearSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_EQUAL;
+		bilinearSampler.MipLODBias = 0;
+		bilinearSampler.MaxAnisotropy = 16;
+		bilinearSampler.MinLOD = 0.0f;
+		bilinearSampler.MaxLOD = D3D12_FLOAT32_MAX;
+		bilinearSampler.BorderColor[0] = 0.0f;
+		bilinearSampler.BorderColor[1] = 0.0f;
+		bilinearSampler.BorderColor[2] = 0.0f;
+		bilinearSampler.BorderColor[3] = 0.0f;
+
+		mLightingRS.Reset(2, 2);
+		mLightingRS.InitStaticSampler(0, bilinearSampler, D3D12_SHADER_VISIBILITY_PIXEL);
+		mLightingRS.InitStaticSampler(1, shadowSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 		mLightingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
 		mLightingRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, D3D12_SHADER_VISIBILITY_PIXEL);
 		mLightingRS.Finalize(device, L"Lighting pass RS", rootSignatureFlags);
@@ -963,6 +979,11 @@ void DXRSExampleGIScene::Render()
 		}
 		// calculation
 		{
+			CD3DX12_VIEWPORT rsmResViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mRSMRT->GetWidth(), mRSMRT->GetHeight());
+			CD3DX12_RECT rsmRect = CD3DX12_RECT(0.0f, 0.0f, mRSMRT->GetWidth(), mRSMRT->GetHeight());
+			commandList->RSSetViewports(1, &rsmResViewport);
+			commandList->RSSetScissorRects(1, &rsmRect);
+
 			clearRSMRT();
 
 			DXRS::DescriptorHandle cbvHandleRSM = gpuDescriptorHeap->GetHandleBlock(2);
@@ -982,6 +1003,10 @@ void DXRSExampleGIScene::Render()
 			commandList->IASetVertexBuffers(0, 1, &mSandboxFramework->GetFullscreenQuadBufferView());
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 			commandList->DrawInstanced(4, 1, 0, 0);
+
+			//reset back
+			commandList->RSSetViewports(1, &viewport);
+			commandList->RSSetScissorRects(1, &rect);
 		}
 	}
 	else 
@@ -1110,7 +1135,7 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	rsmPassData.ShadowViewProjection = mLightViewProjection;
 	rsmPassData.RSMIntensity = mRSMIntensity;
 	rsmPassData.RSMRMax = mRSMRMax;
-	//rsmPassData.RSMSamplesCount = mRSMSamplesCount;
+	rsmPassData.UpsampleRatio = XMFLOAT2(mGbufferRTs[0]->GetWidth() / mRSMRT->GetWidth(), mGbufferRTs[0]->GetHeight() / mRSMRT->GetHeight());
 	memcpy(mRSMCB->Map(), &rsmPassData, sizeof(rsmPassData));
 }
 

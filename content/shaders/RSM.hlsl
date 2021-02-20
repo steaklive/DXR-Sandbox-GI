@@ -5,8 +5,8 @@ Texture2D<float4> worldPosLSBuffer : register(t0);   // light space
 Texture2D<float4> normalLSBuffer : register(t1);     // light space
 Texture2D<float4> fluxLSBuffer : register(t2);       // light space
 
-Texture2D<float4> worldPosWSBuffer : register(t3);
-Texture2D<float4> normalWSBuffer : register(t4);
+Texture2D<float4> worldPosWSBuffer : register(t3);   // world space
+Texture2D<float4> normalWSBuffer : register(t4);     // world space
 
 SamplerState RSMSampler : register(s0);
 
@@ -15,6 +15,7 @@ cbuffer RSMConstantBuffer : register(b0)
     float4x4 ShadowViewProjection;
     float RSMIntensity;
     float RSMRMax;
+    float2 UpsampleRatio;
 };
 cbuffer RSMConstantBuffer2 : register(b1)
 {
@@ -85,8 +86,8 @@ PSOutput PSMain(PSInput input)
 {
     PSOutput output = (PSOutput) 0;
     
-    float4 normalWS = normalWSBuffer[input.position.xy];
-    float4 worldPosWS = worldPosWSBuffer[input.position.xy];
+    float4 normalWS = normalWSBuffer[input.position.xy * UpsampleRatio];
+    float4 worldPosWS = worldPosWSBuffer[input.position.xy * UpsampleRatio];
     output.rsm = float4(CalculateRSM(worldPosWS.rgb, normalWS.rgb), 1.0f);
     
     return output;

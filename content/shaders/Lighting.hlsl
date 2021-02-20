@@ -1,6 +1,7 @@
 #define PI 3.14159265359f
 
-SamplerComparisonState PcfShadowMapSampler : register(s0);
+SamplerState BilinearSampler : register(s0);
+SamplerComparisonState PcfShadowMapSampler : register(s1);
 
 cbuffer LightingConstantBuffer : register(b0)
 {
@@ -81,12 +82,14 @@ float CalculateShadow(float3 ShadowCoord)
 PSOutput PSMain(PSInput input)
 {
 	PSOutput output = (PSOutput)0;
-
-	float depth = depthBuffer[input.position.xy].x;
-    float4 normal = normalBuffer[input.position.xy];
-	float4 albedo = albedoBuffer[input.position.xy];
-	float4 worldPos = worldPosBuffer[input.position.xy];
-    float4 rsm = rsmBuffer[input.position.xy];
+    float2 inPos = input.position.xy;    
+    float2 uv = inPos / float2(1920.0f, 1080.0f);
+    
+    float depth = depthBuffer[inPos].x;
+    float4 normal = normalBuffer[inPos];
+    float4 albedo = albedoBuffer[inPos];
+    float4 worldPos = worldPosBuffer[inPos];
+    float3 rsm = rsmBuffer.Sample(BilinearSampler, uv).rgb;
     
     float4 lightSpacePos = mul(ShadowViewProjection, worldPos);
     float4 shadowcoord = lightSpacePos / lightSpacePos.w;
@@ -99,6 +102,7 @@ PSOutput PSMain(PSInput input)
 	float3 lightColor = LightColor.xyz;
     float lightIntensity = LightIntensity;
 	float NdotL = saturate(dot(normal.xyz, lightDir));
+    
 
     output.diffuse.rgb = rsm.rgb + (lightIntensity * NdotL * shadow) * lightColor * albedo.rgb;
     return output;

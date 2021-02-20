@@ -87,7 +87,7 @@ private:
 		XMMATRIX ShadowViewProjection;
 		float RSMIntensity;
 		float RSMRMax;
-		//int RSMSamplesCount;
+		XMFLOAT2 UpsampleRatio;
 	};
 
 	__declspec(align(16)) struct RSMCBDataRandomValues
