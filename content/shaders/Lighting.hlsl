@@ -83,13 +83,16 @@ PSOutput PSMain(PSInput input)
 {
 	PSOutput output = (PSOutput)0;
     float2 inPos = input.position.xy;    
-    float2 uv = inPos / float2(1920.0f, 1080.0f);
     
     float depth = depthBuffer[inPos].x;
     float4 normal = normalBuffer[inPos];
     float4 albedo = albedoBuffer[inPos];
     float4 worldPos = worldPosBuffer[inPos];
-    float3 rsm = rsmBuffer.Sample(BilinearSampler, uv).rgb;
+    
+    uint gWidth = 0;
+    uint gHeight = 0;
+    albedoBuffer.GetDimensions(gWidth, gHeight);
+    float3 rsm = rsmBuffer.Sample(BilinearSampler, inPos * float2(1.0f / gWidth, 1.0f / gHeight)).rgb;
     
     float4 lightSpacePos = mul(ShadowViewProjection, worldPos);
     float4 shadowcoord = lightSpacePos / lightSpacePos.w;

@@ -75,12 +75,16 @@ private:
 	// RSM
 	RootSignature                                        mRSMRS;
 	RootSignature                                        mRSMBuffersRS;
+	RootSignature                                        mRSMUpsampleAndBlurRS;
 	DXRSRenderTarget*			                         mRSMRT;
 	std::vector<DXRSRenderTarget*>                       mRSMBuffersRTs;
+	DXRSRenderTarget*			                         mRSMUpsampleAndBlurRT;
 	GraphicsPSO                                          mRSMPSO;
 	GraphicsPSO											 mRSMBuffersPSO;
+	ComputePSO											 mRSMUpsampleAndBlurPSO;
 	DXRSBuffer* mRSMCB;
 	DXRSBuffer* mRSMCB2;
+	DXRSBuffer* mRSMUpsampleAndBlurCB;
 
 	__declspec(align(16)) struct RSMCBData
 	{
@@ -93,6 +97,14 @@ private:
 	__declspec(align(16)) struct RSMCBDataRandomValues
 	{
 		XMFLOAT4 xi[RSM_SAMPLES_COUNT];
+	};
+
+	__declspec(align(16)) struct RSMCBDataUpsampleAndBlur
+	{
+		XMMATRIX ShadowViewProjection;
+		float RSMIntensity;
+		float RSMRMax;
+		XMFLOAT2 UpsampleRatio;
 	};
 
 	// Composite
@@ -173,6 +185,7 @@ private:
 	float mRSMIntensity = 0.146f;
 	float mRSMRMax = 0.015f;
 	bool mRSMEnabled = true;
+	bool mRSMUseUpsampleAndBlur = true;
 
 	XMMATRIX mWorld;
 };

@@ -1,1 +1,2 @@
-﻿  DXRS.cpp
+﻿  DXRSExampleGIScene.cpp
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp : fatal error C1041: cannot open program database 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Release\vc142.pdb'; if multiple CL.EXE write to the same .PDB file, please use /FS

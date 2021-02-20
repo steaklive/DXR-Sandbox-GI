@@ -63,3 +63,15 @@ inline float RandomFloat(float a, float b) {
 	float r = random * diff;
 	return a + r;
 }
+
+template <typename T>
+inline T DivideByMultiple(T value, size_t alignment)
+{
+	return (T)((value + alignment - 1) / alignment);
+}
+
+template <typename T>
+inline bool IsPowerOfTwo(T value)
+{
+	return 0 == (value & (value - 1));
+}

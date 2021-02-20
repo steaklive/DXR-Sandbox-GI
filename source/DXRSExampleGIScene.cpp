@@ -169,6 +169,21 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	shadowrasterizer.ForcedSampleCount = 0;
 	shadowrasterizer.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
+	D3D12_SAMPLER_DESC bilinearSampler;
+	bilinearSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	bilinearSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	bilinearSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	bilinearSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	//bilinearSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	bilinearSampler.MipLODBias = 0;
+	bilinearSampler.MaxAnisotropy = 16;
+	bilinearSampler.MinLOD = 0.0f;
+	bilinearSampler.MaxLOD = D3D12_FLOAT32_MAX;
+	bilinearSampler.BorderColor[0] = 0.0f;
+	bilinearSampler.BorderColor[1] = 0.0f;
+	bilinearSampler.BorderColor[2] = 0.0f;
+	bilinearSampler.BorderColor[3] = 0.0f;
+
 #pragma endregion
 
 	// create resources for g-buffer pass 
@@ -429,6 +444,46 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 			}
 			memcpy(mRSMCB2->Map(), &rsmPassData2, sizeof(rsmPassData2));
 		}
+
+		//blur
+		{
+			//RTs
+			mRSMUpsampleAndBlurRT = new DXRSRenderTarget(device, descriptorManager, 1920, 1080, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Upsampled & Blurred");
+
+			//create root signature
+			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+				D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+				D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+			mRSMUpsampleAndBlurRS.Reset(2, 1);
+			mRSMUpsampleAndBlurRS.InitStaticSampler(0, bilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
+			mRSMUpsampleAndBlurRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+			mRSMUpsampleAndBlurRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+			mRSMUpsampleAndBlurRS.Finalize(device, L"RSM Blur pass RS", rootSignatureFlags);
+
+			ComPtr<ID3DBlob> computeShader;
+
+#if defined(_DEBUG)
+			// Enable better shader debugging with the graphics debugging tools.
+			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+			UINT compileFlags = 0;
+#endif
+			ID3DBlob* errorBlob = nullptr;
+
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\UpsampleBlurCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
+			if (errorBlob)
+			{
+				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				errorBlob->Release();
+			}
+
+			mRSMUpsampleAndBlurPSO.SetRootSignature(mRSMUpsampleAndBlurRS);
+			mRSMUpsampleAndBlurPSO.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
+			mRSMUpsampleAndBlurPSO.Finalize(device);
+		}
 	}
 
 	// create resources for shadow mapping
@@ -524,21 +579,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		shadowSampler.BorderColor[1] = 1.0f;
 		shadowSampler.BorderColor[2] = 1.0f;
 		shadowSampler.BorderColor[3] = 1.0f; 
-
-		D3D12_SAMPLER_DESC bilinearSampler;
-		bilinearSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-		bilinearSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		bilinearSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		bilinearSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		//bilinearSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_EQUAL;
-		bilinearSampler.MipLODBias = 0;
-		bilinearSampler.MaxAnisotropy = 16;
-		bilinearSampler.MinLOD = 0.0f;
-		bilinearSampler.MaxLOD = D3D12_FLOAT32_MAX;
-		bilinearSampler.BorderColor[0] = 0.0f;
-		bilinearSampler.BorderColor[1] = 0.0f;
-		bilinearSampler.BorderColor[2] = 0.0f;
-		bilinearSampler.BorderColor[3] = 0.0f;
 
 		mLightingRS.Reset(2, 2);
 		mLightingRS.InitStaticSampler(0, bilinearSampler, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -883,6 +923,7 @@ void DXRSExampleGIScene::Render()
 		commandList->SetGraphicsRootSignature(mRSMRS.GetSignature());
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesRSM[] = { mRSMRT->GetRTV().GetCPUHandle() };
+		D3D12_CPU_DESCRIPTOR_HANDLE uavHandlesRSM[] = { mRSMUpsampleAndBlurRT->GetUAV().GetCPUHandle() };
 
 		//transition buffers to rendertarget outputs
 		mSandboxFramework->ResourceBarriersBegin(mBarriers);
@@ -891,6 +932,10 @@ void DXRSExampleGIScene::Render()
 
 		commandList->OMSetRenderTargets(_countof(rtvHandlesRSM), rtvHandlesRSM, FALSE, nullptr);
 		commandList->ClearRenderTargetView(rtvHandlesRSM[0], clearColor, 0, nullptr);
+
+		//TODO fix null GPU Handle in UAV
+		//commandList->ClearUnorderedAccessViewFloat(mRSMUpsampleAndBlurRT->GetUAV().GetGPUHandle(), mRSMUpsampleAndBlurRT->GetUAV().GetCPUHandle(),
+		//	mRSMUpsampleAndBlurRT->GetResource(), clearColor, 0, nullptr);
 	};
 
 	if (mRSMEnabled) {
@@ -1008,6 +1053,26 @@ void DXRSExampleGIScene::Render()
 			commandList->RSSetViewports(1, &viewport);
 			commandList->RSSetScissorRects(1, &rect);
 		}
+		// upsample & blur
+		{
+			commandList->SetPipelineState(mRSMUpsampleAndBlurPSO.GetPipelineStateObject());
+			commandList->SetComputeRootSignature(mRSMUpsampleAndBlurRS.GetSignature());
+
+			mSandboxFramework->ResourceBarriersBegin(mBarriers);
+			mRSMUpsampleAndBlurRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+			
+			DXRS::DescriptorHandle srvHandleBlurRSM = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, srvHandleBlurRSM, mRSMRT->GetSRV());	
+
+			DXRS::DescriptorHandle uavHandleBlurRSM = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, uavHandleBlurRSM, mRSMUpsampleAndBlurRT->GetUAV());
+
+			commandList->SetComputeRootDescriptorTable(0, srvHandleBlurRSM.GetGPUHandle());
+			commandList->SetComputeRootDescriptorTable(1, uavHandleBlurRSM.GetGPUHandle());
+
+			commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mRSMUpsampleAndBlurRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mRSMUpsampleAndBlurRT->GetHeight()), 8u), 1u);
+		}
 	}
 	else 
 		clearRSMRT();
@@ -1033,7 +1098,15 @@ void DXRSExampleGIScene::Render()
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[0]->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[1]->GetSRV());		
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[2]->GetSRV());		
-		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mRSMRT->GetSRV());		
+		if (mRSMEnabled) {
+			if (mRSMUseUpsampleAndBlur) {
+				gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mRSMUpsampleAndBlurRT->GetSRV());
+			}
+			else
+				gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mRSMRT->GetSRV());
+		}
+		else 
+			gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mRSMRT->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mDepthStencil->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mShadowDepth->GetSRV());
 		commandList->SetGraphicsRootDescriptorTable(0, cbvHandleLighting.GetGPUHandle());
@@ -1165,6 +1238,7 @@ void DXRSExampleGIScene::UpdateImGui()
 				ImGui::Checkbox("Enabled", &mRSMEnabled);
 				ImGui::SliderFloat("RSM Intensity", &mRSMIntensity, 0.0f, 15.0f);
 				ImGui::SliderFloat("RSM Rmax", &mRSMRMax, 0.0f, 1.0f);
+				ImGui::Checkbox("Upsample and Blur", &mRSMUseUpsampleAndBlur);
 				//ImGui::SliderInt("RSM Samples Count", &mRSMSamplesCount, 1, 1000);
 			}
 		}
