@@ -84,7 +84,6 @@ private:
 	ComputePSO											 mRSMUpsampleAndBlurPSO;
 	DXRSBuffer* mRSMCB;
 	DXRSBuffer* mRSMCB2;
-	DXRSBuffer* mRSMUpsampleAndBlurCB;
 
 	__declspec(align(16)) struct RSMCBData
 	{
@@ -97,14 +96,6 @@ private:
 	__declspec(align(16)) struct RSMCBDataRandomValues
 	{
 		XMFLOAT4 xi[RSM_SAMPLES_COUNT];
-	};
-
-	__declspec(align(16)) struct RSMCBDataUpsampleAndBlur
-	{
-		XMMATRIX ShadowViewProjection;
-		float RSMIntensity;
-		float RSMRMax;
-		XMFLOAT2 UpsampleRatio;
 	};
 
 	// Composite
@@ -184,6 +175,7 @@ private:
 
 	float mRSMIntensity = 0.146f;
 	float mRSMRMax = 0.015f;
+	float mRSMRTRatio = 0.5f; // from max game's RT size
 	bool mRSMEnabled = true;
 	bool mRSMUseUpsampleAndBlur = true;
 

@@ -100,7 +100,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 	device->CreateShaderResourceView(nullptr, &srvDesc, mNullDescriptor.GetCPUHandle());
-	mDepthStencil = new DXRSDepthBuffer(device, descriptorManager, 1920, 1080, DXGI_FORMAT_D32_FLOAT);
+	mDepthStencil = new DXRSDepthBuffer(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_D32_FLOAT);
 
 	#pragma region States
 	D3D12_DEPTH_STENCIL_DESC depthStateRW;
@@ -202,13 +202,13 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		DXGI_FORMAT rtFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-		mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, 1920, 1080, rtFormat, flags, L"Albedo"));
+		mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Albedo"));
 
 		rtFormat = DXGI_FORMAT_R16G16B16A16_SNORM;
-		mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, 1920, 1080, rtFormat, flags, L"Normals"));
+		mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Normals"));
 		
 		rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, 1920, 1080, rtFormat, flags, L"World Positions"));
+		mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"World Positions"));
 
 		// root signature
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -347,7 +347,8 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		//calculation
 		{
 			//RTs
-			mRSMRT = new DXRSRenderTarget(device, descriptorManager, 1920 / 4, 1080 / 4, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Indirect Illumination");
+			mRSMRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH * mRSMRTRatio, MAX_SCREEN_HEIGHT * mRSMRTRatio,
+				DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Indirect Illumination");
 
 			//create root signature
 			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -448,7 +449,8 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		//blur
 		{
 			//RTs
-			mRSMUpsampleAndBlurRT = new DXRSRenderTarget(device, descriptorManager, 1920, 1080, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Upsampled & Blurred");
+			mRSMUpsampleAndBlurRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
+				DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Upsampled & Blurred UAV");
 
 			//create root signature
 			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -501,7 +503,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		mShadowMappingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 		mShadowMappingRS.Finalize(device, L"Shadow Mapping pass RS", rootSignatureFlags);
 
-		//Create Pipeline State Object
 		ComPtr<ID3DBlob> vertexShader;
 		//ComPtr<ID3DBlob> pixelShader;
 
@@ -556,7 +557,8 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	// create resources lighting pass
 	{
 		//RTs
-		mLightingRTs.push_back(new DXRSRenderTarget(device, descriptorManager, 1920, 1080, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Lighting"));
+		mLightingRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
+			DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Lighting"));
 
 		//create root signature
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =

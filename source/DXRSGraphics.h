@@ -21,6 +21,8 @@ using namespace Microsoft::WRL;
 #include <string>
 #include <filesystem>
 
+#define MAX_SCREEN_WIDTH 1920
+#define MAX_SCREEN_HEIGHT 1080
 
 namespace DXRS {
     class DescriptorHeapManager;

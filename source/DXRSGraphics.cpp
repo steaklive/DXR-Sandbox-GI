@@ -333,8 +333,7 @@ void DXRSGraphics::CreateWindowResources()
 
         D3D12_RESOURCE_DESC depthStencilDesc = CD3DX12_RESOURCE_DESC::Tex2D(
             mDepthBufferFormat,
-            1920,
-            1080,
+            MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
             1, // This depth stencil view has only one texture.
             1  // Use a single mipmap level.
         );
