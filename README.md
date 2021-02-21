@@ -1,5 +1,8 @@
 ![picture](screenshots/rsm.png)
 
+# Features
+- RSM
+
 # Additional dependencies
 - Assimp
 - DirectXTK12
