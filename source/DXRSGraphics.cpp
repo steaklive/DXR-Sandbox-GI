@@ -12,7 +12,7 @@ DXRSGraphics::DXRSGraphics(DXGI_FORMAT backBufferFormat, DXGI_FORMAT depthBuffer
     mDepthBufferFormat(depthBufferFormat),
     mBackBufferCount(backBufferCount),
     mD3DMinimumFeatureLevel(minFeatureLevel),
-    mD3DFeatureLevel(D3D_FEATURE_LEVEL_12_1),
+    mD3DFeatureLevel(D3D_FEATURE_LEVEL_11_0),
     mRTVDescriptorSize(0),
     mDXGIFactoryFlags(0),
     mAppWindow(nullptr),
