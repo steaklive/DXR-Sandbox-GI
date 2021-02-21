@@ -372,57 +372,91 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 			rsmSampler.BorderColor[2] = 0.0f;
 			rsmSampler.BorderColor[3] = 0.0f;
 
-			mRSMRS.Reset(2, 1);
-			mRSMRS.InitStaticSampler(0, rsmSampler, D3D12_SHADER_VISIBILITY_PIXEL);
-			mRSMRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
-			mRSMRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, D3D12_SHADER_VISIBILITY_PIXEL);
-			mRSMRS.Finalize(device, L"RSM pass RS", rootSignatureFlags);
-
-			//PSO
-			D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+			// pixel version
 			{
-				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-			};
+				mRSMRS.Reset(2, 1);
+				mRSMRS.InitStaticSampler(0, rsmSampler, D3D12_SHADER_VISIBILITY_PIXEL);
+				mRSMRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
+				mRSMRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, D3D12_SHADER_VISIBILITY_PIXEL);
+				mRSMRS.Finalize(device, L"RSM pixel shader pass RS", rootSignatureFlags);
 
-			ComPtr<ID3DBlob> vertexShader;
-			ComPtr<ID3DBlob> pixelShader;
+				//PSO
+				D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+				{
+					{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+					{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+				};
+
+				ComPtr<ID3DBlob> vertexShader;
+				ComPtr<ID3DBlob> pixelShader;
 
 #if defined(_DEBUG)
-			// Enable better shader debugging with the graphics debugging tools.
-			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+				// Enable better shader debugging with the graphics debugging tools.
+				UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
-			UINT compileFlags = 0;
+				UINT compileFlags = 0;
 #endif
-			ID3DBlob* errorBlob = nullptr;
+				ID3DBlob* errorBlob = nullptr;
 
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSM.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &errorBlob));
-			if (errorBlob)
-			{
-				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-				errorBlob->Release();
+				ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ReflectiveShadowMappingPS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &errorBlob));
+				if (errorBlob)
+				{
+					OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+					errorBlob->Release();
+				}
+
+				ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ReflectiveShadowMappingPS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, &errorBlob));
+				if (errorBlob)
+				{
+					OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+					errorBlob->Release();
+				}
+
+				DXGI_FORMAT m_rtFormats[1];
+				m_rtFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+				mRSMPSO.SetRootSignature(mRSMRS);
+				mRSMPSO.SetRasterizerState(rasterizer);
+				mRSMPSO.SetBlendState(blend);
+				mRSMPSO.SetDepthStencilState(depthStateDisabled);
+				mRSMPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
+				mRSMPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+				mRSMPSO.SetRenderTargetFormats(_countof(m_rtFormats), m_rtFormats, DXGI_FORMAT_D32_FLOAT);
+				mRSMPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+				mRSMPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+				mRSMPSO.Finalize(device);
 			}
 
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSM.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, &errorBlob));
-			if (errorBlob)
+			// compute version
 			{
-				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-				errorBlob->Release();
+				mRSMRS_Compute.Reset(3, 1);
+				mRSMRS_Compute.InitStaticSampler(0, rsmSampler, D3D12_SHADER_VISIBILITY_ALL);
+				mRSMRS_Compute[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
+				mRSMRS_Compute[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, D3D12_SHADER_VISIBILITY_ALL);
+				mRSMRS_Compute[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+				mRSMRS_Compute.Finalize(device, L"RSM compute shader pass RS", rootSignatureFlags);
+
+				ComPtr<ID3DBlob> computeShader;
+
+#if defined(_DEBUG)
+				// Enable better shader debugging with the graphics debugging tools.
+				UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+				UINT compileFlags = 0;
+#endif
+				ID3DBlob* errorBlob = nullptr;
+
+				ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ReflectiveShadowMappingCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
+				if (errorBlob)
+				{
+					OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+					errorBlob->Release();
+				}
+
+				mRSMPSO_Compute.SetRootSignature(mRSMRS_Compute);
+				mRSMPSO_Compute.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
+				mRSMPSO_Compute.Finalize(device);
 			}
-
-			DXGI_FORMAT m_rtFormats[1];
-			m_rtFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-			mRSMPSO.SetRootSignature(mRSMRS);
-			mRSMPSO.SetRasterizerState(rasterizer);
-			mRSMPSO.SetBlendState(blend);
-			mRSMPSO.SetDepthStencilState(depthStateDisabled);
-			mRSMPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
-			mRSMPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-			mRSMPSO.SetRenderTargetFormats(_countof(m_rtFormats), m_rtFormats, DXGI_FORMAT_D32_FLOAT);
-			mRSMPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
-			mRSMPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
-			mRSMPSO.Finalize(device);
 
 			//CB
 			DXRSBuffer::Description cbDesc;
@@ -450,7 +484,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		{
 			//RTs
 			mRSMUpsampleAndBlurRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
-				DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Upsampled & Blurred UAV");
+				DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Upsampled & Blurred");
 
 			//create root signature
 			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -1026,34 +1060,64 @@ void DXRSExampleGIScene::Render()
 		}
 		// calculation
 		{
-			CD3DX12_VIEWPORT rsmResViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mRSMRT->GetWidth(), mRSMRT->GetHeight());
-			CD3DX12_RECT rsmRect = CD3DX12_RECT(0.0f, 0.0f, mRSMRT->GetWidth(), mRSMRT->GetHeight());
-			commandList->RSSetViewports(1, &rsmResViewport);
-			commandList->RSSetScissorRects(1, &rsmRect);
+			if (!mRSMComputeVersion) {
+				CD3DX12_VIEWPORT rsmResViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mRSMRT->GetWidth(), mRSMRT->GetHeight());
+				CD3DX12_RECT rsmRect = CD3DX12_RECT(0.0f, 0.0f, mRSMRT->GetWidth(), mRSMRT->GetHeight());
+				commandList->RSSetViewports(1, &rsmResViewport);
+				commandList->RSSetScissorRects(1, &rsmRect);
 
-			clearRSMRT();
+				clearRSMRT();
 
-			DXRS::DescriptorHandle cbvHandleRSM = gpuDescriptorHeap->GetHandleBlock(2);
-			gpuDescriptorHeap->AddToHandle(device, cbvHandleRSM, mRSMCB->GetCBV());
-			gpuDescriptorHeap->AddToHandle(device, cbvHandleRSM, mRSMCB2->GetCBV());
+				DXRS::DescriptorHandle cbvHandleRSM = gpuDescriptorHeap->GetHandleBlock(2);
+				gpuDescriptorHeap->AddToHandle(device, cbvHandleRSM, mRSMCB->GetCBV());
+				gpuDescriptorHeap->AddToHandle(device, cbvHandleRSM, mRSMCB2->GetCBV());
 
-			DXRS::DescriptorHandle srvHandleRSM = gpuDescriptorHeap->GetHandleBlock(5);
-			gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[0]->GetSRV());
-			gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[1]->GetSRV());
-			gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[2]->GetSRV());
-			gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mGbufferRTs[2]->GetSRV());
-			gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mGbufferRTs[1]->GetSRV());
+				DXRS::DescriptorHandle srvHandleRSM = gpuDescriptorHeap->GetHandleBlock(5);
+				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[0]->GetSRV());
+				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[1]->GetSRV());
+				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[2]->GetSRV());
+				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mGbufferRTs[2]->GetSRV());
+				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mGbufferRTs[1]->GetSRV());
 
-			commandList->SetGraphicsRootDescriptorTable(0, cbvHandleRSM.GetGPUHandle());
-			commandList->SetGraphicsRootDescriptorTable(1, srvHandleRSM.GetGPUHandle());
+				commandList->SetGraphicsRootDescriptorTable(0, cbvHandleRSM.GetGPUHandle());
+				commandList->SetGraphicsRootDescriptorTable(1, srvHandleRSM.GetGPUHandle());
 
-			commandList->IASetVertexBuffers(0, 1, &mSandboxFramework->GetFullscreenQuadBufferView());
-			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-			commandList->DrawInstanced(4, 1, 0, 0);
+				commandList->IASetVertexBuffers(0, 1, &mSandboxFramework->GetFullscreenQuadBufferView());
+				commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+				commandList->DrawInstanced(4, 1, 0, 0);
 
-			//reset back
-			commandList->RSSetViewports(1, &viewport);
-			commandList->RSSetScissorRects(1, &rect);
+				//reset back
+				commandList->RSSetViewports(1, &viewport);
+				commandList->RSSetScissorRects(1, &rect);
+			}
+			else {
+				commandList->SetPipelineState(mRSMPSO_Compute.GetPipelineStateObject());
+				commandList->SetComputeRootSignature(mRSMRS_Compute.GetSignature());
+
+				//mSandboxFramework->ResourceBarriersBegin(mBarriers);
+				//mRSMRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				//mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+				DXRS::DescriptorHandle cbvHandleRSM = gpuDescriptorHeap->GetHandleBlock(2);
+				gpuDescriptorHeap->AddToHandle(device, cbvHandleRSM, mRSMCB->GetCBV());
+				gpuDescriptorHeap->AddToHandle(device, cbvHandleRSM, mRSMCB2->GetCBV());
+
+				DXRS::DescriptorHandle srvHandleRSM = gpuDescriptorHeap->GetHandleBlock(5);
+				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[0]->GetSRV());
+				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[1]->GetSRV());
+				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[2]->GetSRV());
+				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mGbufferRTs[2]->GetSRV());
+				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mGbufferRTs[1]->GetSRV());
+
+				DXRS::DescriptorHandle uavHandleRSM = gpuDescriptorHeap->GetHandleBlock(1);
+				gpuDescriptorHeap->AddToHandle(device, uavHandleRSM, mRSMRT->GetUAV());
+
+				commandList->SetComputeRootDescriptorTable(0, cbvHandleRSM.GetGPUHandle());
+				commandList->SetComputeRootDescriptorTable(1, srvHandleRSM.GetGPUHandle());
+				commandList->SetComputeRootDescriptorTable(2, uavHandleRSM.GetGPUHandle());
+
+				commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mRSMRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mRSMRT->GetHeight()), 8u), 1u);
+			}
 		}
 		// upsample & blur
 		{
@@ -1238,9 +1302,10 @@ void DXRSExampleGIScene::UpdateImGui()
 		{
 			if (ImGui::CollapsingHeader("Reflective Shadow Mapping")) {
 				ImGui::Checkbox("Enabled", &mRSMEnabled);
+				ImGui::Checkbox("Use CS version", &mRSMComputeVersion);
 				ImGui::SliderFloat("RSM Intensity", &mRSMIntensity, 0.0f, 15.0f);
 				ImGui::SliderFloat("RSM Rmax", &mRSMRMax, 0.0f, 1.0f);
-				ImGui::Checkbox("Upsample and Blur", &mRSMUseUpsampleAndBlur);
+				ImGui::Checkbox("Upsample and Blur CS", &mRSMUseUpsampleAndBlur);
 				//ImGui::SliderInt("RSM Samples Count", &mRSMSamplesCount, 1, 1000);
 			}
 		}

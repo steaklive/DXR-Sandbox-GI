@@ -13,6 +13,7 @@ public:
 	int GetWidth() { return mWidth; }
 	int GetHeight() { return mHeight; }
 	void TransitionTo(std::vector<CD3DX12_RESOURCE_BARRIER>& barriers, ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES stateAfter);
+	//void SetCurrentState(D3D12_RESOURCE_STATES state) { mCurrentResourceState = state; }
 
 	DXRS::DescriptorHandle& GetRTV()
 	{

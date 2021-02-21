@@ -74,12 +74,14 @@ private:
 
 	// RSM
 	RootSignature                                        mRSMRS;
+	RootSignature                                        mRSMRS_Compute;
 	RootSignature                                        mRSMBuffersRS;
 	RootSignature                                        mRSMUpsampleAndBlurRS;
 	DXRSRenderTarget*			                         mRSMRT;
 	std::vector<DXRSRenderTarget*>                       mRSMBuffersRTs;
 	DXRSRenderTarget*			                         mRSMUpsampleAndBlurRT;
 	GraphicsPSO                                          mRSMPSO;
+	ComputePSO                                           mRSMPSO_Compute;
 	GraphicsPSO											 mRSMBuffersPSO;
 	ComputePSO											 mRSMUpsampleAndBlurPSO;
 	DXRSBuffer* mRSMCB;
@@ -175,9 +177,10 @@ private:
 
 	float mRSMIntensity = 0.146f;
 	float mRSMRMax = 0.015f;
-	float mRSMRTRatio = 0.5f; // from max game's RT size
+	float mRSMRTRatio = 0.33333f; // from MAX_SCREEN_WIDTH/HEIGHT
 	bool mRSMEnabled = true;
 	bool mRSMUseUpsampleAndBlur = true;
+	bool mRSMComputeVersion = false;
 
 	XMMATRIX mWorld;
 };

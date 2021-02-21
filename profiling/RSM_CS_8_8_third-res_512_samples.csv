@@ -1,0 +1,83 @@
+E235  Dispatch Call 0 [Event: 235]
+DrawCallCount,0
+DispatchCallCount,1
+DispatchTotalThreads,0
+GPUAdapterName,NVIDIA GeForce RTX 2060
+fe__output_ops_type_bundle_cmd_go_idle.avg,4.000000
+fe__pixel_shader_barriers.sum,0.000000
+gr__cycles_idle.avg.pct_of_peak_sustained_elapsed,0.000000
+l1tex__lsu_writeback_active.avg.pct_of_peak_sustained_elapsed,0.007382
+l1tex__texin_cycles_stalled_on_tsl1_miss.avg.pct_of_peak_sustained_elapsed,0.057493
+l1tex__texin_requests.avg.pct_of_peak_sustained_elapsed,30.514566
+pda__input_prims.sum,0.000000
+pes__stream_output_attrs.avg.pct_of_peak_sustained_elapsed,0.000000
+prop__earlyz_killed_samples.sum,0.000000
+prop__earlyz_output_samples.sum,0.000000
+raster__zcull_input_samples.sum,0.000000
+raster__zcull_input_samples_op_rejected.sum,0.000000
+sm__cycles_active.avg,9365270.000000
+sm__cycles_active.min,9213470.000000
+sm__cycles_active.max,9583890.000000
+sm__cycles_active_shader_cs.avg.pct_of_peak_sustained_active,100.000275
+sm__cycles_active_shader_gs.avg.pct_of_peak_sustained_active,0.000000
+sm__cycles_active_shader_ps.avg.pct_of_peak_sustained_active,0.000000
+sm__cycles_active_shader_tcs.avg.pct_of_peak_sustained_active,0.000000
+sm__cycles_active_shader_tes.avg.pct_of_peak_sustained_active,0.000000
+sm__cycles_active_shader_vs.avg.pct_of_peak_sustained_active,0.000000
+sm__cycles_elapsed.avg,9680416.000000
+sm__issue_active.avg.pct_of_peak_sustained_active,17.434116
+sm__threads_launched_shader_cs.sum,230400.000000
+sm__threads_launched_shader_gs.sum,0.000000
+sm__threads_launched_shader_ps.sum,0.000000
+sm__threads_launched_shader_ps_killmask_off.sum,0.000000
+sm__threads_launched_shader_tcs.sum,0.000000
+sm__threads_launched_shader_tes.sum,0.000000
+sm__threads_launched_shader_vs.sum,0.000000
+sm__warps_active.avg.pct_of_peak_sustained_active,91.820824
+sm__warps_active.avg.per_cycle_active,29.382664
+smsp__inst_executed_shader_cs.sum,195909744.000000
+smsp__warps_issue_stalled_barrier.avg.pct_of_peak_sustained_active,0.000000
+smsp__warps_issue_stalled_dispatch_stall.avg.pct_of_peak_sustained_active,0.043469
+smsp__warps_issue_stalled_drain.avg.pct_of_peak_sustained_active,0.048304
+smsp__warps_issue_stalled_imc_miss.avg.pct_of_peak_sustained_active,0.024709
+smsp__warps_issue_stalled_lg_throttle.avg.pct_of_peak_sustained_active,0.000000
+smsp__warps_issue_stalled_long_scoreboard.avg.pct_of_peak_sustained_active,55.524437
+smsp__warps_issue_stalled_math_pipe_throttle.avg.pct_of_peak_sustained_active,0.112710
+smsp__warps_issue_stalled_membar.avg.pct_of_peak_sustained_active,0.000008
+smsp__warps_issue_stalled_mio_throttle.avg.pct_of_peak_sustained_active,0.010368
+smsp__warps_issue_stalled_misc.avg.pct_of_peak_sustained_active,0.044277
+smsp__warps_issue_stalled_no_instruction.avg.pct_of_peak_sustained_active,0.095998
+smsp__warps_issue_stalled_not_selected.avg.pct_of_peak_sustained_active,0.439889
+smsp__warps_issue_stalled_short_scoreboard.avg.pct_of_peak_sustained_active,3.592518
+smsp__warps_issue_stalled_sleeping.avg.pct_of_peak_sustained_active,0.000000
+smsp__warps_issue_stalled_tex_throttle.avg.pct_of_peak_sustained_active,28.016756
+smsp__warps_issue_stalled_wait.avg.pct_of_peak_sustained_active,3.734858
+smsp__warps_launched.sum,7200.000000
+vpc__input_prims.sum,0.000000
+vpc__output_prims.sum,0.000000
+crop__throughput.avg.pct_of_peak_sustained_elapsed,0.000130
+dram__read_throughput.avg.pct_of_peak_sustained_elapsed,16.391373
+dram__throughput.avg.pct_of_peak_sustained_elapsed,16.483707
+dram__write_throughput.avg.pct_of_peak_sustained_elapsed,0.092334
+fbpa__throughput.avg.pct_of_peak_sustained_elapsed,13.531960
+l1tex__throughput.avg.pct_of_peak_sustained_elapsed,70.618172
+lts__throughput.avg.pct_of_peak_sustained_elapsed,41.037750
+pda__throughput.avg.pct_of_peak_sustained_elapsed,0.000000
+pes__throughput.avg.pct_of_peak_sustained_elapsed,0.000000
+raster__throughput.avg.pct_of_peak_sustained_elapsed,0.000000
+sm__throughput.avg.pct_of_peak_sustained_elapsed,17.800869
+sm__throughput.avg.pct_of_peak_sustained_active,18.399878
+vaf__throughput.avg.pct_of_peak_sustained_elapsed,0.000000
+vpc__throughput.avg.pct_of_peak_sustained_elapsed,0.000227
+zrop__throughput.avg.pct_of_peak_sustained_elapsed,0.000076
+l1tex__t_sector_hit_rate.pct,79.251831
+lts__t_sector_hit_rate.pct,89.040771
+pda__prim_count_and_per_draw_call,0.0 / 0.0
+sm__fragment_count_and_per_draw_call,0.0 / 0.0
+sm__cs_thread_count_and_per_dispatch,230400.0 / 230400.0
+sm__cs_instructions_per_dispatch_and_thread,195909749.0 / 850.3
+sm__active_rate,96.744492
+sm__active_cycles_min_max_ratio,4.020418
+vram__throughput.avg.pct_of_peak_sustained_elapsed,16.483707
+gpu__sol_full_pipeline,TEX 70.6% | L2 41.0% | SM 17.8% | VRAM 16.5% | VPC 0.0%
+

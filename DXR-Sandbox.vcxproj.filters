@@ -221,10 +221,13 @@
     <FxCompile Include="content\shaders\ShadowMapping.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="content\shaders\RSM.hlsl">
+    <FxCompile Include="content\shaders\UpsampleBlurCS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="content\shaders\UpsampleBlurCS.hlsl">
+    <FxCompile Include="content\shaders\ReflectiveShadowMappingCS.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="content\shaders\ReflectiveShadowMappingPS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
   </ItemGroup>
