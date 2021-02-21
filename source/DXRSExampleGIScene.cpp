@@ -26,6 +26,8 @@ DXRSExampleGIScene::~DXRSExampleGIScene()
 	delete mShadowMappingCB;
 	delete mGbufferCB;
 	delete mCameraBuffer;
+	delete mRSMCB;
+	delete mRSMCB2;
 }
 
 void DXRSExampleGIScene::Init(HWND window, int width, int height)
