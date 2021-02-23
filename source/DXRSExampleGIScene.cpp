@@ -783,6 +783,7 @@ void DXRSExampleGIScene::Render()
 	commandList->RSSetScissorRects(1, &rect);
 
 	//gbuffer
+	PIXBeginEvent(commandList, 0, "GBuffer");
 	{
 		commandList->SetPipelineState(mGbufferPSO.GetPipelineStateObject());
 		commandList->SetGraphicsRootSignature(mGbufferRS.GetSignature());
@@ -873,8 +874,10 @@ void DXRSExampleGIScene::Render()
 		}
 
 	}
+	PIXEndEvent(commandList);
 
 	//shadows
+	PIXBeginEvent(commandList, 0, "Shadows");
 	{
 		CD3DX12_VIEWPORT shadowMapViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mShadowDepth->GetWidth(), mShadowDepth->GetHeight());
 		CD3DX12_RECT shadowRect = CD3DX12_RECT(0.0f, 0.0f, mShadowDepth->GetWidth(), mShadowDepth->GetHeight());
@@ -945,8 +948,10 @@ void DXRSExampleGIScene::Render()
 		commandList->RSSetViewports(1, &viewport);
 		commandList->RSSetScissorRects(1, &rect);
 	}
+	PIXEndEvent(commandList);
 
 	//copy depth-stencil to custom depth
+	PIXBeginEvent(commandList, 0, "Copy Depth-Stencil to texture");
 	{
 		D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(mSandboxFramework->GetDepthStencil(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		commandList->ResourceBarrier(1, &barrier);
@@ -954,6 +959,7 @@ void DXRSExampleGIScene::Render()
 		barrier = CD3DX12_RESOURCE_BARRIER::Transition(mSandboxFramework->GetDepthStencil(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		commandList->ResourceBarrier(1, &barrier);
 	}
+	PIXEndEvent(commandList);
 
 	//rsm
 	auto clearRSMRT = [this, commandList, clearColor]() {
@@ -978,6 +984,7 @@ void DXRSExampleGIScene::Render()
 
 	if (mRSMEnabled) {
 		// buffers generation (pos, normals, flux)
+		PIXBeginEvent(commandList, 0, "RSM buffers generation");
 		{
 			CD3DX12_VIEWPORT rsmBuffersViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mRSMBuffersRTs[0]->GetWidth(), mRSMBuffersRTs[0]->GetHeight());
 			CD3DX12_RECT rsmRect = CD3DX12_RECT(0.0f, 0.0f, mRSMBuffersRTs[0]->GetWidth(), mRSMBuffersRTs[0]->GetHeight());
@@ -1060,7 +1067,10 @@ void DXRSExampleGIScene::Render()
 			commandList->RSSetViewports(1, &viewport);
 			commandList->RSSetScissorRects(1, &rect);
 		}
+		PIXEndEvent(commandList);
+
 		// calculation
+		PIXBeginEvent(commandList, 0, "RSM main calculation");
 		{
 			if (!mRSMComputeVersion) {
 				CD3DX12_VIEWPORT rsmResViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mRSMRT->GetWidth(), mRSMRT->GetHeight());
@@ -1121,7 +1131,10 @@ void DXRSExampleGIScene::Render()
 				commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mRSMRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mRSMRT->GetHeight()), 8u), 1u);
 			}
 		}
+		PIXEndEvent(commandList);
+
 		// upsample & blur
+		PIXBeginEvent(commandList, 0, "RSM upsample & blur");
 		{
 			commandList->SetPipelineState(mRSMUpsampleAndBlurPSO.GetPipelineStateObject());
 			commandList->SetComputeRootSignature(mRSMUpsampleAndBlurRS.GetSignature());
@@ -1141,11 +1154,13 @@ void DXRSExampleGIScene::Render()
 
 			commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mRSMUpsampleAndBlurRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mRSMUpsampleAndBlurRT->GetHeight()), 8u), 1u);
 		}
+		PIXEndEvent(commandList);
 	}
 	else 
 		clearRSMRT();
 	
 	//lighting pass
+	PIXBeginEvent(commandList, 0, "Lighting");
 	{
 		commandList->SetPipelineState(mLightingPSO.GetPipelineStateObject());
 		commandList->SetGraphicsRootSignature(mLightingRS.GetSignature());
@@ -1184,8 +1199,10 @@ void DXRSExampleGIScene::Render()
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		commandList->DrawInstanced(4, 1, 0, 0);
 	}
+	PIXEndEvent(commandList);
 
 	// composite pass
+	PIXBeginEvent(commandList, 0, "Composite");
 	{
 		commandList->SetPipelineState(mCompositePSO.GetPipelineStateObject());
 		commandList->SetGraphicsRootSignature(mCompositeRS.GetSignature());
@@ -1209,8 +1226,10 @@ void DXRSExampleGIScene::Render()
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		commandList->DrawInstanced(4, 1, 0, 0);
 	}
+	PIXEndEvent(commandList);
 
 	//draw imgui 
+	PIXBeginEvent(commandList, 0, "ImGui");
 	{
 		ID3D12DescriptorHeap* ppHeaps[] = { mUIDescriptorHeap.Get() };
 		commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
@@ -1218,6 +1237,7 @@ void DXRSExampleGIScene::Render()
 		ImGui::Render();
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 	}
+	PIXEndEvent(commandList);
 
 	// Show the new frame.
 	mSandboxFramework->Present();
