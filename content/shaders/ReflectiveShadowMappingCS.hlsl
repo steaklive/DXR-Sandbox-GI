@@ -50,7 +50,7 @@ float3 CalculateRSM(float3 pos, float3 normal)
                 
         float3 vplPosDir = (pos - vplPosWS);
 
-        float3 res = flux * ((max(0.0, dot(vplNormalWS, vplPosDir)) * max(0.0, dot(normal, -vplPosDir))) / pow(length(vplPosDir), 4));
+        float3 res = flux * ((max(0.0, dot(vplNormalWS, vplPosDir)) * max(0.0, dot(normal, -vplPosDir))) / (dot(vplPosDir, vplPosDir) * dot(vplPosDir, vplPosDir)));
         res *= xi[i].x * xi[i].x;
         
         indirectIllumination += res;
