@@ -287,9 +287,9 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 			DXGI_FORMAT rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-			mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, 2048, 2048, rtFormat, flags, L"RSM World Pos"));
-			mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, 2048, 2048, rtFormat, flags, L"RSM Normals"));
-			mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, 2048, 2048, rtFormat, flags, L"RSM Flux"));
+			mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"RSM World Pos"));
+			mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"RSM Normals"));
+			mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"RSM Flux"));
 
 			// root signature
 			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -526,7 +526,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 
 	// create resources for shadow mapping
 	{
-		mShadowDepth = new DXRSDepthBuffer(device, descriptorManager, 2048, 2048, DXGI_FORMAT_D32_FLOAT);
+		mShadowDepth = new DXRSDepthBuffer(device, descriptorManager, SHADOWMAP_SIZE, SHADOWMAP_SIZE, DXGI_FORMAT_D32_FLOAT);
 
 		//create root signature
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -552,16 +552,13 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		ID3DBlob* errorBlob = nullptr;
 
 		HRESULT res = D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ShadowMapping.hlsl").c_str(), nullptr, nullptr, "VSOnlyMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob);
-		
+
 		//if (errorBlob) {
 		//	std::string resultMessasge;
 		//	resultMessasge.append((char*)errorBlob->GetBufferPointer());
 		//}
 
 		ThrowIfFailed(res);
-		compileFlags |= D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES;
-
-		//ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ShadiwMapping.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
 
 		// Define the vertex input layout.
 		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
@@ -590,6 +587,92 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		mShadowMappingCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Shadow Mapping CB");
 	}
 	
+	// create lpv
+	{
+		// injection
+		{
+
+			DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+			//red
+			mLPVSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_SIZE, LPV_SIZE, format, flags, L"Red SH LPV", LPV_SIZE));
+			mLPVSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_SIZE, LPV_SIZE, format, flags, L"Green SH LPV", LPV_SIZE));
+			mLPVSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_SIZE, LPV_SIZE, format, flags, L"Blue SH LPV", LPV_SIZE));
+
+			//create root signature
+			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+				D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT |
+				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
+
+			mLPVInjectionRS.Reset(2, 0);
+			mLPVInjectionRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+			mLPVInjectionRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
+			mLPVInjectionRS.Finalize(device, L"LPV Injection pass RS", rootSignatureFlags);
+
+			ComPtr<ID3DBlob> vertexShader;
+			ComPtr<ID3DBlob> geometryShader;
+			ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+			// Enable better shader debugging with the graphics debugging tools.
+			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+			UINT compileFlags = 0;
+#endif
+
+			ID3DBlob* errorBlob = nullptr;
+
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVInjection.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVInjection.hlsl").c_str(), nullptr, nullptr, "GSMain", "gs_5_1", compileFlags, 0, &geometryShader, &errorBlob));
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVInjection.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
+
+			DXGI_FORMAT formats[3];
+			formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+			mLPVInjectionPSO.SetRootSignature(mLPVInjectionRS);
+			mLPVInjectionPSO.SetRasterizerState(rasterizer);
+			mLPVInjectionPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
+			mLPVInjectionPSO.SetBlendState(blend);
+			mLPVInjectionPSO.SetDepthStencilState(depthStateDisabled);
+			mLPVInjectionPSO.SetInputLayout(0, nullptr);
+			mLPVInjectionPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
+			mLPVInjectionPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+			mLPVInjectionPSO.SetGeometryShader(geometryShader->GetBufferPointer(), geometryShader->GetBufferSize());
+			mLPVInjectionPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+			mLPVInjectionPSO.Finalize(device);
+
+			//CB
+			DXRSBuffer::Description cbDesc;
+			cbDesc.mElementSize = sizeof(LPVInjectionCBData);
+			cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+			cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+
+			mLPVInjectionCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"LPV Injection Pass CB");
+
+			LPVInjectionCBData data = {};
+
+			XMFLOAT3 lpv_max = { LPV_SIZE / 2,LPV_SIZE / 2,LPV_SIZE / 2 };
+			XMFLOAT3 lpv_min = { -LPV_SIZE / 2,-LPV_SIZE / 2,-LPV_SIZE / 2 };
+			XMVECTOR diag = DirectX::XMVectorSubtract(DirectX::XMLoadFloat3(&lpv_max), DirectX::XMLoadFloat3(&lpv_min));
+
+			XMFLOAT3 d;
+			XMStoreFloat3(&d, diag);
+			XMMATRIX scale = DirectX::XMMatrixScaling(1.f / d.x, 1.f / d.y, 1.f / d.z);
+			XMMATRIX trans = DirectX::XMMatrixTranslation(-lpv_min.x, -lpv_min.y, -lpv_min.z);
+
+			data.worldToLPV = trans * scale;
+			memcpy(mLPVInjectionCB->Map(), &data, sizeof(data));
+		}
+
+		// propagation
+		{}
+	}
+
 	// create resources lighting pass
 	{
 		//RTs
@@ -1159,6 +1242,57 @@ void DXRSExampleGIScene::Render()
 	else 
 		clearRSMRT();
 	
+	//lpv
+	if (mLPVEnabled) {
+		PIXBeginEvent(commandList, 0, "LPV Injection");
+		{
+			CD3DX12_VIEWPORT lpvBuffersViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, LPV_SIZE, LPV_SIZE);
+			CD3DX12_RECT lpvRect = CD3DX12_RECT(0.0f, 0.0f, LPV_SIZE, LPV_SIZE);
+			commandList->RSSetViewports(1, &lpvBuffersViewport);
+			commandList->RSSetScissorRects(1, &lpvRect);
+
+			commandList->SetPipelineState(mLPVInjectionPSO.GetPipelineStateObject());
+			commandList->SetGraphicsRootSignature(mLPVInjectionRS.GetSignature());
+
+			mSandboxFramework->ResourceBarriersBegin(mBarriers);
+			mLPVSHColorsRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mLPVSHColorsRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mLPVSHColorsRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+			D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesLPVInjection[] =
+			{
+				mLPVSHColorsRTs[0]->GetRTV().GetCPUHandle(),
+				mLPVSHColorsRTs[1]->GetRTV().GetCPUHandle(),
+				mLPVSHColorsRTs[2]->GetRTV().GetCPUHandle()
+			};
+
+			commandList->OMSetRenderTargets(_countof(rtvHandlesLPVInjection), rtvHandlesLPVInjection, FALSE, nullptr);
+			commandList->ClearRenderTargetView(rtvHandlesLPVInjection[0], clearColor, 0, nullptr);
+			commandList->ClearRenderTargetView(rtvHandlesLPVInjection[1], clearColor, 0, nullptr);
+			commandList->ClearRenderTargetView(rtvHandlesLPVInjection[2], clearColor, 0, nullptr);
+
+			DXRS::DescriptorHandle cbvHandleLPVInjection = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, cbvHandleLPVInjection, mLPVInjectionCB->GetCBV());
+
+			DXRS::DescriptorHandle srvHandleLPVInjection = gpuDescriptorHeap->GetHandleBlock(3);
+			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mRSMBuffersRTs[0]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mRSMBuffersRTs[1]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mRSMBuffersRTs[2]->GetSRV());
+
+			commandList->SetGraphicsRootDescriptorTable(0, cbvHandleLPVInjection.GetGPUHandle());
+			commandList->SetGraphicsRootDescriptorTable(1, srvHandleLPVInjection.GetGPUHandle());
+
+			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+			commandList->DrawInstanced(RSM_SIZE * RSM_SIZE, 1, 0, 0);
+
+			//reset back
+			commandList->RSSetViewports(1, &viewport);
+			commandList->RSSetScissorRects(1, &rect);
+		}
+		PIXEndEvent(commandList);
+	}
+
 	//lighting pass
 	PIXBeginEvent(commandList, 0, "Lighting");
 	{
@@ -1329,6 +1463,9 @@ void DXRSExampleGIScene::UpdateImGui()
 				ImGui::SliderFloat("RSM Rmax", &mRSMRMax, 0.0f, 1.0f);
 				ImGui::Checkbox("Upsample and Blur CS", &mRSMUseUpsampleAndBlur);
 				//ImGui::SliderInt("RSM Samples Count", &mRSMSamplesCount, 1, 1000);
+			}
+			if (ImGui::CollapsingHeader("Light Propagation Volume")) {
+				ImGui::Checkbox("Enabled", &mLPVEnabled);
 			}
 		}
 		ImGui::Separator();

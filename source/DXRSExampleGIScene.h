@@ -10,7 +10,10 @@
 #include "RootSignature.h"
 #include "PipelineStateObject.h"
 
+#define SHADOWMAP_SIZE 2048
+#define RSM_SIZE 2048
 #define RSM_SAMPLES_COUNT 512
+#define LPV_SIZE 128
 
 class DXRSExampleGIScene
 {
@@ -100,6 +103,20 @@ private:
 		XMFLOAT4 xi[RSM_SAMPLES_COUNT];
 	};
 
+	// LPV
+	RootSignature                                        mLPVInjectionRS;
+	RootSignature                                        mLPVPropagationRS;
+	GraphicsPSO											 mLPVInjectionPSO;
+	GraphicsPSO											 mLPVPropagationPSO;
+	std::vector<DXRSRenderTarget*>                       mLPVSHColorsRTs;
+	//ComPtr<ID3D12Resource>								 mEmptyLPVInjectionVertexBuffer;
+	//D3D12_VERTEX_BUFFER_VIEW							 mEmptyLPVInjectionVertexBufferView;
+	__declspec(align(16)) struct LPVInjectionCBData
+	{
+		XMMATRIX worldToLPV;
+	};
+	DXRSBuffer* mLPVInjectionCB;
+
 	// Composite
 	RootSignature mCompositeRS;
 	GraphicsPSO mCompositePSO;
@@ -181,6 +198,8 @@ private:
 	bool mRSMEnabled = true;
 	bool mRSMUseUpsampleAndBlur = true;
 	bool mRSMComputeVersion = false;
+
+	bool mLPVEnabled = false;
 
 	XMMATRIX mWorld;
 };

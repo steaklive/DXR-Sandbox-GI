@@ -230,6 +230,9 @@
     <FxCompile Include="content\shaders\ReflectiveShadowMappingPS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="content\shaders\LPVInjection.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
