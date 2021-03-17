@@ -145,6 +145,36 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	blend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
+	D3D12_BLEND_DESC blendLPVPropagation = {};
+	blendLPVPropagation.IndependentBlendEnable = TRUE;
+	blendLPVPropagation.RenderTarget[0].BlendEnable = FALSE;
+	blendLPVPropagation.RenderTarget[1].BlendEnable = FALSE;
+	blendLPVPropagation.RenderTarget[2].BlendEnable = FALSE;
+
+	blendLPVPropagation.RenderTarget[3].BlendEnable = TRUE;
+	blendLPVPropagation.RenderTarget[3].SrcBlend = D3D12_BLEND_ONE;
+	blendLPVPropagation.RenderTarget[3].DestBlend = D3D12_BLEND_ONE;
+	blendLPVPropagation.RenderTarget[3].BlendOp = D3D12_BLEND_OP_ADD;
+	blendLPVPropagation.RenderTarget[3].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	blendLPVPropagation.RenderTarget[3].SrcBlendAlpha = D3D12_BLEND_ONE;
+	blendLPVPropagation.RenderTarget[3].DestBlendAlpha = D3D12_BLEND_ONE;
+
+	blendLPVPropagation.RenderTarget[4].BlendEnable = TRUE;
+	blendLPVPropagation.RenderTarget[4].SrcBlend = D3D12_BLEND_ONE;
+	blendLPVPropagation.RenderTarget[4].DestBlend = D3D12_BLEND_ONE;
+	blendLPVPropagation.RenderTarget[4].BlendOp = D3D12_BLEND_OP_ADD;
+	blendLPVPropagation.RenderTarget[4].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	blendLPVPropagation.RenderTarget[4].SrcBlendAlpha = D3D12_BLEND_ONE;
+	blendLPVPropagation.RenderTarget[4].DestBlendAlpha = D3D12_BLEND_ONE;
+
+	blendLPVPropagation.RenderTarget[5].BlendEnable = TRUE;
+	blendLPVPropagation.RenderTarget[5].SrcBlend = D3D12_BLEND_ONE;
+	blendLPVPropagation.RenderTarget[5].DestBlend = D3D12_BLEND_ONE;
+	blendLPVPropagation.RenderTarget[5].BlendOp = D3D12_BLEND_OP_ADD;
+	blendLPVPropagation.RenderTarget[5].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	blendLPVPropagation.RenderTarget[5].SrcBlendAlpha = D3D12_BLEND_ONE;
+	blendLPVPropagation.RenderTarget[5].DestBlendAlpha = D3D12_BLEND_ONE;
+
 	D3D12_RASTERIZER_DESC rasterizer;
 	rasterizer.FillMode = D3D12_FILL_MODE_SOLID;
 	rasterizer.CullMode = D3D12_CULL_MODE_BACK;
@@ -591,7 +621,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	{
 		// injection
 		{
-
 			DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
@@ -670,7 +699,63 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		}
 
 		// propagation
-		{}
+		{
+			DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+			//red
+			mLPVAccumulationSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_SIZE, LPV_SIZE, format, flags, L"Accumulation Red SH LPV", LPV_SIZE));
+			mLPVAccumulationSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_SIZE, LPV_SIZE, format, flags, L"Accumulation Green SH LPV", LPV_SIZE));
+			mLPVAccumulationSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_SIZE, LPV_SIZE, format, flags, L"Accumulation Blue SH LPV", LPV_SIZE));
+
+			//create root signature
+			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+				D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT |
+				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
+
+			mLPVPropagationRS.Reset(1, 0);
+			mLPVPropagationRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
+			mLPVPropagationRS.Finalize(device, L"LPV Propagation pass RS", rootSignatureFlags);
+
+			ComPtr<ID3DBlob> vertexShader;
+			ComPtr<ID3DBlob> geometryShader;
+			ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+			// Enable better shader debugging with the graphics debugging tools.
+			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+			UINT compileFlags = 0;
+#endif
+
+			ID3DBlob* errorBlob = nullptr;
+
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVPropagation.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVPropagation.hlsl").c_str(), nullptr, nullptr, "GSMain", "gs_5_1", compileFlags, 0, &geometryShader, &errorBlob));
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVPropagation.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
+
+			DXGI_FORMAT formats[6];
+			formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			formats[3] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			formats[4] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			formats[5] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+			mLPVPropagationPSO.SetRootSignature(mLPVPropagationRS);
+			mLPVPropagationPSO.SetRasterizerState(rasterizer);
+			mLPVPropagationPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
+			mLPVPropagationPSO.SetBlendState(blend);
+			mLPVPropagationPSO.SetDepthStencilState(depthStateDisabled);
+			mLPVPropagationPSO.SetInputLayout(0, nullptr);
+			mLPVPropagationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+			mLPVPropagationPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+			mLPVPropagationPSO.SetGeometryShader(geometryShader->GetBufferPointer(), geometryShader->GetBufferSize());
+			mLPVPropagationPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+			mLPVPropagationPSO.Finalize(device);
+		}
 	}
 
 	// create resources lighting pass
@@ -701,11 +786,27 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		shadowSampler.BorderColor[2] = 1.0f;
 		shadowSampler.BorderColor[3] = 1.0f; 
 
-		mLightingRS.Reset(2, 2);
+		D3D12_SAMPLER_DESC lpvSampler;
+		lpvSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+		lpvSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		lpvSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		lpvSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		lpvSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		lpvSampler.MipLODBias = 0;
+		lpvSampler.MaxAnisotropy = 16;
+		lpvSampler.MinLOD = 0.0f;
+		lpvSampler.MaxLOD = D3D12_FLOAT32_MAX;
+		lpvSampler.BorderColor[0] = 0.0f;
+		lpvSampler.BorderColor[1] = 0.0f;
+		lpvSampler.BorderColor[2] = 0.0f;
+		lpvSampler.BorderColor[3] = 0.0f;
+
+		mLightingRS.Reset(2, 3);
 		mLightingRS.InitStaticSampler(0, bilinearSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 		mLightingRS.InitStaticSampler(1, shadowSampler, D3D12_SHADER_VISIBILITY_PIXEL);
-		mLightingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
-		mLightingRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, D3D12_SHADER_VISIBILITY_PIXEL);
+		mLightingRS.InitStaticSampler(2, lpvSampler, D3D12_SHADER_VISIBILITY_PIXEL);
+		mLightingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
+		mLightingRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 9, D3D12_SHADER_VISIBILITY_PIXEL);
 		mLightingRS.Finalize(device, L"Lighting pass RS", rootSignatureFlags);
 
 		//PSO
@@ -1291,6 +1392,59 @@ void DXRSExampleGIScene::Render()
 			commandList->RSSetScissorRects(1, &rect);
 		}
 		PIXEndEvent(commandList);
+
+		PIXBeginEvent(commandList, 0, "LPV Propagation");
+		{
+			CD3DX12_VIEWPORT lpvBuffersViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, LPV_SIZE, LPV_SIZE);
+			CD3DX12_RECT lpvRect = CD3DX12_RECT(0.0f, 0.0f, LPV_SIZE, LPV_SIZE);
+			commandList->RSSetViewports(1, &lpvBuffersViewport);
+			commandList->RSSetScissorRects(1, &lpvRect);
+
+			commandList->SetPipelineState(mLPVPropagationPSO.GetPipelineStateObject());
+			commandList->SetGraphicsRootSignature(mLPVPropagationRS.GetSignature());
+
+			mSandboxFramework->ResourceBarriersBegin(mBarriers);
+			mLPVSHColorsRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mLPVSHColorsRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mLPVSHColorsRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mLPVAccumulationSHColorsRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mLPVAccumulationSHColorsRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mLPVAccumulationSHColorsRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+			D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesLPVPropagation[] =
+			{
+				mLPVSHColorsRTs[0]->GetRTV().GetCPUHandle(),
+				mLPVSHColorsRTs[1]->GetRTV().GetCPUHandle(),
+				mLPVSHColorsRTs[2]->GetRTV().GetCPUHandle(),
+				mLPVAccumulationSHColorsRTs[0]->GetRTV().GetCPUHandle(),
+				mLPVAccumulationSHColorsRTs[1]->GetRTV().GetCPUHandle(),
+				mLPVAccumulationSHColorsRTs[2]->GetRTV().GetCPUHandle()
+			};
+
+			commandList->OMSetRenderTargets(_countof(rtvHandlesLPVPropagation), rtvHandlesLPVPropagation, FALSE, nullptr);
+			//commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[0], clearColor, 0, nullptr);
+			//commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[1], clearColor, 0, nullptr);
+			//commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[2], clearColor, 0, nullptr);
+			commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[3], clearColor, 0, nullptr);
+			commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[4], clearColor, 0, nullptr);
+			commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[5], clearColor, 0, nullptr);
+
+			DXRS::DescriptorHandle srvHandleLPVInjection = gpuDescriptorHeap->GetHandleBlock(3);
+			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mLPVSHColorsRTs[0]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mLPVSHColorsRTs[1]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mLPVSHColorsRTs[2]->GetSRV());
+
+			commandList->SetGraphicsRootDescriptorTable(0, srvHandleLPVInjection.GetGPUHandle());
+
+			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			commandList->DrawInstanced(3, LPV_SIZE, 0, 0);
+
+			//reset back
+			commandList->RSSetViewports(1, &viewport);
+			commandList->RSSetScissorRects(1, &rect);
+		}
+		PIXEndEvent(commandList);
 	}
 
 	//lighting pass
@@ -1307,11 +1461,12 @@ void DXRSExampleGIScene::Render()
 		commandList->OMSetRenderTargets(_countof(rtvHandlesLighting), rtvHandlesLighting, FALSE, nullptr);
 		commandList->ClearRenderTargetView(rtvHandlesLighting[0], clearColor, 0, nullptr);
 
-		DXRS::DescriptorHandle cbvHandleLighting = gpuDescriptorHeap->GetHandleBlock(2);
+		DXRS::DescriptorHandle cbvHandleLighting = gpuDescriptorHeap->GetHandleBlock(3);
 		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mLightingCB->GetCBV());
 		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mLightsInfoCB->GetCBV());
+		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mLPVInjectionCB->GetCBV());
 
-		DXRS::DescriptorHandle srvHandleLighting = gpuDescriptorHeap->GetHandleBlock(6);
+		DXRS::DescriptorHandle srvHandleLighting = gpuDescriptorHeap->GetHandleBlock(9);
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[0]->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[1]->GetSRV());		
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[2]->GetSRV());		
@@ -1326,6 +1481,10 @@ void DXRSExampleGIScene::Render()
 			gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mRSMRT->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mDepthStencil->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mShadowDepth->GetSRV());
+		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mLPVAccumulationSHColorsRTs[0]->GetSRV());
+		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mLPVAccumulationSHColorsRTs[1]->GetSRV());
+		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mLPVAccumulationSHColorsRTs[2]->GetSRV());
+
 		commandList->SetGraphicsRootDescriptorTable(0, cbvHandleLighting.GetGPUHandle());
 		commandList->SetGraphicsRootDescriptorTable(1, srvHandleLighting.GetGPUHandle());
 

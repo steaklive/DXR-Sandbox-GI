@@ -1,7 +1,9 @@
 #define PI 3.14159265359f
+#define LPV_DIM 128
 
 SamplerState BilinearSampler : register(s0);
 SamplerComparisonState PcfShadowMapSampler : register(s1);
+SamplerState samplerLPV : register(s2);
 
 cbuffer LightingConstantBuffer : register(b0)
 {
@@ -21,6 +23,11 @@ cbuffer LightsConstantBuffer : register(b1)
     float LightIntensity;
     float3 pad1;
 };
+
+cbuffer LPVConstantBuffer : register(b2)
+{
+    float4x4 worldToLPV;
+}
 
 struct VSInput
 {
@@ -56,6 +63,10 @@ Texture2D<float4> rsmBuffer : register(t3);
 Texture2D<float> depthBuffer : register(t4);
 Texture2D<float> shadowBuffer : register(t5);
 
+Texture3D<float4> redSH : register(t6);
+Texture3D<float4> greenSH : register(t7);
+Texture3D<float4> blueSH : register(t8);
+
 float CalculateShadow(float3 ShadowCoord)
 {
     const float Dilation = 2.0;
@@ -79,6 +90,14 @@ float CalculateShadow(float3 ShadowCoord)
     return result * result;
 }
 
+float4 SH_evaluate(float3 direction)
+{
+    const float band0Factor = 0.282094792f;
+    const float band1Factor = 0.488602512f;
+	
+    return float4(band0Factor, -band1Factor * direction.y, band1Factor * direction.z, -band1Factor * direction.x);
+}
+
 PSOutput PSMain(PSInput input)
 {
 	PSOutput output = (PSOutput)0;
@@ -89,11 +108,22 @@ PSOutput PSMain(PSInput input)
     float4 albedo = albedoBuffer[inPos];
     float4 worldPos = worldPosBuffer[inPos];
     
+    // RSM
     uint gWidth = 0;
     uint gHeight = 0;
     albedoBuffer.GetDimensions(gWidth, gHeight);
     float3 rsm = rsmBuffer.Sample(BilinearSampler, inPos * float2(1.0f / gWidth, 1.0f / gHeight)).rgb;
     
+    // LPV
+    float4 SHintensity = SH_evaluate(-normal.rgb);
+    float3 lpvCellCoords = mul(worldToLPV, float4(worldPos.rgb, 1.0f));
+    float4 lpvIntensity = 
+    float4(
+		dot(SHintensity,  redSH.Sample(samplerLPV, lpvCellCoords)),
+		dot(SHintensity,  greenSH.Sample(samplerLPV, lpvCellCoords)),
+		dot(SHintensity,  blueSH.Sample(samplerLPV, lpvCellCoords)),
+	1.0f);
+
     float4 lightSpacePos = mul(ShadowViewProjection, worldPos);
     float4 shadowcoord = lightSpacePos / lightSpacePos.w;
     shadowcoord.rg = shadowcoord.rg * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
@@ -107,6 +137,6 @@ PSOutput PSMain(PSInput input)
 	float NdotL = saturate(dot(normal.xyz, lightDir));
     
 
-    output.diffuse.rgb = rsm.rgb + (lightIntensity * NdotL * shadow) * lightColor * albedo.rgb;
+    output.diffuse.rgb = lpvIntensity.rgb;//    rsm.rgb + (lightIntensity * NdotL * shadow) * lightColor * albedo.rgb;
     return output;
 }

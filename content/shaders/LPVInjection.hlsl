@@ -66,9 +66,13 @@ GS_IN VSMain(VS_IN input)
 
     RSMTexel texel = GetRSMTexel(rsmCoords.xy);
 
-    float3 pos = texel.positionWS + texel.normalWS * 0.5f;
+    float3 pos = texel.positionWS;
     output.cellPos = mul(worldToLPV, float4(pos, 1.0f));
-    //float4(pos.xy / (LPV_DIM * 0.5f), pos.z, 0.0f);
+    output.cellPos.xyz += texel.normalWS * (0.5f / LPV_DIM);
+    output.cellPos.z *= LPV_DIM;
+    
+    //output.cellPos = float4(int3(pos + LPV_DIM + 0.5 * texel.normalWS), 1.0);
+    
     output.normal = texel.normalWS;
     output.flux = texel.flux;
     
@@ -79,9 +83,11 @@ GS_IN VSMain(VS_IN input)
 void GSMain(point GS_IN input[1], inout PointStream<PS_IN> OutputStream)
 {
     PS_IN output = (PS_IN)0;
-    output.layerID = int(input[0].cellPos.z);
+    output.layerID = floor(input[0].cellPos.z);
     
     output.screenPos = float4(input[0].cellPos.xy * 2.0f - 1.0f, 0.0f, 1.0f);
+    //output.screenPos = float4((float2(input[0].cellPos.xy) + 0.5) / LPV_DIM * 2.0f - 1.0f, 0.0f, 1.0f);
+    
     output.screenPos.y = -output.screenPos.y;
 
     output.normal = input[0].normal;

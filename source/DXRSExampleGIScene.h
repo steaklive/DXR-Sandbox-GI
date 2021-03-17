@@ -109,6 +109,7 @@ private:
 	GraphicsPSO											 mLPVInjectionPSO;
 	GraphicsPSO											 mLPVPropagationPSO;
 	std::vector<DXRSRenderTarget*>                       mLPVSHColorsRTs;
+	std::vector<DXRSRenderTarget*>                       mLPVAccumulationSHColorsRTs;
 	//ComPtr<ID3D12Resource>								 mEmptyLPVInjectionVertexBuffer;
 	//D3D12_VERTEX_BUFFER_VIEW							 mEmptyLPVInjectionVertexBufferView;
 	__declspec(align(16)) struct LPVInjectionCBData
@@ -199,7 +200,7 @@ private:
 	bool mRSMUseUpsampleAndBlur = true;
 	bool mRSMComputeVersion = false;
 
-	bool mLPVEnabled = false;
+	bool mLPVEnabled = true;
 
 	XMMATRIX mWorld;
 };
