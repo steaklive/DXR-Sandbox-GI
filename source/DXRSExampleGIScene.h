@@ -115,8 +115,10 @@ private:
 	__declspec(align(16)) struct LPVInjectionCBData
 	{
 		XMMATRIX worldToLPV;
+		float LPVCutoff;
+		float LPVPower;
 	};
-	DXRSBuffer* mLPVInjectionCB;
+	DXRSBuffer* mLPVCB;
 
 	// Composite
 	RootSignature mCompositeRS;
@@ -201,6 +203,10 @@ private:
 	bool mRSMComputeVersion = false;
 
 	bool mLPVEnabled = true;
+	int mLPVPropagationSteps = 1;
+	float mLPVCutoff = 0.2f;
+	float mLPVPower = 0.3f;
+	XMMATRIX mWorldToLPV;
 
 	XMMATRIX mWorld;
 };

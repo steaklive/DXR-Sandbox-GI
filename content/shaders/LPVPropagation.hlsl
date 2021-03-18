@@ -48,6 +48,7 @@ struct PS_OUT
     float4 acc_blueSH : SV_Target5;
 };
 
+//rendering a "quad" but with 3 vertices only
 VS_OUT VSMain(VS_IN input)
 {
     VS_OUT output = (VS_OUT) 0;
@@ -58,6 +59,7 @@ VS_OUT VSMain(VS_IN input)
         output.screenPos.xy = float2(3.0, 1.0);
     else
         output.screenPos.xy = float2(-1.0, -3.0);
+    
     output.screenPos.zw = float2(0.0, 1.0);
     output.depthIndex = input.depthIndex;
 
@@ -118,7 +120,7 @@ SHContribution GetSHGatheringContribution(int4 cellIndex)
     
     for (int neighbourCell = 0; neighbourCell < 6; neighbourCell++)
     {
-        int4 neighbourPos = cellIndex + int4(cellDirections[neighbourCell], 0); //TODO maybe "-"
+        int4 neighbourPos = cellIndex - int4(cellDirections[neighbourCell], 0);
         
         SHContribution neighbourContribution = (SHContribution) 0;
         neighbourContribution.red = redSH.Load(neighbourPos);
@@ -135,9 +137,6 @@ SHContribution GetSHGatheringContribution(int4 cellIndex)
         // contributions from side direction
         for (int face = 0; face < 4; face++)
         {
-            //float3 faceDir = cellDirections[face] * 0.5f - cellDirections[neighbourCell];
-            //float faceDirLength = length(faceDir);
-
             float3 evaluatedSideDir = getEvalSideDirection(face, cellDirections[face]);
             float3 reproSideDir = getReprojSideDirection(face, cellDirections[face]);
             
@@ -148,7 +147,6 @@ SHContribution GetSHGatheringContribution(int4 cellIndex)
             result.green += sideFaceSubtendedSolidAngle * dot(neighbourContribution.green, evalSideDirSH) * reproSideDirCosLobeSH;
             result.blue += sideFaceSubtendedSolidAngle * dot(neighbourContribution.blue, evalSideDirSH) * reproSideDirCosLobeSH;
         }
-
     }
     
     return result;
@@ -161,9 +159,18 @@ PS_OUT PSMain(GS_OUT input)
     int4 cellIndex = int4(input.screenPos.xy - 0.5f, input.depthIndex, 0);
     SHContribution resultContribution = GetSHGatheringContribution(cellIndex);
     
-    output.acc_redSH = output.redSH = resultContribution.red;
-    output.acc_greenSH = output.greenSH = resultContribution.green;
-    output.acc_blueSH = output.blueSH = resultContribution.blue;
+    SHContribution lpvSHContribution = (SHContribution) 0;
+    lpvSHContribution.red = redSH.Load(cellIndex);
+    lpvSHContribution.green = greenSH.Load(cellIndex);
+    lpvSHContribution.blue = blueSH.Load(cellIndex);
+    
+    output.redSH = resultContribution.red;
+    output.greenSH = resultContribution.green;
+    output.blueSH = resultContribution.blue;
+    
+    output.acc_redSH = resultContribution.red;
+    output.acc_greenSH = resultContribution.green;
+    output.acc_blueSH = resultContribution.blue;
     
     return output;
 }

@@ -15,9 +15,11 @@ Texture2D<float4> worldPosLSBuffer : register(t0); // light space
 Texture2D<float4> normalLSBuffer : register(t1); // light space
 Texture2D<float4> fluxLSBuffer : register(t2); // light space
 
-cbuffer InjectionConstantBuffer : register(b0)
+cbuffer LPVConstantBuffer : register(b0)
 {
     float4x4 worldToLPV;
+    float LPVCutoff;
+    float LPVPower;
 };
 
 struct VS_IN

@@ -27,6 +27,8 @@ cbuffer LightsConstantBuffer : register(b1)
 cbuffer LPVConstantBuffer : register(b2)
 {
     float4x4 worldToLPV;
+    float LPVCutoff;
+    float LPVPower;
 }
 
 struct VSInput
@@ -115,15 +117,18 @@ PSOutput PSMain(PSInput input)
     float3 rsm = rsmBuffer.Sample(BilinearSampler, inPos * float2(1.0f / gWidth, 1.0f / gHeight)).rgb;
     
     // LPV
+    float3 lpv = float3(0.0f, 0.0f, 0.0f);
     float4 SHintensity = SH_evaluate(-normal.rgb);
     float3 lpvCellCoords = mul(worldToLPV, float4(worldPos.rgb, 1.0f));
-    float4 lpvIntensity = 
+    float4 lpvIntensity =
     float4(
-		dot(SHintensity,  redSH.Sample(samplerLPV, lpvCellCoords)),
-		dot(SHintensity,  greenSH.Sample(samplerLPV, lpvCellCoords)),
-		dot(SHintensity,  blueSH.Sample(samplerLPV, lpvCellCoords)),
+		max(0.0f, dot(SHintensity, redSH.Sample(samplerLPV, lpvCellCoords))),
+		max(0.0f, dot(SHintensity, greenSH.Sample(samplerLPV, lpvCellCoords))),
+		max(0.0f, dot(SHintensity, blueSH.Sample(samplerLPV, lpvCellCoords))),
 	1.0f);
-
+    
+    lpv = min(lpvIntensity.rgb * LPVPower, float3(LPVCutoff, LPVCutoff, LPVCutoff)) * albedo.rgb;
+    
     float4 lightSpacePos = mul(ShadowViewProjection, worldPos);
     float4 shadowcoord = lightSpacePos / lightSpacePos.w;
     shadowcoord.rg = shadowcoord.rg * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
@@ -136,7 +141,6 @@ PSOutput PSMain(PSInput input)
     float lightIntensity = LightIntensity;
 	float NdotL = saturate(dot(normal.xyz, lightDir));
     
-
-    output.diffuse.rgb = lpvIntensity.rgb;//    rsm.rgb + (lightIntensity * NdotL * shadow) * lightColor * albedo.rgb;
+    output.diffuse.rgb = lpv.rgb + (lightIntensity * NdotL * shadow) * lightColor * albedo.rgb;
     return output;
 }
