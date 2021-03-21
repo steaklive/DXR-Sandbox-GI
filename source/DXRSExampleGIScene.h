@@ -13,7 +13,7 @@
 #define SHADOWMAP_SIZE 2048
 #define RSM_SIZE 2048
 #define RSM_SAMPLES_COUNT 512
-#define LPV_SIZE 128
+#define LPV_SIZE 32
 
 class DXRSExampleGIScene
 {
@@ -112,11 +112,12 @@ private:
 	std::vector<DXRSRenderTarget*>                       mLPVAccumulationSHColorsRTs;
 	//ComPtr<ID3D12Resource>								 mEmptyLPVInjectionVertexBuffer;
 	//D3D12_VERTEX_BUFFER_VIEW							 mEmptyLPVInjectionVertexBufferView;
-	__declspec(align(16)) struct LPVInjectionCBData
+	__declspec(align(16)) struct LPVCBData
 	{
 		XMMATRIX worldToLPV;
 		float LPVCutoff;
 		float LPVPower;
+		float LPVAttenuation;
 	};
 	DXRSBuffer* mLPVCB;
 
@@ -206,6 +207,7 @@ private:
 	int mLPVPropagationSteps = 1;
 	float mLPVCutoff = 0.2f;
 	float mLPVPower = 0.3f;
+	float mLPVAttenuation = 1.0f;
 	XMMATRIX mWorldToLPV;
 
 	XMMATRIX mWorld;

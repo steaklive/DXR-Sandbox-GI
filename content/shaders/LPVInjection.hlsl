@@ -1,4 +1,7 @@
-#define LPV_DIM 128
+#define LPV_DIM 32
+#define LPV_DIM_HALF 16
+#define LPV_DIM_INVERSE 0.03125f
+#define LPV_SCALE 0.25f
 
 #define PI 3.14159265359f
 #define SH_COSINE_LOBE_C0 0.886226925f // sqrt(pi)/2
@@ -20,6 +23,7 @@ cbuffer LPVConstantBuffer : register(b0)
     float4x4 worldToLPV;
     float LPVCutoff;
     float LPVPower;
+    float LPVAttenuation;
 };
 
 struct VS_IN
@@ -69,12 +73,7 @@ GS_IN VSMain(VS_IN input)
     RSMTexel texel = GetRSMTexel(rsmCoords.xy);
 
     float3 pos = texel.positionWS;
-    output.cellPos = mul(worldToLPV, float4(pos, 1.0f));
-    output.cellPos.xyz += texel.normalWS * (0.5f / LPV_DIM);
-    output.cellPos.z *= LPV_DIM;
-    
-    //output.cellPos = float4(int3(pos + LPV_DIM + 0.5 * texel.normalWS), 1.0);
-    
+    output.cellPos = float4(int3(pos * LPV_SCALE + float3(LPV_DIM_HALF, LPV_DIM_HALF, LPV_DIM_HALF) + 0.5f * texel.normalWS), 1.0f);
     output.normal = texel.normalWS;
     output.flux = texel.flux;
     
@@ -87,9 +86,7 @@ void GSMain(point GS_IN input[1], inout PointStream<PS_IN> OutputStream)
     PS_IN output = (PS_IN)0;
     output.layerID = floor(input[0].cellPos.z);
     
-    output.screenPos = float4(input[0].cellPos.xy * 2.0f - 1.0f, 0.0f, 1.0f);
-    //output.screenPos = float4((float2(input[0].cellPos.xy) + 0.5) / LPV_DIM * 2.0f - 1.0f, 0.0f, 1.0f);
-    
+    output.screenPos = float4((input[0].cellPos.xy + 0.5f) * LPV_DIM_INVERSE * 2.0f - 1.0f, 0.0f, 1.0f);
     output.screenPos.y = -output.screenPos.y;
 
     output.normal = input[0].normal;
@@ -102,7 +99,7 @@ PS_OUT PSMain(PS_IN input)
 {
     PS_OUT output = (PS_OUT) 0;
     
-    float4 SH_coef = float4(SH_COSINE_LOBE_C0, -SH_COSINE_LOBE_C1 * input.normal.y, SH_COSINE_LOBE_C1 * input.normal.z, -SH_COSINE_LOBE_C1 * input.normal.x);
+    float4 SH_coef = float4(SH_COSINE_LOBE_C0, -SH_COSINE_LOBE_C1 * input.normal.y, SH_COSINE_LOBE_C1 * input.normal.z, -SH_COSINE_LOBE_C1 * input.normal.x) / PI;
     output.redSH = SH_coef * input.flux.r;
     output.greenSH = SH_coef * input.flux.g;
     output.blueSH = SH_coef * input.flux.b;

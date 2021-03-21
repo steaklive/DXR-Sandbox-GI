@@ -1,5 +1,8 @@
 #define PI 3.14159265359f
-#define LPV_DIM 128
+#define LPV_DIM 32
+#define LPV_DIM_HALF 16
+#define LPV_DIM_INVERSE 0.03125f
+#define LPV_SCALE 0.25f
 
 SamplerState BilinearSampler : register(s0);
 SamplerComparisonState PcfShadowMapSampler : register(s1);
@@ -29,6 +32,7 @@ cbuffer LPVConstantBuffer : register(b2)
     float4x4 worldToLPV;
     float LPVCutoff;
     float LPVPower;
+    float LPVAttenuation;
 }
 
 struct VSInput
@@ -106,7 +110,7 @@ PSOutput PSMain(PSInput input)
     float2 inPos = input.position.xy;    
     
     float depth = depthBuffer[inPos].x;
-    float4 normal = normalBuffer[inPos];
+    float4 normal = normalize(normalBuffer[inPos]);
     float4 albedo = albedoBuffer[inPos];
     float4 worldPos = worldPosBuffer[inPos];
     
@@ -119,15 +123,15 @@ PSOutput PSMain(PSInput input)
     // LPV
     float3 lpv = float3(0.0f, 0.0f, 0.0f);
     float4 SHintensity = SH_evaluate(-normal.rgb);
-    float3 lpvCellCoords = mul(worldToLPV, float4(worldPos.rgb, 1.0f));
+    float3 lpvCellCoords = (worldPos.rgb * LPV_SCALE + float3(LPV_DIM_HALF, LPV_DIM_HALF, LPV_DIM_HALF)) * LPV_DIM_INVERSE;
     float4 lpvIntensity =
     float4(
 		max(0.0f, dot(SHintensity, redSH.Sample(samplerLPV, lpvCellCoords))),
 		max(0.0f, dot(SHintensity, greenSH.Sample(samplerLPV, lpvCellCoords))),
 		max(0.0f, dot(SHintensity, blueSH.Sample(samplerLPV, lpvCellCoords))),
-	1.0f);
+	1.0f) / PI;
     
-    lpv = min(lpvIntensity.rgb * LPVPower, float3(LPVCutoff, LPVCutoff, LPVCutoff)) * albedo.rgb;
+    lpv = LPVAttenuation * min(lpvIntensity.rgb * LPVPower, float3(LPVCutoff, LPVCutoff, LPVCutoff)) * albedo.rgb;
     
     float4 lightSpacePos = mul(ShadowViewProjection, worldPos);
     float4 shadowcoord = lightSpacePos / lightSpacePos.w;
