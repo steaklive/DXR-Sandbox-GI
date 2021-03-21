@@ -1,5 +1,4 @@
 #include "DescriptorHeap.h"
-#include "DXRSGraphics.h"
 
 namespace DXRS
 {

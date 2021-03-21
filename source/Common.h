@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <stdio.h>
 #include <iostream>
+#include <system_error>
 
 #include "Audio.h"
 #include "CommonStates.h"
@@ -54,7 +55,8 @@ inline void ThrowIfFailed(HRESULT hr)
 {
     if (FAILED(hr))
     {
-        throw std::exception();
+		std::string message = std::system_category().message(hr);
+		throw std::runtime_error(message.c_str());
     }
 }
 

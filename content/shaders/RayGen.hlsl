@@ -1,5 +1,17 @@
 #include "Common.hlsl"
 
+cbuffer LightParams : register(b1)
+{
+    float4 LightDirection;
+    float4 LightColor;
+    float LightIntensity;
+    float ShadowIntensity;
+    float2 pad;
+}
+
+// Raytracing output texture, accessed as a UAV
+RWTexture2D<float4> gOutput : register(u0);
+
 cbuffer CameraParams : register(b0)
 {
     float4x4 view;

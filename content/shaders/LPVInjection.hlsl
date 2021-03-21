@@ -1,11 +1,4 @@
-#define LPV_DIM 32
-#define LPV_DIM_HALF 16
-#define LPV_DIM_INVERSE 0.03125f
-#define LPV_SCALE 0.25f
-
-#define PI 3.14159265359f
-#define SH_COSINE_LOBE_C0 0.886226925f // sqrt(pi)/2
-#define SH_COSINE_LOBE_C1 1.02332671f // sqrt(pi/3)
+#include "Common.hlsl"
 
 struct RSMTexel
 {
@@ -99,7 +92,7 @@ PS_OUT PSMain(PS_IN input)
 {
     PS_OUT output = (PS_OUT) 0;
     
-    float4 SH_coef = float4(SH_COSINE_LOBE_C0, -SH_COSINE_LOBE_C1 * input.normal.y, SH_COSINE_LOBE_C1 * input.normal.z, -SH_COSINE_LOBE_C1 * input.normal.x) / PI;
+    float4 SH_coef = dirCosLobeToSH(input.normal) / PI;
     output.redSH = SH_coef * input.flux.r;
     output.greenSH = SH_coef * input.flux.g;
     output.blueSH = SH_coef * input.flux.b;

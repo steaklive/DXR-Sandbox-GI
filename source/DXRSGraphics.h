@@ -24,6 +24,8 @@ using namespace Microsoft::WRL;
 #define MAX_SCREEN_WIDTH 1920
 #define MAX_SCREEN_HEIGHT 1080
 
+#define D3D_COMPILE_STANDARD_FILE_INCLUDE ((ID3DInclude*)(UINT_PTR)1)
+
 namespace DXRS {
     class DescriptorHeapManager;
 }
@@ -133,4 +135,3 @@ private:
     std::filesystem::path               mCurrentPath;
     std::wstring ExecutableDirectory();
 };
-

@@ -1,8 +1,4 @@
-#define PI 3.14159265359f
-#define LPV_DIM 32
-#define LPV_DIM_HALF 16
-#define LPV_DIM_INVERSE 0.03125f
-#define LPV_SCALE 0.25f
+#include "Common.hlsl"
 
 SamplerState BilinearSampler : register(s0);
 SamplerComparisonState PcfShadowMapSampler : register(s1);

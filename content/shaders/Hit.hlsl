@@ -1,5 +1,13 @@
 #include "Common.hlsl"
 
+struct Vertex
+{
+    float3 position;
+    float3 normal;
+    float3 tangent;
+    float2 texcoord;
+};
+
 //RaytracingAccelerationStructure SceneBVH : register(t0);
 
 Texture2D<float4> GBufferNormals : register(t1);

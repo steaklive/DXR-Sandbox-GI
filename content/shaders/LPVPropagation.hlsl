@@ -1,10 +1,4 @@
-#define SH_COSINE_LOBE_C0 0.886226925f // sqrt(pi)/2
-#define SH_COSINE_LOBE_C1 1.02332671f // sqrt(pi/3)
-
-#define SH_c0 0.282094792f // 1 / 2sqrt(pi)
-#define SH_c1 0.488602512f // sqrt(3/pi) / 2
-
-#define PI 3.14159265359f
+#include "Common.hlsl"
 
 Texture3D<float4> redSH : register(t0);
 Texture3D<float4> greenSH : register(t1);
@@ -88,16 +82,6 @@ static const float2 cellsides[4] = { float2(1.0, 0.0), float2(0.0, 1.0), float2(
 static const float directFaceSubtendedSolidAngle = 0.4006696846f / PI;
 static const float sideFaceSubtendedSolidAngle = 0.4234413544f / PI;
 
-float4 dirToSH(float3 direction)
-{
-    return float4(SH_c0, -SH_c1 * direction.y, SH_c1 * direction.z, -SH_c1 * direction.x);
-}
-
-float4 dirCosLobeToSH(float3 direction)
-{
-    return float4(SH_COSINE_LOBE_C0, -SH_COSINE_LOBE_C1 * direction.y, SH_COSINE_LOBE_C1 * direction.z, -SH_COSINE_LOBE_C1 * direction.x);
-}
-
 float3 getEvalSideDirection(int index, int3 orientation)
 {
     const float smallComponent = 0.4472135; // 1 / sqrt(5)
@@ -127,7 +111,7 @@ SHContribution GetSHGatheringContribution(int4 cellIndex)
         neighbourContribution.green = greenSH.Load(neighbourPos);
         neighbourContribution.blue = blueSH.Load(neighbourPos);
         
-        // add contribution from main Direction
+        // add contribution from main direction
         float4 directionCosLobeSH = dirCosLobeToSH(cellDirections[neighbourCell]);
         float4 directionSH = dirToSH(cellDirections[neighbourCell]);
         result.red += directFaceSubtendedSolidAngle * dot(neighbourContribution.red, directionSH) * directionCosLobeSH;

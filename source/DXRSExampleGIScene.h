@@ -36,6 +36,7 @@ private:
 	void UpdateCamera();
 	void UpdateShadow();
 	void UpdateImGui();
+	void ThrowFailedErrorBlob(ID3DBlob* blob);
 
 	DXRSGraphics* mSandboxFramework;
 

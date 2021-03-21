@@ -1,8 +1,8 @@
 // This code is borrowed from FeaxRenderer https://github.com/KostasAAA/FeaxRenderer
 
 #pragma once
-#include "Common.h"
-#include "DXRSGraphics.h"
+
+#include "DXRSGraphics.h";
 
 namespace DXRS
 {

@@ -1,4 +1,5 @@
-#define PI 3.14159265359f
+#include "Common.hlsl"
+
 #define RSM_SAMPLES_COUNT 512
 
 Texture2D<float4> worldPosLSBuffer : register(t0);   // light space
