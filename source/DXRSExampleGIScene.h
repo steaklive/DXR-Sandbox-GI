@@ -13,7 +13,7 @@
 #define SHADOWMAP_SIZE 2048
 #define RSM_SIZE 2048
 #define RSM_SAMPLES_COUNT 512
-#define LPV_SIZE 32
+#define LPV_DIM 32
 
 class DXRSExampleGIScene
 {
@@ -87,9 +87,15 @@ private:
 	GraphicsPSO                                          mRSMPSO;
 	ComputePSO                                           mRSMPSO_Compute;
 	GraphicsPSO											 mRSMBuffersPSO;
+	GraphicsPSO											 mRSMDownsamplePSO;
 	ComputePSO											 mRSMUpsampleAndBlurPSO;
 	DXRSBuffer* mRSMCB;
 	DXRSBuffer* mRSMCB2;
+	
+	//used for LPV
+	RootSignature                                        mRSMDownsampleRS;
+	std::vector<DXRSRenderTarget*>                       mRSMDownsampledBuffersRTs;
+	DXRSBuffer* mRSMDownsampleCB;
 
 	__declspec(align(16)) struct RSMCBData
 	{
@@ -102,6 +108,12 @@ private:
 	__declspec(align(16)) struct RSMCBDataRandomValues
 	{
 		XMFLOAT4 xi[RSM_SAMPLES_COUNT];
+	};
+
+	__declspec(align(16)) struct RSMCBDataDownsample
+	{
+		XMFLOAT4 LightDir;
+		int ScaleSize;
 	};
 
 	// LPV
@@ -203,11 +215,13 @@ private:
 	bool mRSMEnabled = true;
 	bool mRSMUseUpsampleAndBlur = true;
 	bool mRSMComputeVersion = false;
+	UINT mRSMDownsampleScaleSize = 4;
+	bool mRSMDownsampleForLPV = false;
 
 	bool mLPVEnabled = true;
-	int mLPVPropagationSteps = 1;
+	int mLPVPropagationSteps = 50;
 	float mLPVCutoff = 0.2f;
-	float mLPVPower = 0.3f;
+	float mLPVPower = 1.8f;
 	float mLPVAttenuation = 1.0f;
 	XMMATRIX mWorldToLPV;
 
