@@ -1,4 +1,4 @@
-![picture](screenshots/rsm.png)
+![picture](screenshots/lpv.png)
 
 # Features
 - RSM
