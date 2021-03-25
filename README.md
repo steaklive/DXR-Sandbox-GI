@@ -1,8 +1,11 @@
+# About
+Simple toy C++/DX12 framework as a part of my bachelor thesis on real-time global illumination
+
 ![picture](screenshots/lpv.png)
 
 # Features
-- RSM
-- LPV
+- Reflective Shadow Mapping
+- Light Propagation Volumes
 
 # Additional dependencies
 - Assimp
