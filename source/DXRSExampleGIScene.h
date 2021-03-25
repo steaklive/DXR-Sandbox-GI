@@ -147,6 +147,7 @@ private:
 	GraphicsPSO mLightingPSO;
 	DXRSBuffer* mLightingCB;
 	DXRSBuffer* mLightsInfoCB;
+	DXRSBuffer* mIlluminationFlagsCB;
 
 	__declspec(align(16)) struct LightingCBData
 	{
@@ -166,10 +167,23 @@ private:
 		XMFLOAT3 pad;
 	};
 
+	__declspec(align(16)) struct IlluminationFlagsCBData
+	{
+		int useDirect;
+		int useShadows;
+		int useRSM;
+		int useLPV;
+	};
+
 	// Directional light
 	float mDirectionalLightColor[4]{ 0.9, 0.9, 0.9, 1.0 };
 	float mDirectionalLightDir[4]{ 0.191, 1.0f, 0.574f, 1.0 };
 	float mDirectionalLightIntensity = 1.7f;
+
+	bool mUseDirectLight = true;
+	bool mUseShadows = true;
+	bool mUseRSM = false;
+	bool mUseLPV = false;
 
 	// Shadows
 	GraphicsPSO mShadowMappingPSO;

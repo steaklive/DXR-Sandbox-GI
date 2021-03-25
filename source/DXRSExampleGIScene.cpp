@@ -580,8 +580,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 			// Define the vertex input layout.
 			D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
 			{
-				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 			};
 
 			// Describe and create the graphics pipeline state object (PSO).
@@ -862,7 +861,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		mLightingRS.InitStaticSampler(0, bilinearSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 		mLightingRS.InitStaticSampler(1, shadowSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 		mLightingRS.InitStaticSampler(2, lpvSampler, D3D12_SHADER_VISIBILITY_PIXEL);
-		mLightingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
+		mLightingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 4, D3D12_SHADER_VISIBILITY_ALL);
 		mLightingRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 9, D3D12_SHADER_VISIBILITY_PIXEL);
 		mLightingRS.Finalize(device, L"Lighting pass RS", rootSignatureFlags);
 
@@ -922,6 +921,9 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 
 		cbDesc.mElementSize = sizeof(LightsInfoCBData);
 		mLightsInfoCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Lights Info CB");
+
+		cbDesc.mElementSize = sizeof(IlluminationFlagsCBData);
+		mIlluminationFlagsCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Illumination Flags CB");
 	}
 
 	// create resources composite pass
@@ -1312,7 +1314,7 @@ void DXRSExampleGIScene::Render()
 		PIXEndEvent(commandList);
 
 		// calculation
-		if (!mLPVEnabled) {
+		if (mUseRSM) {
 			PIXBeginEvent(commandList, 0, "RSM main calculation");
 			{
 				if (!mRSMComputeVersion) {
@@ -1456,7 +1458,7 @@ void DXRSExampleGIScene::Render()
 		clearRSMRT();
 	
 	//lpv
-	if (mLPVEnabled) {
+	if (mLPVEnabled && mUseLPV) {
 		PIXBeginEvent(commandList, 0, "LPV Injection");
 		{
 			CD3DX12_VIEWPORT lpvBuffersViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, LPV_DIM, LPV_DIM);
@@ -1580,10 +1582,11 @@ void DXRSExampleGIScene::Render()
 		commandList->OMSetRenderTargets(_countof(rtvHandlesLighting), rtvHandlesLighting, FALSE, nullptr);
 		commandList->ClearRenderTargetView(rtvHandlesLighting[0], clearColorBlack, 0, nullptr);
 
-		DXRS::DescriptorHandle cbvHandleLighting = gpuDescriptorHeap->GetHandleBlock(3);
+		DXRS::DescriptorHandle cbvHandleLighting = gpuDescriptorHeap->GetHandleBlock(4);
 		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mLightingCB->GetCBV());
 		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mLightsInfoCB->GetCBV());
 		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mLPVCB->GetCBV());
+		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mIlluminationFlagsCB->GetCBV());
 
 		DXRS::DescriptorHandle srvHandleLighting = gpuDescriptorHeap->GetHandleBlock(9);
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[0]->GetSRV());
@@ -1706,6 +1709,13 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	lightPassData.ScreenSize = { width, height, 1.0f / width, 1.0f / height };
 	memcpy(mLightingCB->Map(), &lightPassData, sizeof(lightPassData));
 
+	IlluminationFlagsCBData illumData = {};
+	illumData.useDirect = mUseDirectLight ? 1 : 0;
+	illumData.useShadows = mUseShadows ? 1 : 0;
+	illumData.useRSM = mUseRSM ? 1 : 0;
+	illumData.useLPV = mUseLPV ? 1 : 0;
+	memcpy(mIlluminationFlagsCB->Map(), &illumData, sizeof(illumData));
+
 	RSMCBData rsmPassData = {};
 	rsmPassData.ShadowViewProjection = mLightViewProjection;
 	rsmPassData.RSMIntensity = mRSMIntensity;
@@ -1743,7 +1753,10 @@ void DXRSExampleGIScene::UpdateImGui()
 		ImGui::SliderFloat4("Light Color", mDirectionalLightColor, 0.0f, 1.0f);
 		ImGui::SliderFloat4("Light Direction", mDirectionalLightDir, -1.0f, 1.0f);
 		ImGui::SliderFloat("Light Intensity", &mDirectionalLightIntensity, 0.0f, 5.0f);
-		ImGui::SliderFloat("Orbit camera radius", &mCameraRadius, 5.0f, 175.0f);
+		ImGui::Checkbox("Use Direct Light", &mUseDirectLight);
+		ImGui::Checkbox("Use Direct Shadows", &mUseShadows);
+		ImGui::Checkbox("Use RSM (Indirect Light)", &mUseRSM);
+		ImGui::Checkbox("Use LPV (Indirect Light)", &mUseLPV);
 
 		ImGui::Separator();
 		if (ImGui::CollapsingHeader("Global Illumination Config"))
@@ -1767,6 +1780,7 @@ void DXRSExampleGIScene::UpdateImGui()
 			}
 		}
 		ImGui::Separator();
+		ImGui::SliderFloat("Orbit camera radius", &mCameraRadius, 5.0f, 175.0f);
 
 		ImGui::End();
 	}

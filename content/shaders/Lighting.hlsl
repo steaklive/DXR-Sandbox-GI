@@ -31,6 +31,14 @@ cbuffer LPVConstantBuffer : register(b2)
     float LPVAttenuation;
 }
 
+cbuffer IlluminationFlagsBuffer : register(b3)
+{
+    int useDirect;
+    int useShadows;
+    int useRSM;
+    int useLPV;
+}
+
 struct VSInput
 {
 	float4 position : POSITION;
@@ -92,14 +100,6 @@ float CalculateShadow(float3 ShadowCoord)
     return result * result;
 }
 
-float4 SH_evaluate(float3 direction)
-{
-    const float band0Factor = 0.282094792f;
-    const float band1Factor = 0.488602512f;
-	
-    return float4(band0Factor, -band1Factor * direction.y, band1Factor * direction.z, -band1Factor * direction.x);
-}
-
 PSOutput PSMain(PSInput input)
 {
 	PSOutput output = (PSOutput)0;
@@ -110,37 +110,60 @@ PSOutput PSMain(PSInput input)
     float4 albedo = albedoBuffer[inPos];
     float4 worldPos = worldPosBuffer[inPos];
     
+    float3 indirectLighting = float3(0.0f, 0.0f, 0.0f);
+    float3 directLighting = float3(0.0f, 0.0f, 0.0f);
+    
     // RSM
-    uint gWidth = 0;
-    uint gHeight = 0;
-    albedoBuffer.GetDimensions(gWidth, gHeight);
-    float3 rsm = rsmBuffer.Sample(BilinearSampler, inPos * float2(1.0f / gWidth, 1.0f / gHeight)).rgb;
+    if (useRSM)
+    {
+        uint gWidth = 0;
+        uint gHeight = 0;
+        albedoBuffer.GetDimensions(gWidth, gHeight);
+        float3 rsm = rsmBuffer.Sample(BilinearSampler, inPos * float2(1.0f / gWidth, 1.0f / gHeight)).rgb;
+        
+        indirectLighting += rsm;
+    }
     
     // LPV
-    float3 lpv = float3(0.0f, 0.0f, 0.0f);
-    float4 SHintensity = SH_evaluate(-normal.rgb);
-    float3 lpvCellCoords = (worldPos.rgb * LPV_SCALE + float3(LPV_DIM_HALF, LPV_DIM_HALF, LPV_DIM_HALF)) * LPV_DIM_INVERSE;
-    float4 lpvIntensity =
-    float4(
-		max(0.0f, dot(SHintensity, redSH.Sample(samplerLPV, lpvCellCoords))),
-		max(0.0f, dot(SHintensity, greenSH.Sample(samplerLPV, lpvCellCoords))),
-		max(0.0f, dot(SHintensity, blueSH.Sample(samplerLPV, lpvCellCoords))),
-	1.0f) / PI;
+    if (useLPV)
+    {
     
-    lpv = LPVAttenuation * min(lpvIntensity.rgb * LPVPower, float3(LPVCutoff, LPVCutoff, LPVCutoff)) * albedo.rgb;
+        float3 lpv = float3(0.0f, 0.0f, 0.0f);
+        float4 SHintensity = dirToSH(-normal.rgb);
+        float3 lpvCellCoords = (worldPos.rgb * LPV_SCALE + float3(LPV_DIM_HALF, LPV_DIM_HALF, LPV_DIM_HALF)) * LPV_DIM_INVERSE;
+        float4 lpvIntensity =
+        float4(
+	    	max(0.0f, dot(SHintensity, redSH.Sample(samplerLPV, lpvCellCoords))),
+	    	max(0.0f, dot(SHintensity, greenSH.Sample(samplerLPV, lpvCellCoords))),
+	    	max(0.0f, dot(SHintensity, blueSH.Sample(samplerLPV, lpvCellCoords))),
+	    1.0f) / PI;
     
-    float4 lightSpacePos = mul(ShadowViewProjection, worldPos);
-    float4 shadowcoord = lightSpacePos / lightSpacePos.w;
-    shadowcoord.rg = shadowcoord.rg * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
-    float shadow = CalculateShadow(shadowcoord.rgb);
+        lpv = LPVAttenuation * min(lpvIntensity.rgb * LPVPower, float3(LPVCutoff, LPVCutoff, LPVCutoff)) * albedo.rgb;
+        
+        indirectLighting += lpv;
+    }
     
-	float3 viewDir = normalize(CameraPos.xyz - worldPos.xyz);
+    float shadow = 1.0f;
+    if (useShadows)
+    {
+        float4 lightSpacePos = mul(ShadowViewProjection, worldPos);
+        float4 shadowcoord = lightSpacePos / lightSpacePos.w;
+        shadowcoord.rg = shadowcoord.rg * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
+        shadow = CalculateShadow(shadowcoord.rgb);
+    }
+    
+    if (useDirect)
+    {
+        float3 viewDir = normalize(CameraPos.xyz - worldPos.xyz);
 
-	float3 lightDir = LightDirection.xyz;
-	float3 lightColor = LightColor.xyz;
-    float lightIntensity = LightIntensity;
-	float NdotL = saturate(dot(normal.xyz, lightDir));
+        float3 lightDir = LightDirection.xyz;
+        float3 lightColor = LightColor.xyz;
+        float lightIntensity = LightIntensity;
+        float NdotL = saturate(dot(normal.xyz, lightDir));
     
-    output.diffuse.rgb = lpv.rgb + (lightIntensity * NdotL * shadow) * lightColor * albedo.rgb;
+        directLighting = (lightIntensity * NdotL) * lightColor * albedo.rgb;
+    }
+    
+    output.diffuse.rgb = indirectLighting + directLighting * shadow;
     return output;
 }
