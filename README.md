@@ -2,6 +2,7 @@
 
 # Features
 - RSM
+- LPV
 
 # Additional dependencies
 - Assimp
