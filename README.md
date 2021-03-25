@@ -1,6 +1,6 @@
 # About
 Simple C++/DX12 framework which is a part of my bachelor thesis on real-time global illumination techniques
-STILL WORK IN PROGRESS
+(WIP)
 
 ![picture](screenshots/lpv.png)
 
