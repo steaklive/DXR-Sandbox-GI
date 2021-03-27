@@ -81,20 +81,20 @@ private:
 	RootSignature                                        mRSMRS_Compute;
 	RootSignature                                        mRSMBuffersRS;
 	RootSignature                                        mRSMUpsampleAndBlurRS;
+	RootSignature                                        mRSMDownsampleRS;
+	RootSignature                                        mRSMDownsampleRS_Compute;
 	DXRSRenderTarget*			                         mRSMRT;
 	std::vector<DXRSRenderTarget*>                       mRSMBuffersRTs;
+	std::vector<DXRSRenderTarget*>                       mRSMDownsampledBuffersRTs;
 	DXRSRenderTarget*			                         mRSMUpsampleAndBlurRT;
 	GraphicsPSO                                          mRSMPSO;
 	ComputePSO                                           mRSMPSO_Compute;
 	GraphicsPSO											 mRSMBuffersPSO;
 	GraphicsPSO											 mRSMDownsamplePSO;
+	ComputePSO											 mRSMDownsamplePSO_Compute;
 	ComputePSO											 mRSMUpsampleAndBlurPSO;
 	DXRSBuffer* mRSMCB;
 	DXRSBuffer* mRSMCB2;
-	
-	//used for LPV
-	RootSignature                                        mRSMDownsampleRS;
-	std::vector<DXRSRenderTarget*>                       mRSMDownsampledBuffersRTs;
 	DXRSBuffer* mRSMDownsampleCB;
 
 	__declspec(align(16)) struct RSMCBData
@@ -123,8 +123,6 @@ private:
 	GraphicsPSO											 mLPVPropagationPSO;
 	std::vector<DXRSRenderTarget*>                       mLPVSHColorsRTs;
 	std::vector<DXRSRenderTarget*>                       mLPVAccumulationSHColorsRTs;
-	//ComPtr<ID3D12Resource>								 mEmptyLPVInjectionVertexBuffer;
-	//D3D12_VERTEX_BUFFER_VIEW							 mEmptyLPVInjectionVertexBufferView;
 	__declspec(align(16)) struct LPVCBData
 	{
 		XMMATRIX worldToLPV;
@@ -231,6 +229,7 @@ private:
 	bool mRSMComputeVersion = false;
 	UINT mRSMDownsampleScaleSize = 4;
 	bool mRSMDownsampleForLPV = false;
+	bool mRSMDownsampleUseCS = false;
 
 	bool mLPVEnabled = true;
 	int mLPVPropagationSteps = 50;

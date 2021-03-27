@@ -537,10 +537,10 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 			mRSMUpsampleAndBlurPSO.Finalize(device);
 		}
 
-		//downsampling for LPV
+		//downsampling for LPV - PS
 		{
 			DXGI_FORMAT rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 			mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, rtFormat, flags, L"RSM Downsampled World Pos"));
 			mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, rtFormat, flags, L"RSM Downsampled Normals"));
@@ -571,11 +571,11 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 
 			ID3DBlob* errorBlob = nullptr;
 
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSMDownsample.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSMDownsamplePS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
 
 			compileFlags |= D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES;
 
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSMDownsample.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSMDownsamplePS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
 
 			// Define the vertex input layout.
 			D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
@@ -606,6 +606,43 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 			cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
 			mRSMDownsampleCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"RSM Downsample CB");
+		}
+
+		//downsampling for LPV - CS
+		{
+			// root signature
+			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+				D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+				D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+			mRSMDownsampleRS_Compute.Reset(3, 0);
+			mRSMDownsampleRS_Compute[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+			mRSMDownsampleRS_Compute[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
+			mRSMDownsampleRS_Compute[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
+			mRSMDownsampleRS_Compute.Finalize(device, L"RSM Downsample compute pass RS", rootSignatureFlags);
+
+			ComPtr<ID3DBlob> computeShader;
+
+#if defined(_DEBUG)
+			// Enable better shader debugging with the graphics debugging tools.
+			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+			UINT compileFlags = 0;
+#endif
+			ID3DBlob* errorBlob = nullptr;
+
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSMDownsampleCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
+			if (errorBlob)
+			{
+				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				errorBlob->Release();
+			}
+
+			mRSMDownsamplePSO_Compute.SetRootSignature(mRSMDownsampleRS_Compute);
+			mRSMDownsamplePSO_Compute.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
+			mRSMDownsamplePSO_Compute.Finalize(device);
 		}
 	}
 
@@ -692,7 +729,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
 
 			mLPVInjectionRS.Reset(2, 0);
-			mLPVInjectionRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+			mLPVInjectionRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
 			mLPVInjectionRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
 			mLPVInjectionRS.Finalize(device, L"LPV Injection pass RS", rootSignatureFlags);
 
@@ -1379,7 +1416,7 @@ void DXRSExampleGIScene::Render()
 			PIXEndEvent(commandList);
 
 			// upsample & blur
-			PIXBeginEvent(commandList, 0, "RSM upsample & blur");
+			PIXBeginEvent(commandList, 0, "RSM upsample & blur CS");
 			{
 				commandList->SetPipelineState(mRSMUpsampleAndBlurPSO.GetPipelineStateObject());
 				commandList->SetComputeRootSignature(mRSMUpsampleAndBlurRS.GetSignature());
@@ -1404,54 +1441,89 @@ void DXRSExampleGIScene::Render()
 
 		// downsample for LPV
 		if (mRSMDownsampleForLPV) {
-			PIXBeginEvent(commandList, 0, "RSM downsample for LPV");
-			{
-				CD3DX12_VIEWPORT rsmDownsampleResViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize);
-				CD3DX12_RECT rsmDownsampleRect = CD3DX12_RECT(0.0f, 0.0f, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize);
-				commandList->RSSetViewports(1, &rsmDownsampleResViewport);
-				commandList->RSSetScissorRects(1, &rsmDownsampleRect);
+			if (!mRSMDownsampleUseCS) {
+				PIXBeginEvent(commandList, 0, "RSM downsample PS for LPV");
+				{
+					CD3DX12_VIEWPORT rsmDownsampleResViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize);
+					CD3DX12_RECT rsmDownsampleRect = CD3DX12_RECT(0.0f, 0.0f, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize);
+					commandList->RSSetViewports(1, &rsmDownsampleResViewport);
+					commandList->RSSetScissorRects(1, &rsmDownsampleRect);
 
-				commandList->SetPipelineState(mRSMDownsamplePSO.GetPipelineStateObject());
-				commandList->SetGraphicsRootSignature(mRSMDownsampleRS.GetSignature());
+					commandList->SetPipelineState(mRSMDownsamplePSO.GetPipelineStateObject());
+					commandList->SetGraphicsRootSignature(mRSMDownsampleRS.GetSignature());
 
-				D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesRSM[] = {
-					mRSMDownsampledBuffersRTs[0]->GetRTV().GetCPUHandle(),
-					mRSMDownsampledBuffersRTs[1]->GetRTV().GetCPUHandle(),
-					mRSMDownsampledBuffersRTs[2]->GetRTV().GetCPUHandle()
-				};
+					D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesRSM[] = {
+						mRSMDownsampledBuffersRTs[0]->GetRTV().GetCPUHandle(),
+						mRSMDownsampledBuffersRTs[1]->GetRTV().GetCPUHandle(),
+						mRSMDownsampledBuffersRTs[2]->GetRTV().GetCPUHandle()
+					};
 
-				//transition buffers to rendertarget outputs
-				mSandboxFramework->ResourceBarriersBegin(mBarriers);
-				mRSMDownsampledBuffersRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-				mRSMDownsampledBuffersRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-				mRSMDownsampledBuffersRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-				mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+					//transition buffers to rendertarget outputs
+					mSandboxFramework->ResourceBarriersBegin(mBarriers);
+					mRSMDownsampledBuffersRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+					mRSMDownsampledBuffersRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+					mRSMDownsampledBuffersRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+					mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
 
-				commandList->OMSetRenderTargets(_countof(rtvHandlesRSM), rtvHandlesRSM, FALSE, nullptr);
-				commandList->ClearRenderTargetView(rtvHandlesRSM[0], clearColorBlack, 0, nullptr);
-				commandList->ClearRenderTargetView(rtvHandlesRSM[1], clearColorBlack, 0, nullptr);
-				commandList->ClearRenderTargetView(rtvHandlesRSM[2], clearColorBlack, 0, nullptr);
+					commandList->OMSetRenderTargets(_countof(rtvHandlesRSM), rtvHandlesRSM, FALSE, nullptr);
+					commandList->ClearRenderTargetView(rtvHandlesRSM[0], clearColorBlack, 0, nullptr);
+					commandList->ClearRenderTargetView(rtvHandlesRSM[1], clearColorBlack, 0, nullptr);
+					commandList->ClearRenderTargetView(rtvHandlesRSM[2], clearColorBlack, 0, nullptr);
 
-				DXRS::DescriptorHandle cbvHandleRSM = gpuDescriptorHeap->GetHandleBlock(1);
-				gpuDescriptorHeap->AddToHandle(device, cbvHandleRSM, mRSMDownsampleCB->GetCBV());
+					DXRS::DescriptorHandle cbvHandleRSM = gpuDescriptorHeap->GetHandleBlock(1);
+					gpuDescriptorHeap->AddToHandle(device, cbvHandleRSM, mRSMDownsampleCB->GetCBV());
 
-				DXRS::DescriptorHandle srvHandleRSM = gpuDescriptorHeap->GetHandleBlock(3);
-				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[0]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[1]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[2]->GetSRV());
+					DXRS::DescriptorHandle srvHandleRSM = gpuDescriptorHeap->GetHandleBlock(3);
+					gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[0]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[1]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[2]->GetSRV());
 
-				commandList->SetGraphicsRootDescriptorTable(0, cbvHandleRSM.GetGPUHandle());
-				commandList->SetGraphicsRootDescriptorTable(1, srvHandleRSM.GetGPUHandle());
+					commandList->SetGraphicsRootDescriptorTable(0, cbvHandleRSM.GetGPUHandle());
+					commandList->SetGraphicsRootDescriptorTable(1, srvHandleRSM.GetGPUHandle());
 
-				commandList->IASetVertexBuffers(0, 1, &mSandboxFramework->GetFullscreenQuadBufferView());
-				commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-				commandList->DrawInstanced(4, 1, 0, 0);
+					commandList->IASetVertexBuffers(0, 1, &mSandboxFramework->GetFullscreenQuadBufferView());
+					commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+					commandList->DrawInstanced(4, 1, 0, 0);
 
-				//reset back
-				commandList->RSSetViewports(1, &viewport);
-				commandList->RSSetScissorRects(1, &rect);
+					//reset back
+					commandList->RSSetViewports(1, &viewport);
+					commandList->RSSetScissorRects(1, &rect);
+				}
+				PIXEndEvent(commandList);
 			}
-			PIXEndEvent(commandList);
+			else {
+				PIXBeginEvent(commandList, 0, "RSM downsample CS for LPV");
+				{
+					commandList->SetPipelineState(mRSMDownsamplePSO_Compute.GetPipelineStateObject());
+					commandList->SetComputeRootSignature(mRSMDownsampleRS_Compute.GetSignature());
+
+					mSandboxFramework->ResourceBarriersBegin(mBarriers);
+					mRSMDownsampledBuffersRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+					mRSMDownsampledBuffersRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+					mRSMDownsampledBuffersRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+					mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+					DXRS::DescriptorHandle cbvHandleRSM = gpuDescriptorHeap->GetHandleBlock(1);
+					gpuDescriptorHeap->AddToHandle(device, cbvHandleRSM, mRSMDownsampleCB->GetCBV());
+
+					DXRS::DescriptorHandle srvHandleRSM = gpuDescriptorHeap->GetHandleBlock(3);
+					gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[0]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[1]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandleRSM, mRSMBuffersRTs[2]->GetSRV());
+
+					DXRS::DescriptorHandle uavHandleRSM = gpuDescriptorHeap->GetHandleBlock(3);
+					gpuDescriptorHeap->AddToHandle(device, uavHandleRSM, mRSMDownsampledBuffersRTs[0]->GetUAV());
+					gpuDescriptorHeap->AddToHandle(device, uavHandleRSM, mRSMDownsampledBuffersRTs[1]->GetUAV());
+					gpuDescriptorHeap->AddToHandle(device, uavHandleRSM, mRSMDownsampledBuffersRTs[2]->GetUAV());
+
+					commandList->SetComputeRootDescriptorTable(0, cbvHandleRSM.GetGPUHandle());
+					commandList->SetComputeRootDescriptorTable(1, srvHandleRSM.GetGPUHandle());
+					commandList->SetComputeRootDescriptorTable(2, uavHandleRSM.GetGPUHandle());
+
+					commandList->Dispatch(DivideByMultiple(static_cast<UINT>(RSM_SIZE / mRSMDownsampleScaleSize), 8u), DivideByMultiple(static_cast<UINT>(RSM_SIZE / mRSMDownsampleScaleSize), 8u), 1u);
+				}
+				PIXEndEvent(commandList);
+			}
 		}
 	}
 	else 
@@ -1487,8 +1559,9 @@ void DXRSExampleGIScene::Render()
 			commandList->ClearRenderTargetView(rtvHandlesLPVInjection[1], clearColorBlack, 0, nullptr);
 			commandList->ClearRenderTargetView(rtvHandlesLPVInjection[2], clearColorBlack, 0, nullptr);
 
-			DXRS::DescriptorHandle cbvHandleLPVInjection = gpuDescriptorHeap->GetHandleBlock(1);
+			DXRS::DescriptorHandle cbvHandleLPVInjection = gpuDescriptorHeap->GetHandleBlock(2);
 			gpuDescriptorHeap->AddToHandle(device, cbvHandleLPVInjection, mLPVCB->GetCBV());
+			gpuDescriptorHeap->AddToHandle(device, cbvHandleLPVInjection, mRSMDownsampleCB->GetCBV());
 
 			DXRS::DescriptorHandle srvHandleLPVInjection = gpuDescriptorHeap->GetHandleBlock(3);
 			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, (mRSMDownsampleForLPV) ? mRSMDownsampledBuffersRTs[0]->GetSRV() : mRSMBuffersRTs[0]->GetSRV());
@@ -1775,8 +1848,11 @@ void DXRSExampleGIScene::UpdateImGui()
 				ImGui::SliderFloat("Cutoff", &mLPVCutoff, 0.0f, 1.0f);
 				ImGui::SliderFloat("Power", &mLPVPower, 0.0f, 2.0f);
 				ImGui::SliderFloat("Attenuation", &mLPVAttenuation, 0.0f, 5.0f);
-				if (mRSMEnabled) 
-					ImGui::Checkbox("Use downsampled RSM - PS", &mRSMDownsampleForLPV);
+				if (mRSMEnabled) {
+					ImGui::Checkbox("Use downsampled RSM", &mRSMDownsampleForLPV);
+					ImGui::SameLine();
+					ImGui::Checkbox("CS", &mRSMDownsampleUseCS);
+				}
 			}
 		}
 		ImGui::Separator();

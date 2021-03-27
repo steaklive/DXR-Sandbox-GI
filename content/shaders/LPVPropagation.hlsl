@@ -142,12 +142,7 @@ PS_OUT PSMain(GS_OUT input)
 
     int4 cellIndex = int4(input.screenPos.xy - 0.5f, input.depthIndex, 0);
     SHContribution resultContribution = GetSHGatheringContribution(cellIndex);
-    
-    SHContribution lpvSHContribution = (SHContribution) 0;
-    lpvSHContribution.red = redSH.Load(cellIndex);
-    lpvSHContribution.green = greenSH.Load(cellIndex);
-    lpvSHContribution.blue = blueSH.Load(cellIndex);
-    
+        
     output.redSH = resultContribution.red;
     output.greenSH = resultContribution.green;
     output.blueSH = resultContribution.blue;

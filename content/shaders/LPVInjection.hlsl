@@ -51,7 +51,7 @@ RSMTexel GetRSMTexel(uint2 coords)
     RSMTexel texel = (RSMTexel)0;
     texel.positionWS = worldPosLSBuffer.Load(int3(coords, 0)).xyz; 
     texel.normalWS = normalLSBuffer.Load(int3(coords, 0)).xyz;
-    texel.flux = fluxLSBuffer.Load(int3(coords, 0)).xyz; // TODO maybe more optimal to read directily in PS?
+    texel.flux = fluxLSBuffer.Load(int3(coords, 0)).xyz;
     return texel;
 }
 

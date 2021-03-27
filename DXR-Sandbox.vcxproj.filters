@@ -233,13 +233,13 @@
     <FxCompile Include="content\shaders\LPVInjection.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="content\shaders\LPVComposite.hlsl">
-      <Filter>Source Files\Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="content\shaders\LPVPropagation.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="content\shaders\RSMDownsample.hlsl">
+    <FxCompile Include="content\shaders\RSMDownsamplePS.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="content\shaders\RSMDownsampleCS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
   </ItemGroup>
