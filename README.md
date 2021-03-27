@@ -1,8 +1,12 @@
-![picture](screenshots/rsm.png)
+# About
+Simple C++/DX12 framework which is a part of my bachelor thesis on real-time global illumination techniques
+(WIP)
+
+![picture](screenshots/lpv.png)
 
 # Features
-- RSM
-- LPV
+- Reflective Shadow Mapping
+- Light Propagation Volumes
 
 # Additional dependencies
 - Assimp
