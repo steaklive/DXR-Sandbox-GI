@@ -108,93 +108,93 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	mDepthStencil = new DXRSDepthBuffer(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_D32_FLOAT);
 
 	#pragma region States
-	depthStateRW.DepthEnable = TRUE;
-	depthStateRW.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	depthStateRW.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	depthStateRW.StencilEnable = FALSE;
-	depthStateRW.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
-	depthStateRW.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
-	depthStateRW.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	depthStateRW.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
-	depthStateRW.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
-	depthStateRW.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-	depthStateRW.BackFace = depthStateRW.FrontFace;
+	mDepthStateRW.DepthEnable = TRUE;
+	mDepthStateRW.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	mDepthStateRW.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	mDepthStateRW.StencilEnable = FALSE;
+	mDepthStateRW.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+	mDepthStateRW.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+	mDepthStateRW.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	mDepthStateRW.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	mDepthStateRW.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	mDepthStateRW.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	mDepthStateRW.BackFace = mDepthStateRW.FrontFace;
 
-	depthStateRead = depthStateRW;
-	depthStateRead.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	mDepthStateRead = mDepthStateRW;
+	mDepthStateRead.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
-	depthStateDisabled.DepthEnable = FALSE;
-	depthStateDisabled.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-	depthStateDisabled.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	depthStateDisabled.StencilEnable = FALSE;
-	depthStateDisabled.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
-	depthStateDisabled.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
-	depthStateDisabled.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	depthStateDisabled.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
-	depthStateDisabled.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
-	depthStateDisabled.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-	depthStateDisabled.BackFace = depthStateRW.FrontFace;
+	mDepthStateDisabled.DepthEnable = FALSE;
+	mDepthStateDisabled.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	mDepthStateDisabled.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	mDepthStateDisabled.StencilEnable = FALSE;
+	mDepthStateDisabled.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+	mDepthStateDisabled.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+	mDepthStateDisabled.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	mDepthStateDisabled.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	mDepthStateDisabled.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	mDepthStateDisabled.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	mDepthStateDisabled.BackFace = mDepthStateRW.FrontFace;
 
-	blend.IndependentBlendEnable = FALSE;
-	blend.RenderTarget[0].BlendEnable = FALSE;
-	blend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	blend.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	blend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	blend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-	blend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-	blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	blend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	mBlendState.IndependentBlendEnable = FALSE;
+	mBlendState.RenderTarget[0].BlendEnable = FALSE;
+	mBlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	mBlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	mBlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	mBlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+	mBlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+	mBlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	mBlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-	blendLPVPropagation.IndependentBlendEnable = TRUE;
+	mBlendStateLPVPropagation.IndependentBlendEnable = TRUE;
 	for (size_t i = 0; i < 6; i++)
 	{
-		blendLPVPropagation.RenderTarget[i].BlendEnable = (i < 3) ? FALSE : TRUE;
-		blendLPVPropagation.RenderTarget[i].SrcBlend = D3D12_BLEND_ONE;
-		blendLPVPropagation.RenderTarget[i].DestBlend = D3D12_BLEND_ONE;
-		blendLPVPropagation.RenderTarget[i].BlendOp = D3D12_BLEND_OP_ADD;
-		blendLPVPropagation.RenderTarget[i].SrcBlendAlpha = D3D12_BLEND_ONE;
-		blendLPVPropagation.RenderTarget[i].DestBlendAlpha = D3D12_BLEND_ONE;
-		blendLPVPropagation.RenderTarget[i].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-		blendLPVPropagation.RenderTarget[i].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+		mBlendStateLPVPropagation.RenderTarget[i].BlendEnable = (i < 3) ? FALSE : TRUE;
+		mBlendStateLPVPropagation.RenderTarget[i].SrcBlend = D3D12_BLEND_ONE;
+		mBlendStateLPVPropagation.RenderTarget[i].DestBlend = D3D12_BLEND_ONE;
+		mBlendStateLPVPropagation.RenderTarget[i].BlendOp = D3D12_BLEND_OP_ADD;
+		mBlendStateLPVPropagation.RenderTarget[i].SrcBlendAlpha = D3D12_BLEND_ONE;
+		mBlendStateLPVPropagation.RenderTarget[i].DestBlendAlpha = D3D12_BLEND_ONE;
+		mBlendStateLPVPropagation.RenderTarget[i].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		mBlendStateLPVPropagation.RenderTarget[i].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	}
 
-	rasterizer.FillMode = D3D12_FILL_MODE_SOLID;
-	rasterizer.CullMode = D3D12_CULL_MODE_BACK;
-	rasterizer.FrontCounterClockwise = FALSE;
-	rasterizer.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-	rasterizer.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-	rasterizer.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-	rasterizer.DepthClipEnable = TRUE;
-	rasterizer.MultisampleEnable = FALSE;
-	rasterizer.AntialiasedLineEnable = FALSE;
-	rasterizer.ForcedSampleCount = 0;
-	rasterizer.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+	mRasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	mRasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	mRasterizerState.FrontCounterClockwise = FALSE;
+	mRasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+	mRasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+	mRasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	mRasterizerState.DepthClipEnable = TRUE;
+	mRasterizerState.MultisampleEnable = FALSE;
+	mRasterizerState.AntialiasedLineEnable = FALSE;
+	mRasterizerState.ForcedSampleCount = 0;
+	mRasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
-	shadowrasterizer.FillMode = D3D12_FILL_MODE_SOLID;
-	shadowrasterizer.CullMode = D3D12_CULL_MODE_BACK;
-	shadowrasterizer.FrontCounterClockwise = FALSE;
-	shadowrasterizer.SlopeScaledDepthBias = 10.0f;
-	shadowrasterizer.DepthBias = 0.05f;
-	shadowrasterizer.DepthClipEnable = FALSE;
-	shadowrasterizer.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-	shadowrasterizer.MultisampleEnable = FALSE;
-	shadowrasterizer.AntialiasedLineEnable = FALSE;
-	shadowrasterizer.ForcedSampleCount = 0;
-	shadowrasterizer.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+	mRasterizerStateShadow.FillMode = D3D12_FILL_MODE_SOLID;
+	mRasterizerStateShadow.CullMode = D3D12_CULL_MODE_BACK;
+	mRasterizerStateShadow.FrontCounterClockwise = FALSE;
+	mRasterizerStateShadow.SlopeScaledDepthBias = 10.0f;
+	mRasterizerStateShadow.DepthBias = 0.05f;
+	mRasterizerStateShadow.DepthClipEnable = FALSE;
+	mRasterizerStateShadow.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+	mRasterizerStateShadow.MultisampleEnable = FALSE;
+	mRasterizerStateShadow.AntialiasedLineEnable = FALSE;
+	mRasterizerStateShadow.ForcedSampleCount = 0;
+	mRasterizerStateShadow.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
-	bilinearSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-	bilinearSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	bilinearSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	bilinearSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	mBilinearSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	mBilinearSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	mBilinearSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	mBilinearSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	//bilinearSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_EQUAL;
-	bilinearSampler.MipLODBias = 0;
-	bilinearSampler.MaxAnisotropy = 16;
-	bilinearSampler.MinLOD = 0.0f;
-	bilinearSampler.MaxLOD = D3D12_FLOAT32_MAX;
-	bilinearSampler.BorderColor[0] = 0.0f;
-	bilinearSampler.BorderColor[1] = 0.0f;
-	bilinearSampler.BorderColor[2] = 0.0f;
-	bilinearSampler.BorderColor[3] = 0.0f;
+	mBilinearSampler.MipLODBias = 0;
+	mBilinearSampler.MaxAnisotropy = 16;
+	mBilinearSampler.MinLOD = 0.0f;
+	mBilinearSampler.MaxLOD = D3D12_FLOAT32_MAX;
+	mBilinearSampler.BorderColor[0] = 0.0f;
+	mBilinearSampler.BorderColor[1] = 0.0f;
+	mBilinearSampler.BorderColor[2] = 0.0f;
+	mBilinearSampler.BorderColor[3] = 0.0f;
 
 #pragma endregion
 
@@ -296,7 +296,7 @@ void DXRSExampleGIScene::Update(DXRSTimer const& timer)
 {
 	UpdateControls();
 	UpdateCamera();
-	UpdateLights();
+	UpdateLights(timer);
 	UpdateBuffers(timer);
 	UpdateImGui();
 	UpdateTransforms(timer);
@@ -320,6 +320,23 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	gbufferPassData.ScreenSize = { width, height, 1.0f / width, 1.0f / height };
 	gbufferPassData.LightColor = XMFLOAT4(mDirectionalLightColor[0], mDirectionalLightColor[1], mDirectionalLightColor[2], mDirectionalLightColor[3]);
 	memcpy(mGbufferCB->Map(), &gbufferPassData, sizeof(gbufferPassData));
+
+	XMFLOAT3 shadowCenter(0.0f, 0.0f, 0.0f);
+	XMVECTOR eyePosition = XMLoadFloat3(&shadowCenter);
+	XMVECTOR direction = XMVECTOR{ -mDirectionalLightDir[0], -mDirectionalLightDir[1], -mDirectionalLightDir[2], mDirectionalLightDir[3] };
+	XMVECTOR upDirection = XMVECTOR{ 0.0f, 1.0f, 0.0f };
+
+	XMMATRIX viewMatrix = XMMatrixLookToRH(eyePosition, direction, upDirection);
+	XMMATRIX projectionMatrix = XMMatrixOrthographicRH(256.0f, 256.0f, -256.0f, 256.0f);
+	mLightViewProjection = viewMatrix * projectionMatrix;
+	mLightView = viewMatrix;
+	mLightProj = projectionMatrix;
+
+	ShadowMappingCBData shadowPassData = {};
+	shadowPassData.LightViewProj = mLightViewProjection;
+	shadowPassData.LightColor = XMFLOAT4(mDirectionalLightColor);
+	shadowPassData.LightDir = XMFLOAT4(-mDirectionalLightDir[0], -mDirectionalLightDir[1], -mDirectionalLightDir[2], mDirectionalLightDir[3]);
+	memcpy(mShadowMappingCB->Map(), &shadowPassData, sizeof(shadowPassData));
 
 	LightingCBData lightPassData = {};
 	lightPassData.InvViewProjection = XMMatrixInverse(nullptr, gbufferPassData.ViewProjection);
@@ -374,6 +391,12 @@ void DXRSExampleGIScene::UpdateImGui()
 		ImGui::SliderFloat4("Light Color", mDirectionalLightColor, 0.0f, 1.0f);
 		ImGui::SliderFloat4("Light Direction", mDirectionalLightDir, -1.0f, 1.0f);
 		ImGui::SliderFloat("Light Intensity", &mDirectionalLightIntensity, 0.0f, 5.0f);
+		ImGui::Checkbox("Dynamic Light", &mDynamicDirectionalLight);
+		ImGui::SameLine();
+		ImGui::SliderFloat("Speed", &mDynamicDirectionalLightSpeed, 0.0f, 5.0f);
+
+		ImGui::Separator();
+
 		ImGui::Checkbox("Use Direct Light", &mUseDirectLight);
 		ImGui::Checkbox("Use Direct Shadows", &mUseShadows);
 		ImGui::Checkbox("Use RSM (Indirect Light)", &mUseRSM);
@@ -410,8 +433,11 @@ void DXRSExampleGIScene::UpdateImGui()
 	}
 }
 
-void DXRSExampleGIScene::UpdateLights()
+void DXRSExampleGIScene::UpdateLights(DXRSTimer const& timer)
 {
+	if (mDynamicDirectionalLight)
+		mDirectionalLightDir[0] = sin(timer.GetTotalSeconds() * mDynamicDirectionalLightSpeed);
+
 	LightsInfoCBData lightData = {};
 	lightData.LightColor = XMFLOAT4(mDirectionalLightColor[0], mDirectionalLightColor[1], mDirectionalLightColor[2], mDirectionalLightColor[3]);
 	lightData.LightDirection = XMFLOAT4(mDirectionalLightDir[0], mDirectionalLightDir[1], mDirectionalLightDir[2], mDirectionalLightDir[3]);
@@ -466,26 +492,6 @@ void DXRSExampleGIScene::UpdateCamera()
 
 	// Copy the contents
 	memcpy(mCameraBuffer->Map(), &buffer, sizeof(CameraBuffer));
-}
-
-void DXRSExampleGIScene::UpdateShadow()
-{
-	XMFLOAT3 shadowCenter(0.0f, 0.0f, 0.0f);
-	XMVECTOR eyePosition = XMLoadFloat3(&shadowCenter);
-	XMVECTOR direction = XMVECTOR{ -mDirectionalLightDir[0], -mDirectionalLightDir[1], -mDirectionalLightDir[2], mDirectionalLightDir[3] };
-	XMVECTOR upDirection = XMVECTOR{0.0f, 1.0f, 0.0f};
-
-	XMMATRIX viewMatrix = XMMatrixLookToRH(eyePosition, direction, upDirection);
-	XMMATRIX projectionMatrix = XMMatrixOrthographicRH(256.0f, 256.0f, -256.0f, 256.0f);
-	mLightViewProjection = viewMatrix * projectionMatrix;
-	mLightView = viewMatrix;
-	mLightProj = projectionMatrix;
-
-	ShadowMappingCBData shadowPassData = {};
-	shadowPassData.LightViewProj = mLightViewProjection;
-	shadowPassData.LightColor = XMFLOAT4(mDirectionalLightColor);
-	shadowPassData.LightDir = XMFLOAT4(-mDirectionalLightDir[0], -mDirectionalLightDir[1], -mDirectionalLightDir[2], mDirectionalLightDir[3]);
-	memcpy(mShadowMappingCB->Map(), &shadowPassData, sizeof(shadowPassData));
 }
 
 void DXRSExampleGIScene::SetProjectionMatrix()
@@ -596,9 +602,9 @@ void DXRSExampleGIScene::InitGbuffer(ID3D12Device* device, DXRS::DescriptorHeapM
 	formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 
 	mGbufferPSO.SetRootSignature(mGbufferRS);
-	mGbufferPSO.SetRasterizerState(rasterizer);
-	mGbufferPSO.SetBlendState(blend);
-	mGbufferPSO.SetDepthStencilState(depthStateRW);
+	mGbufferPSO.SetRasterizerState(mRasterizerState);
+	mGbufferPSO.SetBlendState(mBlendState);
+	mGbufferPSO.SetDepthStencilState(mDepthStateRW);
 	mGbufferPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
 	mGbufferPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	mGbufferPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
@@ -711,10 +717,10 @@ void DXRSExampleGIScene::InitShadowMapping(ID3D12Device* device, DXRS::Descripto
 	};
 
 	mShadowMappingPSO.SetRootSignature(mShadowMappingRS);
-	mShadowMappingPSO.SetRasterizerState(shadowrasterizer);
+	mShadowMappingPSO.SetRasterizerState(mRasterizerStateShadow);
 	mShadowMappingPSO.SetRenderTargetFormats(0, nullptr, mShadowDepth->GetFormat());
-	mShadowMappingPSO.SetBlendState(blend);
-	mShadowMappingPSO.SetDepthStencilState(depthStateRW);
+	mShadowMappingPSO.SetBlendState(mBlendState);
+	mShadowMappingPSO.SetDepthStencilState(mDepthStateRW);
 	mShadowMappingPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
 	mShadowMappingPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	mShadowMappingPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
@@ -740,8 +746,6 @@ void DXRSExampleGIScene::RenderShadowMapping(ID3D12Device* device, ID3D12Graphic
 		CD3DX12_RECT shadowRect = CD3DX12_RECT(0.0f, 0.0f, mShadowDepth->GetWidth(), mShadowDepth->GetHeight());
 		commandList->RSSetViewports(1, &shadowMapViewport);
 		commandList->RSSetScissorRects(1, &shadowRect);
-
-		UpdateShadow();
 
 		commandList->SetPipelineState(mShadowMappingPSO.GetPipelineStateObject());
 		commandList->SetGraphicsRootSignature(mShadowMappingRS.GetSignature());
@@ -829,9 +833,9 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 		formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 
 		mRSMBuffersPSO.SetRootSignature(mRSMBuffersRS);
-		mRSMBuffersPSO.SetRasterizerState(rasterizer);
-		mRSMBuffersPSO.SetBlendState(blend);
-		mRSMBuffersPSO.SetDepthStencilState(depthStateRead);
+		mRSMBuffersPSO.SetRasterizerState(mRasterizerState);
+		mRSMBuffersPSO.SetBlendState(mBlendState);
+		mRSMBuffersPSO.SetDepthStencilState(mDepthStateRead);
 		mRSMBuffersPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
 		mRSMBuffersPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 		mRSMBuffersPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
@@ -912,9 +916,9 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 			m_rtFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 			mRSMPSO.SetRootSignature(mRSMRS);
-			mRSMPSO.SetRasterizerState(rasterizer);
-			mRSMPSO.SetBlendState(blend);
-			mRSMPSO.SetDepthStencilState(depthStateDisabled);
+			mRSMPSO.SetRasterizerState(mRasterizerState);
+			mRSMPSO.SetBlendState(mBlendState);
+			mRSMPSO.SetDepthStencilState(mDepthStateDisabled);
 			mRSMPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
 			mRSMPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 			mRSMPSO.SetRenderTargetFormats(_countof(m_rtFormats), m_rtFormats, DXGI_FORMAT_D32_FLOAT);
@@ -990,7 +994,7 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
 		mRSMUpsampleAndBlurRS.Reset(2, 1);
-		mRSMUpsampleAndBlurRS.InitStaticSampler(0, bilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
+		mRSMUpsampleAndBlurRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
 		mRSMUpsampleAndBlurRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mRSMUpsampleAndBlurRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mRSMUpsampleAndBlurRS.Finalize(device, L"RSM Blur pass RS", rootSignatureFlags);
@@ -1070,9 +1074,9 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 		formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 
 		mRSMDownsamplePSO.SetRootSignature(mRSMDownsampleRS);
-		mRSMDownsamplePSO.SetRasterizerState(rasterizer);
-		mRSMDownsamplePSO.SetBlendState(blend);
-		mRSMDownsamplePSO.SetDepthStencilState(depthStateDisabled);
+		mRSMDownsamplePSO.SetRasterizerState(mRasterizerState);
+		mRSMDownsamplePSO.SetBlendState(mBlendState);
+		mRSMDownsamplePSO.SetDepthStencilState(mDepthStateDisabled);
 		mRSMDownsamplePSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
 		mRSMDownsamplePSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 		mRSMDownsamplePSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
@@ -1158,8 +1162,6 @@ void DXRSExampleGIScene::RenderReflectiveShadowMapping(ID3D12Device* device, ID3
 			CD3DX12_RECT rsmRect = CD3DX12_RECT(0.0f, 0.0f, mRSMBuffersRTs[0]->GetWidth(), mRSMBuffersRTs[0]->GetHeight());
 			commandList->RSSetViewports(1, &rsmBuffersViewport);
 			commandList->RSSetScissorRects(1, &rsmRect);
-
-			UpdateShadow();
 
 			commandList->SetPipelineState(mRSMBuffersPSO.GetPipelineStateObject());
 			commandList->SetGraphicsRootSignature(mRSMBuffersRS.GetSignature());
@@ -1429,10 +1431,10 @@ void DXRSExampleGIScene::InitLightPropagationVolume(ID3D12Device* device, DXRS::
 		formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 
 		mLPVInjectionPSO.SetRootSignature(mLPVInjectionRS);
-		mLPVInjectionPSO.SetRasterizerState(rasterizer);
+		mLPVInjectionPSO.SetRasterizerState(mRasterizerState);
 		mLPVInjectionPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
-		mLPVInjectionPSO.SetBlendState(blend);
-		mLPVInjectionPSO.SetDepthStencilState(depthStateDisabled);
+		mLPVInjectionPSO.SetBlendState(mBlendState);
+		mLPVInjectionPSO.SetDepthStencilState(mDepthStateDisabled);
 		mLPVInjectionPSO.SetInputLayout(0, nullptr);
 		mLPVInjectionPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
 		mLPVInjectionPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
@@ -1511,10 +1513,10 @@ void DXRSExampleGIScene::InitLightPropagationVolume(ID3D12Device* device, DXRS::
 		formats[5] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 
 		mLPVPropagationPSO.SetRootSignature(mLPVPropagationRS);
-		mLPVPropagationPSO.SetRasterizerState(rasterizer);
+		mLPVPropagationPSO.SetRasterizerState(mRasterizerState);
 		mLPVPropagationPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
-		mLPVPropagationPSO.SetBlendState(blendLPVPropagation); //TODO add additive blending - fix 
-		mLPVPropagationPSO.SetDepthStencilState(depthStateDisabled);
+		mLPVPropagationPSO.SetBlendState(mBlendStateLPVPropagation); //TODO add additive blending - fix 
+		mLPVPropagationPSO.SetDepthStencilState(mDepthStateDisabled);
 		mLPVPropagationPSO.SetInputLayout(0, nullptr);
 		mLPVPropagationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 		mLPVPropagationPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
@@ -1684,7 +1686,7 @@ void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeap
 	lpvSampler.BorderColor[3] = 0.0f;
 
 	mLightingRS.Reset(2, 3);
-	mLightingRS.InitStaticSampler(0, bilinearSampler, D3D12_SHADER_VISIBILITY_PIXEL);
+	mLightingRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS.InitStaticSampler(1, shadowSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS.InitStaticSampler(2, lpvSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 4, D3D12_SHADER_VISIBILITY_ALL);
@@ -1727,9 +1729,9 @@ void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeap
 	m_rtFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	mLightingPSO.SetRootSignature(mLightingRS);
-	mLightingPSO.SetRasterizerState(rasterizer);
-	mLightingPSO.SetBlendState(blend);
-	mLightingPSO.SetDepthStencilState(depthStateDisabled);
+	mLightingPSO.SetRasterizerState(mRasterizerState);
+	mLightingPSO.SetBlendState(mBlendState);
+	mLightingPSO.SetDepthStencilState(mDepthStateDisabled);
 	mLightingPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
 	mLightingPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	mLightingPSO.SetRenderTargetFormats(_countof(m_rtFormats), m_rtFormats, DXGI_FORMAT_D32_FLOAT);

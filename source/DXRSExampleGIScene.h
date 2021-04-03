@@ -37,10 +37,9 @@ private:
 	void Update(DXRSTimer const& timer);
 	void UpdateTransforms(DXRSTimer const& timer);
 	void UpdateBuffers(DXRSTimer const& timer);
-	void UpdateLights();
+	void UpdateLights(DXRSTimer const& timer);
 	void UpdateControls();
 	void UpdateCamera();
-	void UpdateShadow();
 	void UpdateImGui();
 
 	void Render();
@@ -190,6 +189,8 @@ private:
 	float mDirectionalLightColor[4]{ 0.9, 0.9, 0.9, 1.0 };
 	float mDirectionalLightDir[4]{ 0.191, 1.0f, 0.574f, 1.0 };
 	float mDirectionalLightIntensity = 1.7f;
+	bool mDynamicDirectionalLight = false;
+	float mDynamicDirectionalLightSpeed = 1.0f;
 
 	bool mUseDirectLight = true;
 	bool mUseShadows = true;
@@ -251,14 +252,12 @@ private:
 	float mLPVAttenuation = 1.0f;
 	XMMATRIX mWorldToLPV;
 
-	XMMATRIX mWorld;
-
-	D3D12_DEPTH_STENCIL_DESC depthStateRW;
-	D3D12_DEPTH_STENCIL_DESC depthStateRead;
-	D3D12_DEPTH_STENCIL_DESC depthStateDisabled;
-	D3D12_BLEND_DESC blend;
-	D3D12_BLEND_DESC blendLPVPropagation;
-	D3D12_RASTERIZER_DESC rasterizer;
-	D3D12_RASTERIZER_DESC shadowrasterizer;
-	D3D12_SAMPLER_DESC bilinearSampler;
+	D3D12_DEPTH_STENCIL_DESC mDepthStateRW;
+	D3D12_DEPTH_STENCIL_DESC mDepthStateRead;
+	D3D12_DEPTH_STENCIL_DESC mDepthStateDisabled;
+	D3D12_BLEND_DESC mBlendState;
+	D3D12_BLEND_DESC mBlendStateLPVPropagation;
+	D3D12_RASTERIZER_DESC mRasterizerState;
+	D3D12_RASTERIZER_DESC mRasterizerStateShadow;
+	D3D12_SAMPLER_DESC mBilinearSampler;
 };
