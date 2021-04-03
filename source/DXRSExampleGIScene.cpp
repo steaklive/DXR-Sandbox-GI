@@ -108,7 +108,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	mDepthStencil = new DXRSDepthBuffer(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_D32_FLOAT);
 
 	#pragma region States
-	D3D12_DEPTH_STENCIL_DESC depthStateRW;
 	depthStateRW.DepthEnable = TRUE;
 	depthStateRW.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	depthStateRW.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
@@ -121,10 +120,9 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	depthStateRW.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	depthStateRW.BackFace = depthStateRW.FrontFace;
 
-	D3D12_DEPTH_STENCIL_DESC depthStateRead = depthStateRW;
+	depthStateRead = depthStateRW;
 	depthStateRead.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
-	D3D12_DEPTH_STENCIL_DESC depthStateDisabled;
 	depthStateDisabled.DepthEnable = FALSE;
 	depthStateDisabled.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	depthStateDisabled.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
@@ -137,7 +135,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	depthStateDisabled.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	depthStateDisabled.BackFace = depthStateRW.FrontFace;
 
-	D3D12_BLEND_DESC blend = {};
 	blend.IndependentBlendEnable = FALSE;
 	blend.RenderTarget[0].BlendEnable = FALSE;
 	blend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
@@ -148,7 +145,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	blend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	blend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-	D3D12_BLEND_DESC blendLPVPropagation = {};
 	blendLPVPropagation.IndependentBlendEnable = TRUE;
 	for (size_t i = 0; i < 6; i++)
 	{
@@ -162,7 +158,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		blendLPVPropagation.RenderTarget[i].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	}
 
-	D3D12_RASTERIZER_DESC rasterizer;
 	rasterizer.FillMode = D3D12_FILL_MODE_SOLID;
 	rasterizer.CullMode = D3D12_CULL_MODE_BACK;
 	rasterizer.FrontCounterClockwise = FALSE;
@@ -175,7 +170,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	rasterizer.ForcedSampleCount = 0;
 	rasterizer.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
-	D3D12_RASTERIZER_DESC shadowrasterizer;
 	shadowrasterizer.FillMode = D3D12_FILL_MODE_SOLID;
 	shadowrasterizer.CullMode = D3D12_CULL_MODE_BACK;
 	shadowrasterizer.FrontCounterClockwise = FALSE;
@@ -188,7 +182,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	shadowrasterizer.ForcedSampleCount = 0;
 	shadowrasterizer.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
-	D3D12_SAMPLER_DESC bilinearSampler;
 	bilinearSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	bilinearSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	bilinearSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -205,811 +198,12 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 
 #pragma endregion
 
-	// create resources for g-buffer pass 
-	{
-		D3D12_SAMPLER_DESC sampler;
-		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		sampler.MipLODBias = 0;
-		sampler.MaxAnisotropy = 0;
-		sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-		sampler.MinLOD = 0.0f;
-		sampler.MaxLOD = D3D12_FLOAT32_MAX;
-
-		DXGI_FORMAT rtFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-
-		mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Albedo"));
-
-		rtFormat = DXGI_FORMAT_R16G16B16A16_SNORM;
-		mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Normals"));
-		
-		rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"World Positions"));
-
-		// root signature
-		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-		mGbufferRS.Reset(2, 1);
-		mGbufferRS.InitStaticSampler(0, sampler, D3D12_SHADER_VISIBILITY_PIXEL);
-		mGbufferRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
-		mGbufferRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
-		mGbufferRS.Finalize(device, L"GPrepassRS", rootSignatureFlags);
-
-		//Create Pipeline State Object
-		ComPtr<ID3DBlob> vertexShader;
-		ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-		// Enable better shader debugging with the graphics debugging tools.
-		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-		UINT compileFlags = 0;
-#endif
-
-		ID3DBlob* errorBlob = nullptr;
-
-		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\GBuffer.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, nullptr));
-
-		compileFlags |= D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES;
-
-		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\GBuffer.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
-
-		// Define the vertex input layout.
-		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-		};
-
-		// Describe and create the graphics pipeline state object (PSO).
-		DXGI_FORMAT formats[3];
-		formats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-		formats[1] = DXGI_FORMAT_R16G16B16A16_SNORM;
-		formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-
-		mGbufferPSO.SetRootSignature(mGbufferRS);
-		mGbufferPSO.SetRasterizerState(rasterizer);
-		mGbufferPSO.SetBlendState(blend);
-		mGbufferPSO.SetDepthStencilState(depthStateRW);
-		mGbufferPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
-		mGbufferPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-		mGbufferPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
-		mGbufferPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
-		mGbufferPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
-		mGbufferPSO.Finalize(device);
-
-		//create constant buffer for pass
-		DXRSBuffer::Description cbDesc;
-		cbDesc.mElementSize = sizeof(GBufferCBData);
-		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
-		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-
-		mGbufferCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"GBuffer CB");
-	}
-
-	// create resources for RSM
-	{
-		//generation
-		{
-
-			DXGI_FORMAT rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-
-			mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"RSM World Pos"));
-			mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"RSM Normals"));
-			mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"RSM Flux"));
-
-			// root signature
-			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-			mRSMBuffersRS.Reset(1, 0);
-			mRSMBuffersRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
-			mRSMBuffersRS.Finalize(device, L"RSM Buffers RS", rootSignatureFlags);
-
-			//Create Pipeline State Object
-			ComPtr<ID3DBlob> vertexShader;
-			ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-			// Enable better shader debugging with the graphics debugging tools.
-			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-			UINT compileFlags = 0;
-#endif
-
-			ID3DBlob* errorBlob = nullptr;
-
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ShadowMapping.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, nullptr));
-
-			compileFlags |= D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES;
-
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ShadowMapping.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSRSM", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
-
-			// Define the vertex input layout.
-			D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-			{
-				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-				{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-			};
-
-			// Describe and create the graphics pipeline state object (PSO).
-			DXGI_FORMAT formats[3];
-			formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-
-			mRSMBuffersPSO.SetRootSignature(mRSMBuffersRS);
-			mRSMBuffersPSO.SetRasterizerState(rasterizer);
-			mRSMBuffersPSO.SetBlendState(blend);
-			mRSMBuffersPSO.SetDepthStencilState(depthStateRead);
-			mRSMBuffersPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
-			mRSMBuffersPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-			mRSMBuffersPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
-			mRSMBuffersPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
-			mRSMBuffersPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
-			mRSMBuffersPSO.Finalize(device);
-		}
-
-		//calculation
-		{
-			//RTs
-			mRSMRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH * mRSMRTRatio, MAX_SCREEN_HEIGHT * mRSMRTRatio,
-				DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Indirect Illumination");
-
-			//create root signature
-			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-			D3D12_SAMPLER_DESC rsmSampler;
-			rsmSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-			rsmSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-			rsmSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-			rsmSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-			//rsmSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-			rsmSampler.MipLODBias = 0;
-			rsmSampler.MaxAnisotropy = 16;
-			rsmSampler.MinLOD = 0.0f;
-			rsmSampler.MaxLOD = D3D12_FLOAT32_MAX;
-			rsmSampler.BorderColor[0] = 0.0f;
-			rsmSampler.BorderColor[1] = 0.0f;
-			rsmSampler.BorderColor[2] = 0.0f;
-			rsmSampler.BorderColor[3] = 0.0f;
-
-			// pixel version
-			{
-				mRSMRS.Reset(2, 1);
-				mRSMRS.InitStaticSampler(0, rsmSampler, D3D12_SHADER_VISIBILITY_PIXEL);
-				mRSMRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
-				mRSMRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, D3D12_SHADER_VISIBILITY_PIXEL);
-				mRSMRS.Finalize(device, L"RSM pixel shader pass RS", rootSignatureFlags);
-
-				//PSO
-				D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-				{
-					{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-					{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-				};
-
-				ComPtr<ID3DBlob> vertexShader;
-				ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-				// Enable better shader debugging with the graphics debugging tools.
-				UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-				UINT compileFlags = 0;
-#endif
-				ID3DBlob* errorBlob = nullptr;
-
-				ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ReflectiveShadowMappingPS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &errorBlob));
-				if (errorBlob)
-				{
-					OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-					errorBlob->Release();
-				}
-
-				ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ReflectiveShadowMappingPS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, &errorBlob));
-				if (errorBlob)
-				{
-					OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-					errorBlob->Release();
-				}
-
-				DXGI_FORMAT m_rtFormats[1];
-				m_rtFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-				mRSMPSO.SetRootSignature(mRSMRS);
-				mRSMPSO.SetRasterizerState(rasterizer);
-				mRSMPSO.SetBlendState(blend);
-				mRSMPSO.SetDepthStencilState(depthStateDisabled);
-				mRSMPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
-				mRSMPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-				mRSMPSO.SetRenderTargetFormats(_countof(m_rtFormats), m_rtFormats, DXGI_FORMAT_D32_FLOAT);
-				mRSMPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
-				mRSMPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
-				mRSMPSO.Finalize(device);
-			}
-
-			// compute version
-			{
-				mRSMRS_Compute.Reset(3, 1);
-				mRSMRS_Compute.InitStaticSampler(0, rsmSampler, D3D12_SHADER_VISIBILITY_ALL);
-				mRSMRS_Compute[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
-				mRSMRS_Compute[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, D3D12_SHADER_VISIBILITY_ALL);
-				mRSMRS_Compute[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
-				mRSMRS_Compute.Finalize(device, L"RSM compute shader pass RS", rootSignatureFlags);
-
-				ComPtr<ID3DBlob> computeShader;
-
-#if defined(_DEBUG)
-				// Enable better shader debugging with the graphics debugging tools.
-				UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-				UINT compileFlags = 0;
-#endif
-				ID3DBlob* errorBlob = nullptr;
-
-				ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ReflectiveShadowMappingCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
-				if (errorBlob)
-				{
-					OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-					errorBlob->Release();
-				}
-
-				mRSMPSO_Compute.SetRootSignature(mRSMRS_Compute);
-				mRSMPSO_Compute.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
-				mRSMPSO_Compute.Finalize(device);
-			}
-
-			//CB
-			DXRSBuffer::Description cbDesc;
-			cbDesc.mElementSize = sizeof(RSMCBData);
-			cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
-			cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-
-			mRSMCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"RSM Pass CB");
-
-			cbDesc.mElementSize = sizeof(RSMCBDataRandomValues);
-			mRSMCB2 = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"RSM Pass CB 2");
-
-			RSMCBDataRandomValues rsmPassData2 = {};
-			for (int i = 0; i < RSM_SAMPLES_COUNT; i++)
-			{
-				rsmPassData2.xi[i].x = RandomFloat(0.0f, 1.0f);
-				rsmPassData2.xi[i].y = RandomFloat(0.0f, 1.0f);
-				rsmPassData2.xi[i].z = 0.0f;
-				rsmPassData2.xi[i].w = 0.0f;
-			}
-			memcpy(mRSMCB2->Map(), &rsmPassData2, sizeof(rsmPassData2));
-		}
-
-		//blur
-		{
-			//RTs
-			mRSMUpsampleAndBlurRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
-				DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Upsampled & Blurred");
-
-			//create root signature
-			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-			mRSMUpsampleAndBlurRS.Reset(2, 1);
-			mRSMUpsampleAndBlurRS.InitStaticSampler(0, bilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
-			mRSMUpsampleAndBlurRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
-			mRSMUpsampleAndBlurRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
-			mRSMUpsampleAndBlurRS.Finalize(device, L"RSM Blur pass RS", rootSignatureFlags);
-
-			ComPtr<ID3DBlob> computeShader;
-
-#if defined(_DEBUG)
-			// Enable better shader debugging with the graphics debugging tools.
-			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-			UINT compileFlags = 0;
-#endif
-			ID3DBlob* errorBlob = nullptr;
-
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\UpsampleBlurCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
-			if (errorBlob)
-			{
-				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-				errorBlob->Release();
-			}
-
-			mRSMUpsampleAndBlurPSO.SetRootSignature(mRSMUpsampleAndBlurRS);
-			mRSMUpsampleAndBlurPSO.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
-			mRSMUpsampleAndBlurPSO.Finalize(device);
-		}
-
-		//downsampling for LPV - PS
-		{
-			DXGI_FORMAT rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-
-			mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, rtFormat, flags, L"RSM Downsampled World Pos"));
-			mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, rtFormat, flags, L"RSM Downsampled Normals"));
-			mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, rtFormat, flags, L"RSM Downsampled Flux"));
-
-			// root signature
-			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-			mRSMDownsampleRS.Reset(2, 0);
-			mRSMDownsampleRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-			mRSMDownsampleRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_PIXEL);
-			mRSMDownsampleRS.Finalize(device, L"RSM Downsample RS", rootSignatureFlags);
-
-			//Create Pipeline State Object
-			ComPtr<ID3DBlob> vertexShader;
-			ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-			// Enable better shader debugging with the graphics debugging tools.
-			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-			UINT compileFlags = 0;
-#endif
-
-			ID3DBlob* errorBlob = nullptr;
-
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSMDownsamplePS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
-
-			compileFlags |= D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES;
-
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSMDownsamplePS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
-
-			// Define the vertex input layout.
-			D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-			{
-				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-			};
-
-			// Describe and create the graphics pipeline state object (PSO).
-			DXGI_FORMAT formats[3];
-			formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-
-			mRSMDownsamplePSO.SetRootSignature(mRSMDownsampleRS);
-			mRSMDownsamplePSO.SetRasterizerState(rasterizer);
-			mRSMDownsamplePSO.SetBlendState(blend);
-			mRSMDownsamplePSO.SetDepthStencilState(depthStateDisabled);
-			mRSMDownsamplePSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
-			mRSMDownsamplePSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-			mRSMDownsamplePSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
-			mRSMDownsamplePSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
-			mRSMDownsamplePSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
-			mRSMDownsamplePSO.Finalize(device);
-
-			DXRSBuffer::Description cbDesc;
-			cbDesc.mElementSize = sizeof(RSMCBDataDownsample);
-			cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
-			cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-
-			mRSMDownsampleCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"RSM Downsample CB");
-		}
-
-		//downsampling for LPV - CS
-		{
-			// root signature
-			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-			mRSMDownsampleRS_Compute.Reset(3, 0);
-			mRSMDownsampleRS_Compute[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
-			mRSMDownsampleRS_Compute[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
-			mRSMDownsampleRS_Compute[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
-			mRSMDownsampleRS_Compute.Finalize(device, L"RSM Downsample compute pass RS", rootSignatureFlags);
-
-			ComPtr<ID3DBlob> computeShader;
-
-#if defined(_DEBUG)
-			// Enable better shader debugging with the graphics debugging tools.
-			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-			UINT compileFlags = 0;
-#endif
-			ID3DBlob* errorBlob = nullptr;
-
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSMDownsampleCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
-			if (errorBlob)
-			{
-				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-				errorBlob->Release();
-			}
-
-			mRSMDownsamplePSO_Compute.SetRootSignature(mRSMDownsampleRS_Compute);
-			mRSMDownsamplePSO_Compute.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
-			mRSMDownsamplePSO_Compute.Finalize(device);
-		}
-	}
-
-	// create resources for shadow mapping
-	{
-		mShadowDepth = new DXRSDepthBuffer(device, descriptorManager, SHADOWMAP_SIZE, SHADOWMAP_SIZE, DXGI_FORMAT_D32_FLOAT);
-
-		//create root signature
-		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-		mShadowMappingRS.Reset(1, 0);
-		mShadowMappingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
-		mShadowMappingRS.Finalize(device, L"Shadow Mapping pass RS", rootSignatureFlags);
-
-		ComPtr<ID3DBlob> vertexShader;
-		//ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-		// Enable better shader debugging with the graphics debugging tools.
-		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-		UINT compileFlags = 0;
-#endif
-
-		ID3DBlob* errorBlob = nullptr;
-
-		HRESULT res = D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ShadowMapping.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSOnlyMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob);
-
-		//if (errorBlob) {
-		//	std::string resultMessasge;
-		//	resultMessasge.append((char*)errorBlob->GetBufferPointer());
-		//}
-
-		ThrowIfFailed(res);
-
-		// Define the vertex input layout.
-		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-		};
-
-		mShadowMappingPSO.SetRootSignature(mShadowMappingRS);
-		mShadowMappingPSO.SetRasterizerState(shadowrasterizer);
-		mShadowMappingPSO.SetRenderTargetFormats(0, nullptr, mShadowDepth->GetFormat());
-		mShadowMappingPSO.SetBlendState(blend);
-		mShadowMappingPSO.SetDepthStencilState(depthStateRW);
-		mShadowMappingPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
-		mShadowMappingPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-		mShadowMappingPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
-		//mShadowMappingPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
-		mShadowMappingPSO.Finalize(device);
-
-		//create constant buffer for pass
-		DXRSBuffer::Description cbDesc;
-		cbDesc.mElementSize = sizeof(ShadowMappingCBData);
-		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
-		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-
-		mShadowMappingCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Shadow Mapping CB");
-	}
-	
-	// create lpv
-	{
-		// injection
-		{
-			DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-
-			//red
-			mLPVSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_DIM, LPV_DIM, format, flags, L"Red SH LPV", LPV_DIM));
-			mLPVSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_DIM, LPV_DIM, format, flags, L"Green SH LPV", LPV_DIM));
-			mLPVSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_DIM, LPV_DIM, format, flags, L"Blue SH LPV", LPV_DIM));
-
-			//create root signature
-			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
-
-			mLPVInjectionRS.Reset(2, 0);
-			mLPVInjectionRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
-			mLPVInjectionRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
-			mLPVInjectionRS.Finalize(device, L"LPV Injection pass RS", rootSignatureFlags);
-
-			ComPtr<ID3DBlob> vertexShader;
-			ComPtr<ID3DBlob> geometryShader;
-			ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-			// Enable better shader debugging with the graphics debugging tools.
-			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-			UINT compileFlags = 0;
-#endif
-
-			ID3DBlob* errorBlob = nullptr;
-
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVInjection.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVInjection.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "GSMain", "gs_5_1", compileFlags, 0, &geometryShader, &errorBlob));
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVInjection.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
-
-			DXGI_FORMAT formats[3];
-			formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-
-			mLPVInjectionPSO.SetRootSignature(mLPVInjectionRS);
-			mLPVInjectionPSO.SetRasterizerState(rasterizer);
-			mLPVInjectionPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
-			mLPVInjectionPSO.SetBlendState(blend);
-			mLPVInjectionPSO.SetDepthStencilState(depthStateDisabled);
-			mLPVInjectionPSO.SetInputLayout(0, nullptr);
-			mLPVInjectionPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
-			mLPVInjectionPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
-			mLPVInjectionPSO.SetGeometryShader(geometryShader->GetBufferPointer(), geometryShader->GetBufferSize());
-			mLPVInjectionPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
-			mLPVInjectionPSO.Finalize(device);
-
-			//CB
-			DXRSBuffer::Description cbDesc;
-			cbDesc.mElementSize = sizeof(LPVCBData);
-			cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
-			cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-
-			mLPVCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"LPV Injection Pass CB");
-
-			LPVCBData data = {};
-
-			XMFLOAT3 lpv_max = { LPV_DIM / 2,LPV_DIM / 2,LPV_DIM / 2 };
-			XMFLOAT3 lpv_min = { -LPV_DIM / 2,-LPV_DIM / 2,-LPV_DIM / 2 };
-			XMVECTOR diag = DirectX::XMVectorSubtract(DirectX::XMLoadFloat3(&lpv_max), DirectX::XMLoadFloat3(&lpv_min));
-
-			XMFLOAT3 d;
-			XMStoreFloat3(&d, diag);
-			XMMATRIX scale = DirectX::XMMatrixScaling(1.f / d.x, 1.f / d.y, 1.f / d.z);
-			XMMATRIX trans = DirectX::XMMatrixTranslation(-lpv_min.x, -lpv_min.y, -lpv_min.z);
-
-			data.worldToLPV = trans * scale;
-			mWorldToLPV = data.worldToLPV;
-			memcpy(mLPVCB->Map(), &data, sizeof(data));
-		}
-
-		// propagation
-		{
-			DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-
-			//red
-			mLPVAccumulationSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_DIM, LPV_DIM, format, flags, L"Accumulation Red SH LPV", LPV_DIM));
-			mLPVAccumulationSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_DIM, LPV_DIM, format, flags, L"Accumulation Green SH LPV", LPV_DIM));
-			mLPVAccumulationSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_DIM, LPV_DIM, format, flags, L"Accumulation Blue SH LPV", LPV_DIM));
-
-			//create root signature
-			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
-
-			mLPVPropagationRS.Reset(1, 0);
-			mLPVPropagationRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
-			mLPVPropagationRS.Finalize(device, L"LPV Propagation pass RS", rootSignatureFlags);
-
-			ComPtr<ID3DBlob> vertexShader;
-			ComPtr<ID3DBlob> geometryShader;
-			ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-			// Enable better shader debugging with the graphics debugging tools.
-			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-			UINT compileFlags = 0;
-#endif
-
-			ID3DBlob* errorBlob = nullptr;
-
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVPropagation.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVPropagation.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "GSMain", "gs_5_1", compileFlags, 0, &geometryShader, &errorBlob));
-			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVPropagation.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
-
-			DXGI_FORMAT formats[6];
-			formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			formats[3] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			formats[4] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-			formats[5] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-
-			mLPVPropagationPSO.SetRootSignature(mLPVPropagationRS);
-			mLPVPropagationPSO.SetRasterizerState(rasterizer);
-			mLPVPropagationPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
-			mLPVPropagationPSO.SetBlendState(blendLPVPropagation); //TODO add additive blending - fix 
-			mLPVPropagationPSO.SetDepthStencilState(depthStateDisabled);
-			mLPVPropagationPSO.SetInputLayout(0, nullptr);
-			mLPVPropagationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-			mLPVPropagationPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
-			mLPVPropagationPSO.SetGeometryShader(geometryShader->GetBufferPointer(), geometryShader->GetBufferSize());
-			mLPVPropagationPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
-			mLPVPropagationPSO.Finalize(device);
-		}
-	}
-
-	// create resources lighting pass
-	{
-		//RTs
-		mLightingRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
-			DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Lighting"));
-
-		//create root signature
-		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-		
-		D3D12_SAMPLER_DESC shadowSampler;
-		shadowSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
-		shadowSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		shadowSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		shadowSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		shadowSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		shadowSampler.MipLODBias = 0;
-		shadowSampler.MaxAnisotropy = 16;
-		shadowSampler.MinLOD = 0.0f;
-		shadowSampler.MaxLOD = D3D12_FLOAT32_MAX;
-		shadowSampler.BorderColor[0] = 1.0f;
-		shadowSampler.BorderColor[1] = 1.0f;
-		shadowSampler.BorderColor[2] = 1.0f;
-		shadowSampler.BorderColor[3] = 1.0f; 
-
-		D3D12_SAMPLER_DESC lpvSampler;
-		lpvSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-		lpvSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		lpvSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		lpvSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		//lpvSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		lpvSampler.MipLODBias = 0;
-		lpvSampler.MaxAnisotropy = 16;
-		lpvSampler.MinLOD = 0.0f;
-		lpvSampler.MaxLOD = D3D12_FLOAT32_MAX;
-		lpvSampler.BorderColor[0] = 0.0f;
-		lpvSampler.BorderColor[1] = 0.0f;
-		lpvSampler.BorderColor[2] = 0.0f;
-		lpvSampler.BorderColor[3] = 0.0f;
-
-		mLightingRS.Reset(2, 3);
-		mLightingRS.InitStaticSampler(0, bilinearSampler, D3D12_SHADER_VISIBILITY_PIXEL);
-		mLightingRS.InitStaticSampler(1, shadowSampler, D3D12_SHADER_VISIBILITY_PIXEL);
-		mLightingRS.InitStaticSampler(2, lpvSampler, D3D12_SHADER_VISIBILITY_PIXEL);
-		mLightingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 4, D3D12_SHADER_VISIBILITY_ALL);
-		mLightingRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 9, D3D12_SHADER_VISIBILITY_PIXEL);
-		mLightingRS.Finalize(device, L"Lighting pass RS", rootSignatureFlags);
-
-		//PSO
-		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-		};
-
-		ComPtr<ID3DBlob> vertexShader;
-		ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-		// Enable better shader debugging with the graphics debugging tools.
-		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-		UINT compileFlags = 0;
-#endif
-		ID3DBlob* errorBlob = nullptr;
-
-		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\Lighting.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &errorBlob));
-		if (errorBlob)
-		{
-			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-			errorBlob->Release();
-		}
-
-		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\Lighting.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, &errorBlob));
-		if (errorBlob)
-		{
-			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-			errorBlob->Release();
-		}
-
-		DXGI_FORMAT m_rtFormats[1];
-		m_rtFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-		mLightingPSO.SetRootSignature(mLightingRS);
-		mLightingPSO.SetRasterizerState(rasterizer);
-		mLightingPSO.SetBlendState(blend);
-		mLightingPSO.SetDepthStencilState(depthStateDisabled);
-		mLightingPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
-		mLightingPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-		mLightingPSO.SetRenderTargetFormats(_countof(m_rtFormats), m_rtFormats, DXGI_FORMAT_D32_FLOAT);
-		mLightingPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
-		mLightingPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
-		mLightingPSO.Finalize(device);
-
-		//CB
-		DXRSBuffer::Description cbDesc;
-		cbDesc.mElementSize = sizeof(LightingCBData);
-		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
-		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-
-		mLightingCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Lighting Pass CB");
-
-		cbDesc.mElementSize = sizeof(LightsInfoCBData);
-		mLightsInfoCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Lights Info CB");
-
-		cbDesc.mElementSize = sizeof(IlluminationFlagsCBData);
-		mIlluminationFlagsCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Illumination Flags CB");
-	}
-
-	// create resources composite pass
-	{
-		//create root signature
-		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-		mCompositeRS.Reset(1, 0);
-		//mCompositeRS.InitStaticSampler(0, SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-		mCompositeRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-		mCompositeRS.Finalize(device, L"Composite RS", rootSignatureFlags);
-
-		//create pipeline state object
-		ComPtr<ID3DBlob> vertexShader;
-		ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-		// Enable better shader debugging with the graphics debugging tools.
-		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-		UINT compileFlags = 0;
-#endif
-		ID3DBlob* errorBlob = nullptr;
-
-		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\Composite.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &errorBlob));
-		if (errorBlob)
-		{
-			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-			errorBlob->Release();
-		}
-
-		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\Composite.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, &errorBlob));
-
-		mCompositePSO = mLightingPSO;
-
-		mCompositePSO.SetRootSignature(mCompositeRS);
-		mCompositePSO.SetRenderTargetFormat(mSandboxFramework->GetBackBufferFormat(), DXGI_FORMAT_D32_FLOAT);
-		mCompositePSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
-		mCompositePSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
-		mCompositePSO.Finalize(device);
-	}
+	InitGbuffer(device, descriptorManager);
+	InitShadowMapping(device, descriptorManager);
+	InitReflectiveShadowMapping(device, descriptorManager);
+	InitLightPropagationVolume(device, descriptorManager);
+	InitLighting(device, descriptorManager);
+	InitComposite(device, descriptorManager);
 }
 
 void DXRSExampleGIScene::Clear()
@@ -1098,7 +292,6 @@ void DXRSExampleGIScene::Render()
 	mGraphicsMemory->Commit(mSandboxFramework->GetCommandQueue());
 }
 
-// *** UPDATES *** //
 void DXRSExampleGIScene::Update(DXRSTimer const& timer)
 {
 	UpdateControls();
@@ -1331,6 +524,96 @@ void DXRSExampleGIScene::RenderObject(U_PTR<DXRSModel>& aModel, std::function<vo
 	}
 }
 
+void DXRSExampleGIScene::InitGbuffer(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
+{
+	D3D12_SAMPLER_DESC sampler;
+	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	sampler.MipLODBias = 0;
+	sampler.MaxAnisotropy = 0;
+	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	sampler.MinLOD = 0.0f;
+	sampler.MaxLOD = D3D12_FLOAT32_MAX;
+
+	DXGI_FORMAT rtFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+	mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Albedo"));
+
+	rtFormat = DXGI_FORMAT_R16G16B16A16_SNORM;
+	mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Normals"));
+
+	rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"World Positions"));
+
+	// root signature
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+	mGbufferRS.Reset(2, 1);
+	mGbufferRS.InitStaticSampler(0, sampler, D3D12_SHADER_VISIBILITY_PIXEL);
+	mGbufferRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
+	mGbufferRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
+	mGbufferRS.Finalize(device, L"GPrepassRS", rootSignatureFlags);
+
+	//Create Pipeline State Object
+	ComPtr<ID3DBlob> vertexShader;
+	ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+	// Enable better shader debugging with the graphics debugging tools.
+	UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+	UINT compileFlags = 0;
+#endif
+
+	ID3DBlob* errorBlob = nullptr;
+
+	ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\GBuffer.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, nullptr));
+
+	compileFlags |= D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES;
+
+	ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\GBuffer.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
+
+	// Define the vertex input layout.
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	// Describe and create the graphics pipeline state object (PSO).
+	DXGI_FORMAT formats[3];
+	formats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	formats[1] = DXGI_FORMAT_R16G16B16A16_SNORM;
+	formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+	mGbufferPSO.SetRootSignature(mGbufferRS);
+	mGbufferPSO.SetRasterizerState(rasterizer);
+	mGbufferPSO.SetBlendState(blend);
+	mGbufferPSO.SetDepthStencilState(depthStateRW);
+	mGbufferPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
+	mGbufferPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+	mGbufferPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
+	mGbufferPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+	mGbufferPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+	mGbufferPSO.Finalize(device);
+
+	//create constant buffer for pass
+	DXRSBuffer::Description cbDesc;
+	cbDesc.mElementSize = sizeof(GBufferCBData);
+	cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+	cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+
+	mGbufferCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"GBuffer CB");
+}
 void DXRSExampleGIScene::RenderGbuffer(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
 	PIXBeginEvent(commandList, 0, "GBuffer");
@@ -1383,6 +666,69 @@ void DXRSExampleGIScene::RenderGbuffer(ID3D12Device* device, ID3D12GraphicsComma
 	PIXEndEvent(commandList);
 }
 
+void DXRSExampleGIScene::InitShadowMapping(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
+// create resources for shadow mapping
+{
+	mShadowDepth = new DXRSDepthBuffer(device, descriptorManager, SHADOWMAP_SIZE, SHADOWMAP_SIZE, DXGI_FORMAT_D32_FLOAT);
+
+	//create root signature
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+	mShadowMappingRS.Reset(1, 0);
+	mShadowMappingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
+	mShadowMappingRS.Finalize(device, L"Shadow Mapping pass RS", rootSignatureFlags);
+
+	ComPtr<ID3DBlob> vertexShader;
+	//ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+		// Enable better shader debugging with the graphics debugging tools.
+	UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+	UINT compileFlags = 0;
+#endif
+
+	ID3DBlob* errorBlob = nullptr;
+
+	HRESULT res = D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ShadowMapping.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSOnlyMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob);
+
+	//if (errorBlob) {
+	//	std::string resultMessasge;
+	//	resultMessasge.append((char*)errorBlob->GetBufferPointer());
+	//}
+
+	ThrowIfFailed(res);
+
+	// Define the vertex input layout.
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	mShadowMappingPSO.SetRootSignature(mShadowMappingRS);
+	mShadowMappingPSO.SetRasterizerState(shadowrasterizer);
+	mShadowMappingPSO.SetRenderTargetFormats(0, nullptr, mShadowDepth->GetFormat());
+	mShadowMappingPSO.SetBlendState(blend);
+	mShadowMappingPSO.SetDepthStencilState(depthStateRW);
+	mShadowMappingPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
+	mShadowMappingPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+	mShadowMappingPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+	//mShadowMappingPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+	mShadowMappingPSO.Finalize(device);
+
+	//create constant buffer for pass
+	DXRSBuffer::Description cbDesc;
+	cbDesc.mElementSize = sizeof(ShadowMappingCBData);
+	cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+	cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+
+	mShadowMappingCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Shadow Mapping CB");
+}
 void DXRSExampleGIScene::RenderShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
 	CD3DX12_VIEWPORT viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mSandboxFramework->GetOutputSize().right, mSandboxFramework->GetOutputSize().bottom);
@@ -1427,6 +773,358 @@ void DXRSExampleGIScene::RenderShadowMapping(ID3D12Device* device, ID3D12Graphic
 	PIXEndEvent(commandList);
 }
 
+void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
+{
+	//generation
+	{
+
+		DXGI_FORMAT rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+		mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"RSM World Pos"));
+		mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"RSM Normals"));
+		mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"RSM Flux"));
+
+		// root signature
+		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+		mRSMBuffersRS.Reset(1, 0);
+		mRSMBuffersRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
+		mRSMBuffersRS.Finalize(device, L"RSM Buffers RS", rootSignatureFlags);
+
+		//Create Pipeline State Object
+		ComPtr<ID3DBlob> vertexShader;
+		ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+		// Enable better shader debugging with the graphics debugging tools.
+		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+		UINT compileFlags = 0;
+#endif
+
+		ID3DBlob* errorBlob = nullptr;
+
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ShadowMapping.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, nullptr));
+
+		compileFlags |= D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES;
+
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ShadowMapping.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSRSM", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
+
+		// Define the vertex input layout.
+		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		};
+
+		// Describe and create the graphics pipeline state object (PSO).
+		DXGI_FORMAT formats[3];
+		formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+		mRSMBuffersPSO.SetRootSignature(mRSMBuffersRS);
+		mRSMBuffersPSO.SetRasterizerState(rasterizer);
+		mRSMBuffersPSO.SetBlendState(blend);
+		mRSMBuffersPSO.SetDepthStencilState(depthStateRead);
+		mRSMBuffersPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
+		mRSMBuffersPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		mRSMBuffersPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
+		mRSMBuffersPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+		mRSMBuffersPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+		mRSMBuffersPSO.Finalize(device);
+	}
+
+	//calculation
+	{
+		//RTs
+		mRSMRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH * mRSMRTRatio, MAX_SCREEN_HEIGHT * mRSMRTRatio,
+			DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Indirect Illumination");
+
+		//create root signature
+		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+		D3D12_SAMPLER_DESC rsmSampler;
+		rsmSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		rsmSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		rsmSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		rsmSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		//rsmSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+		rsmSampler.MipLODBias = 0;
+		rsmSampler.MaxAnisotropy = 16;
+		rsmSampler.MinLOD = 0.0f;
+		rsmSampler.MaxLOD = D3D12_FLOAT32_MAX;
+		rsmSampler.BorderColor[0] = 0.0f;
+		rsmSampler.BorderColor[1] = 0.0f;
+		rsmSampler.BorderColor[2] = 0.0f;
+		rsmSampler.BorderColor[3] = 0.0f;
+
+		// pixel version
+		{
+			mRSMRS.Reset(2, 1);
+			mRSMRS.InitStaticSampler(0, rsmSampler, D3D12_SHADER_VISIBILITY_PIXEL);
+			mRSMRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
+			mRSMRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, D3D12_SHADER_VISIBILITY_PIXEL);
+			mRSMRS.Finalize(device, L"RSM pixel shader pass RS", rootSignatureFlags);
+
+			//PSO
+			D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+			{
+				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+			};
+
+			ComPtr<ID3DBlob> vertexShader;
+			ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+			// Enable better shader debugging with the graphics debugging tools.
+			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+			UINT compileFlags = 0;
+#endif
+			ID3DBlob* errorBlob = nullptr;
+
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ReflectiveShadowMappingPS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &errorBlob));
+			if (errorBlob)
+			{
+				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				errorBlob->Release();
+			}
+
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ReflectiveShadowMappingPS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, &errorBlob));
+			if (errorBlob)
+			{
+				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				errorBlob->Release();
+			}
+
+			DXGI_FORMAT m_rtFormats[1];
+			m_rtFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+			mRSMPSO.SetRootSignature(mRSMRS);
+			mRSMPSO.SetRasterizerState(rasterizer);
+			mRSMPSO.SetBlendState(blend);
+			mRSMPSO.SetDepthStencilState(depthStateDisabled);
+			mRSMPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
+			mRSMPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+			mRSMPSO.SetRenderTargetFormats(_countof(m_rtFormats), m_rtFormats, DXGI_FORMAT_D32_FLOAT);
+			mRSMPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+			mRSMPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+			mRSMPSO.Finalize(device);
+		}
+
+		// compute version
+		{
+			mRSMRS_Compute.Reset(3, 1);
+			mRSMRS_Compute.InitStaticSampler(0, rsmSampler, D3D12_SHADER_VISIBILITY_ALL);
+			mRSMRS_Compute[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
+			mRSMRS_Compute[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5, D3D12_SHADER_VISIBILITY_ALL);
+			mRSMRS_Compute[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+			mRSMRS_Compute.Finalize(device, L"RSM compute shader pass RS", rootSignatureFlags);
+
+			ComPtr<ID3DBlob> computeShader;
+
+#if defined(_DEBUG)
+			// Enable better shader debugging with the graphics debugging tools.
+			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+			UINT compileFlags = 0;
+#endif
+			ID3DBlob* errorBlob = nullptr;
+
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\ReflectiveShadowMappingCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
+			if (errorBlob)
+			{
+				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				errorBlob->Release();
+			}
+
+			mRSMPSO_Compute.SetRootSignature(mRSMRS_Compute);
+			mRSMPSO_Compute.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
+			mRSMPSO_Compute.Finalize(device);
+		}
+
+		//CB
+		DXRSBuffer::Description cbDesc;
+		cbDesc.mElementSize = sizeof(RSMCBData);
+		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+
+		mRSMCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"RSM Pass CB");
+
+		cbDesc.mElementSize = sizeof(RSMCBDataRandomValues);
+		mRSMCB2 = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"RSM Pass CB 2");
+
+		RSMCBDataRandomValues rsmPassData2 = {};
+		for (int i = 0; i < RSM_SAMPLES_COUNT; i++)
+		{
+			rsmPassData2.xi[i].x = RandomFloat(0.0f, 1.0f);
+			rsmPassData2.xi[i].y = RandomFloat(0.0f, 1.0f);
+			rsmPassData2.xi[i].z = 0.0f;
+			rsmPassData2.xi[i].w = 0.0f;
+		}
+		memcpy(mRSMCB2->Map(), &rsmPassData2, sizeof(rsmPassData2));
+	}
+
+	//blur
+	{
+		//RTs
+		mRSMUpsampleAndBlurRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
+			DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Upsampled & Blurred");
+
+		//create root signature
+		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+		mRSMUpsampleAndBlurRS.Reset(2, 1);
+		mRSMUpsampleAndBlurRS.InitStaticSampler(0, bilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
+		mRSMUpsampleAndBlurRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mRSMUpsampleAndBlurRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mRSMUpsampleAndBlurRS.Finalize(device, L"RSM Blur pass RS", rootSignatureFlags);
+
+		ComPtr<ID3DBlob> computeShader;
+
+#if defined(_DEBUG)
+		// Enable better shader debugging with the graphics debugging tools.
+		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+		UINT compileFlags = 0;
+#endif
+		ID3DBlob* errorBlob = nullptr;
+
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\UpsampleBlurCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
+		if (errorBlob)
+		{
+			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+			errorBlob->Release();
+		}
+
+		mRSMUpsampleAndBlurPSO.SetRootSignature(mRSMUpsampleAndBlurRS);
+		mRSMUpsampleAndBlurPSO.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
+		mRSMUpsampleAndBlurPSO.Finalize(device);
+	}
+
+	//downsampling for LPV - PS
+	{
+		DXGI_FORMAT rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+		mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, rtFormat, flags, L"RSM Downsampled World Pos"));
+		mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, rtFormat, flags, L"RSM Downsampled Normals"));
+		mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, rtFormat, flags, L"RSM Downsampled Flux"));
+
+		// root signature
+		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+		mRSMDownsampleRS.Reset(2, 0);
+		mRSMDownsampleRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+		mRSMDownsampleRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_PIXEL);
+		mRSMDownsampleRS.Finalize(device, L"RSM Downsample RS", rootSignatureFlags);
+
+		//Create Pipeline State Object
+		ComPtr<ID3DBlob> vertexShader;
+		ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+		// Enable better shader debugging with the graphics debugging tools.
+		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+		UINT compileFlags = 0;
+#endif
+
+		ID3DBlob* errorBlob = nullptr;
+
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSMDownsamplePS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
+
+		compileFlags |= D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES;
+
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSMDownsamplePS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
+
+		// Define the vertex input layout.
+		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		};
+
+		// Describe and create the graphics pipeline state object (PSO).
+		DXGI_FORMAT formats[3];
+		formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+		mRSMDownsamplePSO.SetRootSignature(mRSMDownsampleRS);
+		mRSMDownsamplePSO.SetRasterizerState(rasterizer);
+		mRSMDownsamplePSO.SetBlendState(blend);
+		mRSMDownsamplePSO.SetDepthStencilState(depthStateDisabled);
+		mRSMDownsamplePSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
+		mRSMDownsamplePSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		mRSMDownsamplePSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
+		mRSMDownsamplePSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+		mRSMDownsamplePSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+		mRSMDownsamplePSO.Finalize(device);
+
+		DXRSBuffer::Description cbDesc;
+		cbDesc.mElementSize = sizeof(RSMCBDataDownsample);
+		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+
+		mRSMDownsampleCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"RSM Downsample CB");
+	}
+
+	//downsampling for LPV - CS
+	{
+		// root signature
+		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+		mRSMDownsampleRS_Compute.Reset(3, 0);
+		mRSMDownsampleRS_Compute[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mRSMDownsampleRS_Compute[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
+		mRSMDownsampleRS_Compute[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
+		mRSMDownsampleRS_Compute.Finalize(device, L"RSM Downsample compute pass RS", rootSignatureFlags);
+
+		ComPtr<ID3DBlob> computeShader;
+
+#if defined(_DEBUG)
+		// Enable better shader debugging with the graphics debugging tools.
+		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+		UINT compileFlags = 0;
+#endif
+		ID3DBlob* errorBlob = nullptr;
+
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\RSMDownsampleCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
+		if (errorBlob)
+		{
+			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+			errorBlob->Release();
+		}
+
+		mRSMDownsamplePSO_Compute.SetRootSignature(mRSMDownsampleRS_Compute);
+		mRSMDownsamplePSO_Compute.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
+		mRSMDownsamplePSO_Compute.Finalize(device);
+	}
+}
 void DXRSExampleGIScene::RenderReflectiveShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
 	CD3DX12_VIEWPORT viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mSandboxFramework->GetOutputSize().right, mSandboxFramework->GetOutputSize().bottom);
@@ -1684,6 +1382,147 @@ void DXRSExampleGIScene::RenderReflectiveShadowMapping(ID3D12Device* device, ID3
 		clearRSMRT();
 }
 
+void DXRSExampleGIScene::InitLightPropagationVolume(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
+{
+	// injection
+	{
+		DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+		//red
+		mLPVSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_DIM, LPV_DIM, format, flags, L"Red SH LPV", LPV_DIM));
+		mLPVSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_DIM, LPV_DIM, format, flags, L"Green SH LPV", LPV_DIM));
+		mLPVSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_DIM, LPV_DIM, format, flags, L"Blue SH LPV", LPV_DIM));
+
+		//create root signature
+		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
+
+		mLPVInjectionRS.Reset(2, 0);
+		mLPVInjectionRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
+		mLPVInjectionRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
+		mLPVInjectionRS.Finalize(device, L"LPV Injection pass RS", rootSignatureFlags);
+
+		ComPtr<ID3DBlob> vertexShader;
+		ComPtr<ID3DBlob> geometryShader;
+		ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+		// Enable better shader debugging with the graphics debugging tools.
+		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+		UINT compileFlags = 0;
+#endif
+
+		ID3DBlob* errorBlob = nullptr;
+
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVInjection.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVInjection.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "GSMain", "gs_5_1", compileFlags, 0, &geometryShader, &errorBlob));
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVInjection.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
+
+		DXGI_FORMAT formats[3];
+		formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+		mLPVInjectionPSO.SetRootSignature(mLPVInjectionRS);
+		mLPVInjectionPSO.SetRasterizerState(rasterizer);
+		mLPVInjectionPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
+		mLPVInjectionPSO.SetBlendState(blend);
+		mLPVInjectionPSO.SetDepthStencilState(depthStateDisabled);
+		mLPVInjectionPSO.SetInputLayout(0, nullptr);
+		mLPVInjectionPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
+		mLPVInjectionPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+		mLPVInjectionPSO.SetGeometryShader(geometryShader->GetBufferPointer(), geometryShader->GetBufferSize());
+		mLPVInjectionPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+		mLPVInjectionPSO.Finalize(device);
+
+		//CB
+		DXRSBuffer::Description cbDesc;
+		cbDesc.mElementSize = sizeof(LPVCBData);
+		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+
+		mLPVCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"LPV Injection Pass CB");
+
+		LPVCBData data = {};
+
+		XMFLOAT3 lpv_max = { LPV_DIM / 2,LPV_DIM / 2,LPV_DIM / 2 };
+		XMFLOAT3 lpv_min = { -LPV_DIM / 2,-LPV_DIM / 2,-LPV_DIM / 2 };
+		XMVECTOR diag = DirectX::XMVectorSubtract(DirectX::XMLoadFloat3(&lpv_max), DirectX::XMLoadFloat3(&lpv_min));
+
+		XMFLOAT3 d;
+		XMStoreFloat3(&d, diag);
+		XMMATRIX scale = DirectX::XMMatrixScaling(1.f / d.x, 1.f / d.y, 1.f / d.z);
+		XMMATRIX trans = DirectX::XMMatrixTranslation(-lpv_min.x, -lpv_min.y, -lpv_min.z);
+
+		data.worldToLPV = trans * scale;
+		mWorldToLPV = data.worldToLPV;
+		memcpy(mLPVCB->Map(), &data, sizeof(data));
+	}
+
+	// propagation
+	{
+		DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+		//red
+		mLPVAccumulationSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_DIM, LPV_DIM, format, flags, L"Accumulation Red SH LPV", LPV_DIM));
+		mLPVAccumulationSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_DIM, LPV_DIM, format, flags, L"Accumulation Green SH LPV", LPV_DIM));
+		mLPVAccumulationSHColorsRTs.push_back(new DXRSRenderTarget(device, descriptorManager, LPV_DIM, LPV_DIM, format, flags, L"Accumulation Blue SH LPV", LPV_DIM));
+
+		//create root signature
+		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
+
+		mLPVPropagationRS.Reset(1, 0);
+		mLPVPropagationRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_ALL);
+		mLPVPropagationRS.Finalize(device, L"LPV Propagation pass RS", rootSignatureFlags);
+
+		ComPtr<ID3DBlob> vertexShader;
+		ComPtr<ID3DBlob> geometryShader;
+		ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+		// Enable better shader debugging with the graphics debugging tools.
+		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+		UINT compileFlags = 0;
+#endif
+
+		ID3DBlob* errorBlob = nullptr;
+
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVPropagation.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVPropagation.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "GSMain", "gs_5_1", compileFlags, 0, &geometryShader, &errorBlob));
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVPropagation.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
+
+		DXGI_FORMAT formats[6];
+		formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[3] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[4] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[5] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+		mLPVPropagationPSO.SetRootSignature(mLPVPropagationRS);
+		mLPVPropagationPSO.SetRasterizerState(rasterizer);
+		mLPVPropagationPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
+		mLPVPropagationPSO.SetBlendState(blendLPVPropagation); //TODO add additive blending - fix 
+		mLPVPropagationPSO.SetDepthStencilState(depthStateDisabled);
+		mLPVPropagationPSO.SetInputLayout(0, nullptr);
+		mLPVPropagationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		mLPVPropagationPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+		mLPVPropagationPSO.SetGeometryShader(geometryShader->GetBufferPointer(), geometryShader->GetBufferSize());
+		mLPVPropagationPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+		mLPVPropagationPSO.Finalize(device);
+	}
+}
 void DXRSExampleGIScene::RenderLightPropagationVolume(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
 	CD3DX12_VIEWPORT viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mSandboxFramework->GetOutputSize().right, mSandboxFramework->GetOutputSize().bottom);
@@ -1801,6 +1640,117 @@ void DXRSExampleGIScene::RenderLightPropagationVolume(ID3D12Device* device, ID3D
 	}
 }
 
+void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
+{
+	//RTs
+	mLightingRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
+		DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Lighting"));
+
+	//create root signature
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+	D3D12_SAMPLER_DESC shadowSampler;
+	shadowSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+	shadowSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	shadowSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	shadowSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	shadowSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	shadowSampler.MipLODBias = 0;
+	shadowSampler.MaxAnisotropy = 16;
+	shadowSampler.MinLOD = 0.0f;
+	shadowSampler.MaxLOD = D3D12_FLOAT32_MAX;
+	shadowSampler.BorderColor[0] = 1.0f;
+	shadowSampler.BorderColor[1] = 1.0f;
+	shadowSampler.BorderColor[2] = 1.0f;
+	shadowSampler.BorderColor[3] = 1.0f;
+
+	D3D12_SAMPLER_DESC lpvSampler;
+	lpvSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	lpvSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	lpvSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	lpvSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	//lpvSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	lpvSampler.MipLODBias = 0;
+	lpvSampler.MaxAnisotropy = 16;
+	lpvSampler.MinLOD = 0.0f;
+	lpvSampler.MaxLOD = D3D12_FLOAT32_MAX;
+	lpvSampler.BorderColor[0] = 0.0f;
+	lpvSampler.BorderColor[1] = 0.0f;
+	lpvSampler.BorderColor[2] = 0.0f;
+	lpvSampler.BorderColor[3] = 0.0f;
+
+	mLightingRS.Reset(2, 3);
+	mLightingRS.InitStaticSampler(0, bilinearSampler, D3D12_SHADER_VISIBILITY_PIXEL);
+	mLightingRS.InitStaticSampler(1, shadowSampler, D3D12_SHADER_VISIBILITY_PIXEL);
+	mLightingRS.InitStaticSampler(2, lpvSampler, D3D12_SHADER_VISIBILITY_PIXEL);
+	mLightingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 4, D3D12_SHADER_VISIBILITY_ALL);
+	mLightingRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 9, D3D12_SHADER_VISIBILITY_PIXEL);
+	mLightingRS.Finalize(device, L"Lighting pass RS", rootSignatureFlags);
+
+	//PSO
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	ComPtr<ID3DBlob> vertexShader;
+	ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+	// Enable better shader debugging with the graphics debugging tools.
+	UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+	UINT compileFlags = 0;
+#endif
+	ID3DBlob* errorBlob = nullptr;
+
+	ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\Lighting.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &errorBlob));
+	if (errorBlob)
+	{
+		OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+		errorBlob->Release();
+	}
+
+	ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\Lighting.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, &errorBlob));
+	if (errorBlob)
+	{
+		OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+		errorBlob->Release();
+	}
+
+	DXGI_FORMAT m_rtFormats[1];
+	m_rtFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	mLightingPSO.SetRootSignature(mLightingRS);
+	mLightingPSO.SetRasterizerState(rasterizer);
+	mLightingPSO.SetBlendState(blend);
+	mLightingPSO.SetDepthStencilState(depthStateDisabled);
+	mLightingPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
+	mLightingPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+	mLightingPSO.SetRenderTargetFormats(_countof(m_rtFormats), m_rtFormats, DXGI_FORMAT_D32_FLOAT);
+	mLightingPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+	mLightingPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+	mLightingPSO.Finalize(device);
+
+	//CB
+	DXRSBuffer::Description cbDesc;
+	cbDesc.mElementSize = sizeof(LightingCBData);
+	cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+	cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+
+	mLightingCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Lighting Pass CB");
+
+	cbDesc.mElementSize = sizeof(LightsInfoCBData);
+	mLightsInfoCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Lights Info CB");
+
+	cbDesc.mElementSize = sizeof(IlluminationFlagsCBData);
+	mIlluminationFlagsCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Illumination Flags CB");
+}
 void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
 	PIXBeginEvent(commandList, 0, "Lighting");
@@ -1853,6 +1803,50 @@ void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsComm
 	PIXEndEvent(commandList);
 }
 
+void DXRSExampleGIScene::InitComposite(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
+{
+	//create root signature
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+	mCompositeRS.Reset(1, 0);
+	//mCompositeRS.InitStaticSampler(0, SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+	mCompositeRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+	mCompositeRS.Finalize(device, L"Composite RS", rootSignatureFlags);
+
+	//create pipeline state object
+	ComPtr<ID3DBlob> vertexShader;
+	ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+	// Enable better shader debugging with the graphics debugging tools.
+	UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+	UINT compileFlags = 0;
+#endif
+	ID3DBlob* errorBlob = nullptr;
+
+	ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\Composite.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &errorBlob));
+	if (errorBlob)
+	{
+		OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+		errorBlob->Release();
+	}
+
+	ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\Composite.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, &errorBlob));
+
+	mCompositePSO = mLightingPSO;
+
+	mCompositePSO.SetRootSignature(mCompositeRS);
+	mCompositePSO.SetRenderTargetFormat(mSandboxFramework->GetBackBufferFormat(), DXGI_FORMAT_D32_FLOAT);
+	mCompositePSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+	mCompositePSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+	mCompositePSO.Finalize(device);
+}
 void DXRSExampleGIScene::RenderComposite(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
 	PIXBeginEvent(commandList, 0, "Composite");

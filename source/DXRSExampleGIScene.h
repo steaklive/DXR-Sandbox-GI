@@ -27,6 +27,13 @@ public:
 	void OnWindowSizeChanged(int width, int height);
 
 private:
+	void InitGbuffer(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitShadowMapping(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitReflectiveShadowMapping(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitLightPropagationVolume(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitLighting(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitComposite(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+
 	void Update(DXRSTimer const& timer);
 	void UpdateTransforms(DXRSTimer const& timer);
 	void UpdateBuffers(DXRSTimer const& timer);
@@ -245,4 +252,13 @@ private:
 	XMMATRIX mWorldToLPV;
 
 	XMMATRIX mWorld;
+
+	D3D12_DEPTH_STENCIL_DESC depthStateRW;
+	D3D12_DEPTH_STENCIL_DESC depthStateRead;
+	D3D12_DEPTH_STENCIL_DESC depthStateDisabled;
+	D3D12_BLEND_DESC blend;
+	D3D12_BLEND_DESC blendLPVPropagation;
+	D3D12_RASTERIZER_DESC rasterizer;
+	D3D12_RASTERIZER_DESC shadowrasterizer;
+	D3D12_SAMPLER_DESC bilinearSampler;
 };
