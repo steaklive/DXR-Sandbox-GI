@@ -3,7 +3,7 @@
 #include "DXRSModel.h"
 
 DXRSModel::DXRSModel(DXRSGraphics& dxWrapper, const std::string& filename, bool flipUVs, XMMATRIX transformWorld, XMFLOAT4 color)
-	: mMeshes(), mMaterials(), mDXWrapper(dxWrapper)
+	: mMeshes(), mMaterials(), mDXWrapper(dxWrapper), mWorldMatrix(transformWorld)
 {
 	mDiffuseColor = color;
 

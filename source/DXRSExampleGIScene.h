@@ -28,14 +28,24 @@ public:
 
 private:
 	void Update(DXRSTimer const& timer);
+	void UpdateTransforms(DXRSTimer const& timer);
 	void UpdateBuffers(DXRSTimer const& timer);
-	void Render();
-	void SetProjectionMatrix();
 	void UpdateLights();
 	void UpdateControls();
 	void UpdateCamera();
 	void UpdateShadow();
 	void UpdateImGui();
+
+	void Render();
+	void RenderGbuffer(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
+	void RenderShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
+	void RenderReflectiveShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
+	void RenderLightPropagationVolume(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
+	void RenderLighting(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
+	void RenderComposite(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
+	void RenderObject(U_PTR<DXRSModel>& aModel, std::function<void(U_PTR<DXRSModel>&)> aCallback);
+
+	void SetProjectionMatrix();
 	void ThrowFailedErrorBlob(ID3DBlob* blob);
 
 	DXRSGraphics* mSandboxFramework;
@@ -53,11 +63,7 @@ private:
 	U_PTR<GraphicsMemory>                                mGraphicsMemory;
 	U_PTR<CommonStates>                                  mStates;
 
-	U_PTR<DXRSModel>                                     mDragonModel;
-	U_PTR<DXRSModel>                                     mSphereModel_1;
-	U_PTR<DXRSModel>                                     mSphereModel_2;
-	U_PTR<DXRSModel>                                     mBlockModel;
-	U_PTR<DXRSModel>                                     mRoomModel;
+	std::vector<U_PTR<DXRSModel>>						 mObjects;
 
 	// Gbuffer
 	RootSignature                                        mGbufferRS;
