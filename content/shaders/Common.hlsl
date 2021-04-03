@@ -29,12 +29,12 @@ struct ShadowPayload
     bool isHit;
 };
 
-float4 dirToSH(float3 direction)
+float4 DirToSH(float3 direction)
 {
     return float4(SH_C0, -SH_C1 * direction.y, SH_C1 * direction.z, -SH_C1 * direction.x);
 }
 
-float4 dirCosLobeToSH(float3 direction)
+float4 DirCosLobeToSH(float3 direction)
 {
     return float4(SH_COSINE_LOBE_C0, -SH_COSINE_LOBE_C1 * direction.y, SH_COSINE_LOBE_C1 * direction.z, -SH_COSINE_LOBE_C1 * direction.x);
 }

@@ -129,7 +129,7 @@ PSOutput PSMain(PSInput input)
     {
     
         float3 lpv = float3(0.0f, 0.0f, 0.0f);
-        float4 SHintensity = dirToSH(-normal.rgb);
+        float4 SHintensity = DirToSH(-normal.rgb);
         float3 lpvCellCoords = (worldPos.rgb * LPV_SCALE + float3(LPV_DIM_HALF, LPV_DIM_HALF, LPV_DIM_HALF)) * LPV_DIM_INVERSE;
         float4 lpvIntensity =
         float4(

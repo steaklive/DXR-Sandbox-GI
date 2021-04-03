@@ -112,8 +112,8 @@ SHContribution GetSHGatheringContribution(int4 cellIndex)
         neighbourContribution.blue = blueSH.Load(neighbourPos);
         
         // add contribution from main direction
-        float4 directionCosLobeSH = dirCosLobeToSH(cellDirections[neighbourCell]);
-        float4 directionSH = dirToSH(cellDirections[neighbourCell]);
+        float4 directionCosLobeSH = DirCosLobeToSH(cellDirections[neighbourCell]);
+        float4 directionSH = DirToSH(cellDirections[neighbourCell]);
         result.red += directFaceSubtendedSolidAngle * dot(neighbourContribution.red, directionSH) * directionCosLobeSH;
         result.green += directFaceSubtendedSolidAngle * dot(neighbourContribution.green, directionSH) * directionCosLobeSH;
         result.blue += directFaceSubtendedSolidAngle * dot(neighbourContribution.blue, directionSH) * directionCosLobeSH;
@@ -124,8 +124,8 @@ SHContribution GetSHGatheringContribution(int4 cellIndex)
             float3 evaluatedSideDir = getEvalSideDirection(face, cellDirections[face]);
             float3 reproSideDir = getReprojSideDirection(face, cellDirections[face]);
             
-            float4 evalSideDirSH = dirToSH(evaluatedSideDir);
-            float4 reproSideDirCosLobeSH = dirCosLobeToSH(reproSideDir);
+            float4 evalSideDirSH = DirToSH(evaluatedSideDir);
+            float4 reproSideDirCosLobeSH = DirCosLobeToSH(reproSideDir);
             
             result.red += sideFaceSubtendedSolidAngle * dot(neighbourContribution.red, evalSideDirSH) * reproSideDirCosLobeSH;
             result.green += sideFaceSubtendedSolidAngle * dot(neighbourContribution.green, evalSideDirSH) * reproSideDirCosLobeSH;

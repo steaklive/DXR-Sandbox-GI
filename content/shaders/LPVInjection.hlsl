@@ -92,7 +92,7 @@ PS_OUT PSMain(PS_IN input)
 {
     PS_OUT output = (PS_OUT) 0;
     
-    float4 SH_coef = dirCosLobeToSH(input.normal) / PI;
+    float4 SH_coef = DirCosLobeToSH(input.normal) / PI;
     output.redSH = SH_coef * input.flux.r;
     output.greenSH = SH_coef * input.flux.g;
     output.blueSH = SH_coef * input.flux.b;
