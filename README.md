@@ -5,8 +5,10 @@ Simple C++/DX12 framework which is a part of my bachelor thesis on real-time glo
 ![picture](screenshots/lpv.png)
 
 # Features
-- Reflective Shadow Mapping
-- Light Propagation Volumes
+- Deferred Rendering
+- Shadow Mapping
+- GI w/ Reflective Shadow Mapping
+- GI w/ Light Propagation Volume
 
 # Additional dependencies
 - Assimp
