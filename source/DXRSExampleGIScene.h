@@ -14,6 +14,7 @@
 #define RSM_SIZE 2048
 #define RSM_SAMPLES_COUNT 512
 #define LPV_DIM 32
+#define VCT_SCENE_VOLUME_SIZE 512
 
 class DXRSExampleGIScene
 {
@@ -27,13 +28,6 @@ public:
 	void OnWindowSizeChanged(int width, int height);
 
 private:
-	void InitGbuffer(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
-	void InitShadowMapping(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
-	void InitReflectiveShadowMapping(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
-	void InitLightPropagationVolume(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
-	void InitLighting(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
-	void InitComposite(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
-
 	void Update(DXRSTimer const& timer);
 	void UpdateTransforms(DXRSTimer const& timer);
 	void UpdateBuffers(DXRSTimer const& timer);
@@ -41,12 +35,21 @@ private:
 	void UpdateControls();
 	void UpdateCamera();
 	void UpdateImGui();
+	
+	void InitGbuffer(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitShadowMapping(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitReflectiveShadowMapping(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitLightPropagationVolume(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitVoxelConeTracing(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitLighting(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitComposite(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
 
 	void Render();
 	void RenderGbuffer(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderReflectiveShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderLightPropagationVolume(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
+	void RenderVoxelConeTracing(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderLighting(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderComposite(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderObject(U_PTR<DXRSModel>& aModel, std::function<void(U_PTR<DXRSModel>&)> aCallback);
@@ -143,6 +146,10 @@ private:
 		float LPVAttenuation;
 	};
 	DXRSBuffer* mLPVCB;
+
+	RootSignature                                        mVCTVoxelizationRS;
+	GraphicsPSO											 mVCTVoxelizationPSO;
+	DXRSRenderTarget*									 mVCTVoxelization3DRT;
 
 	// Composite
 	RootSignature mCompositeRS;
