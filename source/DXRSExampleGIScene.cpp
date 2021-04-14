@@ -1648,7 +1648,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 {
 	// voxelization
 	{
-		DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 		mVCTVoxelization3DRT = new DXRSRenderTarget(device, descriptorManager, VCT_SCENE_VOLUME_SIZE, VCT_SCENE_VOLUME_SIZE, format, flags, L"Voxelization Scene Data 3D", VCT_SCENE_VOLUME_SIZE);
@@ -1693,7 +1693,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 
 		mVCTVoxelizationPSO.SetRootSignature(mVCTVoxelizationRS);
 		mVCTVoxelizationPSO.SetRasterizerState(mRasterizerState);
-		//mVCTVoxelizationPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
+		mVCTVoxelizationPSO.SetRenderTargetFormats(0, nullptr, DXGI_FORMAT_D32_FLOAT);
 		mVCTVoxelizationPSO.SetBlendState(mBlendState);
 		mVCTVoxelizationPSO.SetDepthStencilState(mDepthStateDisabled);
 		mVCTVoxelizationPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
@@ -1702,8 +1702,22 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		mVCTVoxelizationPSO.SetGeometryShader(geometryShader->GetBufferPointer(), geometryShader->GetBufferSize());
 		mVCTVoxelizationPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
 		mVCTVoxelizationPSO.Finalize(device);
-	}
 
+		//create constant buffer for pass
+		DXRSBuffer::Description cbDesc;
+		cbDesc.mElementSize = sizeof(VCTVoxelizationCBData);
+		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+		mVCTVoxelizationCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT Voxelization Pass CB");
+
+		VCTVoxelizationCBData data = {};
+		float size = 128.0f;
+		XMMATRIX projectionMatrix = XMMatrixOrthographicRH(size, size, -size * 0.5f, size * 0.5f);
+		data.ProjectionX = projectionMatrix * XMMatrixLookAtRH(XMVECTOR{ size, 0, 0 }, XMVECTOR{ 0, 0, 0 }, XMVECTOR{ 0, 1, 0 });
+		data.ProjectionY = projectionMatrix * XMMatrixLookAtRH(XMVECTOR{ 0, size, 0 }, XMVECTOR{ 0, 0, 0 }, XMVECTOR{ 0, 0,-1 });
+		data.ProjectionZ = projectionMatrix * XMMatrixLookAtRH(XMVECTOR{ 0, 0, size }, XMVECTOR{ 0, 0, 0 }, XMVECTOR{ 0, 1, 0 });
+		memcpy(mVCTVoxelizationCB->Map(), &data, sizeof(data));
+	}
 }
 void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
@@ -1716,6 +1730,7 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 		CD3DX12_RECT vctRect = CD3DX12_RECT(0.0f, 0.0f, VCT_SCENE_VOLUME_SIZE, VCT_SCENE_VOLUME_SIZE);
 		commandList->RSSetViewports(1, &vctViewport);
 		commandList->RSSetScissorRects(1, &vctRect);
+		commandList->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
 
 		commandList->SetPipelineState(mVCTVoxelizationPSO.GetPipelineStateObject());
 		commandList->SetGraphicsRootSignature(mVCTVoxelizationRS.GetSignature());
@@ -1730,7 +1745,7 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 		for (auto& model : mObjects) {
 			RenderObject(model, [this, gpuDescriptorHeap, commandList, &cbvHandle, &uavHandle, device](U_PTR<DXRSModel>& anObject) {
 				cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
-				gpuDescriptorHeap->AddToHandle(device, cbvHandle, mGbufferCB->GetCBV());
+				gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
 				gpuDescriptorHeap->AddToHandle(device, cbvHandle, anObject->GetCB()->GetCBV());
 
 				uavHandle = gpuDescriptorHeap->GetHandleBlock(1);

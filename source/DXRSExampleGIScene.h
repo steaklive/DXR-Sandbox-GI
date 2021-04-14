@@ -14,7 +14,7 @@
 #define RSM_SIZE 2048
 #define RSM_SAMPLES_COUNT 512
 #define LPV_DIM 32
-#define VCT_SCENE_VOLUME_SIZE 512
+#define VCT_SCENE_VOLUME_SIZE 256
 
 class DXRSExampleGIScene
 {
@@ -150,6 +150,13 @@ private:
 	RootSignature                                        mVCTVoxelizationRS;
 	GraphicsPSO											 mVCTVoxelizationPSO;
 	DXRSRenderTarget*									 mVCTVoxelization3DRT;
+	__declspec(align(16)) struct VCTVoxelizationCBData
+	{
+		XMMATRIX ProjectionX;
+		XMMATRIX ProjectionY;
+		XMMATRIX ProjectionZ;
+	};
+	DXRSBuffer* mVCTVoxelizationCB;
 
 	// Composite
 	RootSignature mCompositeRS;
