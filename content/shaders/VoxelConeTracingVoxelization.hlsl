@@ -108,30 +108,10 @@ void PSMain(PS_IN input)
     outputTexture.GetDimensions(width, height, depth);
     
     float3 voxelPos = input.voxelPos.rgb;
-    voxelPos.y = -voxelPos.y;
-    int3 finalVoxelPos = width * float3(0.5f * voxelPos + float3(0.5f, 0.5f, 0.5f)); //    int3(input.position.x, input.position.y, depth * input.position.z);
-    //int3 finalVoxelPos;
-    //if (input.axis == 1)
-    //{
-    //    finalVoxelPos.x = depth - originalVoxelPos.z;
-    //    finalVoxelPos.z = originalVoxelPos.x;
-    //    finalVoxelPos.y = originalVoxelPos.y;
-    //}
-    //else if (input.axis == 2)
-    //{
-    //    finalVoxelPos.z = originalVoxelPos.y;
-    //    finalVoxelPos.y = depth - originalVoxelPos.z;
-    //    finalVoxelPos.x = originalVoxelPos.x;
-    //}
-    //else
-    //{
-    //    finalVoxelPos = originalVoxelPos;
-    //}
+    voxelPos.y = -voxelPos.y; 
     
-    //finalVoxelPos.z = depth - 1 - finalVoxelPos.z;
-    
+    int3 finalVoxelPos = width * float3(0.5f * voxelPos + float3(0.5f, 0.5f, 0.5f));
     float4 colorRes = float4(DiffuseColor.rgb, 1.0f);
     //TODO add shadow map contribution
-    
     outputTexture[finalVoxelPos] = colorRes;
 }

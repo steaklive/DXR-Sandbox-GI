@@ -427,6 +427,9 @@ void DXRSExampleGIScene::UpdateImGui()
 					ImGui::Checkbox("CS", &mRSMDownsampleUseCS);
 				}
 			}
+			if (ImGui::CollapsingHeader("Voxel Cone Tracing")) {
+				ImGui::Checkbox("Render Voxels", &mVCTRenderDebug);
+			}
 		}
 		ImGui::Separator();
 		ImGui::SliderFloat("Orbit camera radius", &mCameraRadius, 5.0f, 175.0f);
@@ -1718,6 +1721,58 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		data.ProjectionZ = projectionMatrix * XMMatrixLookAtRH(XMVECTOR{ 0, 0, size }, XMVECTOR{ 0, 0, 0 }, XMVECTOR{ 0, 1, 0 });
 		memcpy(mVCTVoxelizationCB->Map(), &data, sizeof(data));
 	}
+
+	//debug 
+	{
+		DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+		mVCTVoxelizationDebugRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, format, flags, L"Voxelization Debug RT");
+
+		//create root signature
+		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
+
+		mVCTVoxelizationDebugRS.Reset(2, 0);
+		mVCTVoxelizationDebugRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mVCTVoxelizationDebugRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mVCTVoxelizationDebugRS.Finalize(device, L"VCT voxelization debug pass RS", rootSignatureFlags);
+
+		ComPtr<ID3DBlob> vertexShader;
+		ComPtr<ID3DBlob> geometryShader;
+		ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+		// Enable better shader debugging with the graphics debugging tools.
+		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+		UINT compileFlags = 0;
+#endif
+
+		ID3DBlob* errorBlob = nullptr;
+
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\VoxelConeTracingVoxelizationDebug.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\VoxelConeTracingVoxelizationDebug.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "GSMain", "gs_5_1", compileFlags, 0, &geometryShader, &errorBlob));
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\VoxelConeTracingVoxelizationDebug.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
+		
+		DXGI_FORMAT formats[1];
+		formats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		
+		mVCTVoxelizationDebugPSO.SetRootSignature(mVCTVoxelizationDebugRS);
+		mVCTVoxelizationDebugPSO.SetRasterizerState(mRasterizerState);
+		mVCTVoxelizationDebugPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
+		mVCTVoxelizationDebugPSO.SetBlendState(mBlendState);
+		mVCTVoxelizationDebugPSO.SetDepthStencilState(mDepthStateDisabled);
+		mVCTVoxelizationDebugPSO.SetInputLayout(0, nullptr);
+		mVCTVoxelizationDebugPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
+		mVCTVoxelizationDebugPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+		mVCTVoxelizationDebugPSO.SetGeometryShader(geometryShader->GetBufferPointer(), geometryShader->GetBufferSize());
+		mVCTVoxelizationDebugPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+		mVCTVoxelizationDebugPSO.Finalize(device);
+	}
 }
 void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
@@ -1763,6 +1818,38 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 		commandList->RSSetScissorRects(1, &rect);
 	}
 	PIXEndEvent(commandList);
+
+	if (mVCTRenderDebug) {
+		PIXBeginEvent(commandList, 0, "VCT Voxelization");
+		{
+			commandList->SetPipelineState(mVCTVoxelizationDebugPSO.GetPipelineStateObject());
+			commandList->SetGraphicsRootSignature(mVCTVoxelizationDebugRS.GetSignature());
+
+			D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesFinal[] =
+			{
+				 mVCTVoxelizationDebugRT->GetRTV().GetCPUHandle()
+			};
+
+			commandList->OMSetRenderTargets(_countof(rtvHandlesFinal), rtvHandlesFinal, FALSE, nullptr);
+
+			mSandboxFramework->ResourceBarriersBegin(mBarriers);
+			mVCTVoxelization3DRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+			DXRS::DescriptorHandle cbvHandle;
+			DXRS::DescriptorHandle uavHandle;
+
+			uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTVoxelization3DRT->GetUAV());
+
+			//commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
+			commandList->SetGraphicsRootDescriptorTable(1, uavHandle.GetGPUHandle());
+
+			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+			commandList->DrawInstanced(VCT_SCENE_VOLUME_SIZE * VCT_SCENE_VOLUME_SIZE * VCT_SCENE_VOLUME_SIZE, 1, 0, 0);
+		}
+		PIXEndEvent(commandList);
+	}
 }
 
 void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)

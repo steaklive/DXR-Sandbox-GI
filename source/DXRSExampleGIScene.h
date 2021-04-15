@@ -150,6 +150,9 @@ private:
 	RootSignature                                        mVCTVoxelizationRS;
 	GraphicsPSO											 mVCTVoxelizationPSO;
 	DXRSRenderTarget*									 mVCTVoxelization3DRT;
+	RootSignature                                        mVCTVoxelizationDebugRS;
+	GraphicsPSO											 mVCTVoxelizationDebugPSO;
+	DXRSRenderTarget*									 mVCTVoxelizationDebugRT;
 	__declspec(align(16)) struct VCTVoxelizationCBData
 	{
 		XMMATRIX ProjectionX;
@@ -265,6 +268,8 @@ private:
 	float mLPVPower = 1.8f;
 	float mLPVAttenuation = 1.0f;
 	XMMATRIX mWorldToLPV;
+
+	bool mVCTRenderDebug = false;
 
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRW;
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRead;
