@@ -14,7 +14,7 @@
 #define RSM_SIZE 2048
 #define RSM_SAMPLES_COUNT 512
 #define LPV_DIM 32
-#define VCT_SCENE_VOLUME_SIZE 256
+#define VCT_SCENE_VOLUME_SIZE 128
 
 class DXRSExampleGIScene
 {
@@ -155,9 +155,9 @@ private:
 	DXRSRenderTarget*									 mVCTVoxelizationDebugRT;
 	__declspec(align(16)) struct VCTVoxelizationCBData
 	{
-		XMMATRIX ProjectionX;
-		XMMATRIX ProjectionY;
-		XMMATRIX ProjectionZ;
+		XMMATRIX WorldVoxelCube;
+		XMMATRIX ViewProjection;
+		float WorldVoxelScale;
 	};
 	DXRSBuffer* mVCTVoxelizationCB;
 
@@ -200,6 +200,7 @@ private:
 		int useShadows;
 		int useRSM;
 		int useLPV;
+		int useVCT;
 	};
 
 	// Directional light
@@ -213,6 +214,7 @@ private:
 	bool mUseShadows = true;
 	bool mUseRSM = false;
 	bool mUseLPV = false;
+	bool mUseVCT = false;
 
 	// Shadows
 	GraphicsPSO mShadowMappingPSO;
@@ -270,6 +272,7 @@ private:
 	XMMATRIX mWorldToLPV;
 
 	bool mVCTRenderDebug = false;
+	float mWorldVoxelScale = VCT_SCENE_VOLUME_SIZE * 0.5f;
 
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRW;
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRead;

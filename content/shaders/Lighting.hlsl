@@ -37,6 +37,7 @@ cbuffer IlluminationFlagsBuffer : register(b3)
     int useShadows;
     int useRSM;
     int useLPV;
+    int useVCT;
 }
 
 struct VSInput
@@ -76,6 +77,8 @@ Texture2D<float> shadowBuffer : register(t5);
 Texture3D<float4> redSH : register(t6);
 Texture3D<float4> greenSH : register(t7);
 Texture3D<float4> blueSH : register(t8);
+
+Texture2D<float4> vctBuffer : register(t9);
 
 float CalculateShadow(float3 ShadowCoord)
 {
@@ -164,6 +167,12 @@ PSOutput PSMain(PSInput input)
         directLighting = (lightIntensity * NdotL) * lightColor * albedo.rgb;
     }
     
+    float4 colVCT = vctBuffer[inPos];
+    
     output.diffuse.rgb = indirectLighting + directLighting * shadow;
+    
+    if (useVCT) 
+        output.diffuse += float4(colVCT.rgb, 0.5f);
+    
     return output;
 }

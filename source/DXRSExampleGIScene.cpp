@@ -354,6 +354,7 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	illumData.useShadows = mUseShadows ? 1 : 0;
 	illumData.useRSM = mUseRSM ? 1 : 0;
 	illumData.useLPV = mUseLPV ? 1 : 0;
+	illumData.useVCT = mUseVCT ? 1 : 0;
 	memcpy(mIlluminationFlagsCB->Map(), &illumData, sizeof(illumData));
 
 	RSMCBData rsmPassData = {};
@@ -374,6 +375,13 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	lpvData.LPVPower = mLPVPower;
 	lpvData.LPVAttenuation = mLPVAttenuation;
 	memcpy(mLPVCB->Map(), &lpvData, sizeof(lpvData));
+
+	VCTVoxelizationCBData data = {};
+	float scale = VCT_SCENE_VOLUME_SIZE / mWorldVoxelScale;
+	data.WorldVoxelCube = XMMatrixScaling(scale, -scale, scale) * XMMatrixTranslation(-VCT_SCENE_VOLUME_SIZE * 0.5f, VCT_SCENE_VOLUME_SIZE * 0.5f, -VCT_SCENE_VOLUME_SIZE * 0.5f);
+	data.ViewProjection = mCameraView * mCameraProjection;
+	data.WorldVoxelScale = mWorldVoxelScale;
+	memcpy(mVCTVoxelizationCB->Map(), &data, sizeof(data));
 }
 
 void DXRSExampleGIScene::UpdateImGui()
@@ -403,6 +411,7 @@ void DXRSExampleGIScene::UpdateImGui()
 		ImGui::Checkbox("Use Direct Shadows", &mUseShadows);
 		ImGui::Checkbox("Use RSM (Indirect Light)", &mUseRSM);
 		ImGui::Checkbox("Use LPV (Indirect Light)", &mUseLPV);
+		ImGui::Checkbox("Use VCT (Indirect Light)", &mUseVCT);
 
 		ImGui::Separator();
 		if (ImGui::CollapsingHeader("Global Illumination Config"))
@@ -1714,11 +1723,10 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		mVCTVoxelizationCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT Voxelization Pass CB");
 
 		VCTVoxelizationCBData data = {};
-		float size = 128.0f;
-		XMMATRIX projectionMatrix = XMMatrixOrthographicRH(size, size, -size * 0.5f, size * 0.5f);
-		data.ProjectionX = projectionMatrix * XMMatrixLookAtRH(XMVECTOR{ size, 0, 0 }, XMVECTOR{ 0, 0, 0 }, XMVECTOR{ 0, 1, 0 });
-		data.ProjectionY = projectionMatrix * XMMatrixLookAtRH(XMVECTOR{ 0, size, 0 }, XMVECTOR{ 0, 0, 0 }, XMVECTOR{ 0, 0,-1 });
-		data.ProjectionZ = projectionMatrix * XMMatrixLookAtRH(XMVECTOR{ 0, 0, size }, XMVECTOR{ 0, 0, 0 }, XMVECTOR{ 0, 1, 0 });
+		float scale = 1.0f;
+		data.WorldVoxelCube = XMMatrixScaling(scale, scale, scale);
+		data.ViewProjection = mCameraView * mCameraProjection;
+		data.WorldVoxelScale = mWorldVoxelScale;
 		memcpy(mVCTVoxelizationCB->Map(), &data, sizeof(data));
 	}
 
@@ -1765,7 +1773,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		mVCTVoxelizationDebugPSO.SetRasterizerState(mRasterizerState);
 		mVCTVoxelizationDebugPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
 		mVCTVoxelizationDebugPSO.SetBlendState(mBlendState);
-		mVCTVoxelizationDebugPSO.SetDepthStencilState(mDepthStateDisabled);
+		mVCTVoxelizationDebugPSO.SetDepthStencilState(mDepthStateRW);
 		mVCTVoxelizationDebugPSO.SetInputLayout(0, nullptr);
 		mVCTVoxelizationDebugPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
 		mVCTVoxelizationDebugPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
@@ -1778,6 +1786,9 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 {
 	CD3DX12_VIEWPORT viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mSandboxFramework->GetOutputSize().right, mSandboxFramework->GetOutputSize().bottom);
 	CD3DX12_RECT rect = CD3DX12_RECT(0.0f, 0.0f, mSandboxFramework->GetOutputSize().right, mSandboxFramework->GetOutputSize().bottom);
+
+	if (!mUseVCT)
+		return;
 
 	PIXBeginEvent(commandList, 0, "VCT Voxelization");
 	{
@@ -1820,7 +1831,7 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 	PIXEndEvent(commandList);
 
 	if (mVCTRenderDebug) {
-		PIXBeginEvent(commandList, 0, "VCT Voxelization");
+		PIXBeginEvent(commandList, 0, "VCT Voxelization Debug");
 		{
 			commandList->SetPipelineState(mVCTVoxelizationDebugPSO.GetPipelineStateObject());
 			commandList->SetGraphicsRootSignature(mVCTVoxelizationDebugRS.GetSignature());
@@ -1828,9 +1839,11 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 			D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesFinal[] =
 			{
 				 mVCTVoxelizationDebugRT->GetRTV().GetCPUHandle()
-			};
+			};	
 
-			commandList->OMSetRenderTargets(_countof(rtvHandlesFinal), rtvHandlesFinal, FALSE, nullptr);
+			commandList->OMSetRenderTargets(_countof(rtvHandlesFinal), rtvHandlesFinal, FALSE, &mSandboxFramework->GetDepthStencilView());
+			commandList->ClearRenderTargetView(rtvHandlesFinal[0], clearColorBlack, 0, nullptr);
+			commandList->ClearDepthStencilView(mSandboxFramework->GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 			mSandboxFramework->ResourceBarriersBegin(mBarriers);
 			mVCTVoxelization3DRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -1839,10 +1852,13 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 			DXRS::DescriptorHandle cbvHandle;
 			DXRS::DescriptorHandle uavHandle;
 
+			cbvHandle = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
+
 			uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
 			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTVoxelization3DRT->GetUAV());
 
-			//commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
+			commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
 			commandList->SetGraphicsRootDescriptorTable(1, uavHandle.GetGPUHandle());
 
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
@@ -1900,7 +1916,7 @@ void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeap
 	mLightingRS.InitStaticSampler(1, shadowSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS.InitStaticSampler(2, lpvSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 4, D3D12_SHADER_VISIBILITY_ALL);
-	mLightingRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 9, D3D12_SHADER_VISIBILITY_PIXEL);
+	mLightingRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS.Finalize(device, L"Lighting pass RS", rootSignatureFlags);
 
 	//PSO
@@ -1984,7 +2000,7 @@ void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsComm
 		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mLPVCB->GetCBV());
 		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mIlluminationFlagsCB->GetCBV());
 
-		DXRS::DescriptorHandle srvHandleLighting = gpuDescriptorHeap->GetHandleBlock(9);
+		DXRS::DescriptorHandle srvHandleLighting = gpuDescriptorHeap->GetHandleBlock(10);
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[0]->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[1]->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[2]->GetSRV());
@@ -2004,6 +2020,8 @@ void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsComm
 			gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mLPVAccumulationSHColorsRTs[1]->GetSRV());
 			gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mLPVAccumulationSHColorsRTs[2]->GetSRV());
 		}
+		if (mVCTRenderDebug)
+			gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mVCTVoxelizationDebugRT->GetSRV());
 
 		commandList->SetGraphicsRootDescriptorTable(0, cbvHandleLighting.GetGPUHandle());
 		commandList->SetGraphicsRootDescriptorTable(1, srvHandleLighting.GetGPUHandle());

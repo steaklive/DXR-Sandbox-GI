@@ -1,8 +1,8 @@
 cbuffer VoxelizationCB : register(b0)
 {
-    float4x4 ProjectionX;
-    float4x4 ProjectionY;
-    float4x4 ProjectionZ;
+    float4x4 WorldVoxelCube;
+    float4x4 ViewProjection;
+    float WorldVoxelScale;
 };
 
 cbuffer perModelInstanceCB : register(b1)
@@ -63,15 +63,14 @@ void GSMain(triangle GS_IN input[3], inout TriangleStream<PS_IN> OutputStream)
     
     for (uint i = 0; i < 3; ++i)
     {
-        output[0].voxelPos = input[i].position.xyz * 1.0f/64.0f;
-        output[1].voxelPos = input[i].position.xyz * 1.0f/64.0f;
-        output[2].voxelPos = input[i].position.xyz * 1.0f/64.0f;
+        output[0].voxelPos = input[i].position.xyz / WorldVoxelScale;
+        output[1].voxelPos = input[i].position.xyz / WorldVoxelScale;
+        output[2].voxelPos = input[i].position.xyz / WorldVoxelScale;
         if (axis == n.z)
         {
             output[0].axis = 1;
             output[1].axis = 1;
             output[2].axis = 1;
-            matProj = ProjectionX;
             output[i].position = float4(output[i].voxelPos.x, output[i].voxelPos.y, 0, 1);
 
         }
@@ -80,7 +79,6 @@ void GSMain(triangle GS_IN input[3], inout TriangleStream<PS_IN> OutputStream)
             output[0].axis = 2;
             output[1].axis = 2;
             output[2].axis = 2;
-            matProj = ProjectionY;
             output[i].position = float4(output[i].voxelPos.y, output[i].voxelPos.z, 0, 1);
         }
         else
@@ -88,7 +86,6 @@ void GSMain(triangle GS_IN input[3], inout TriangleStream<PS_IN> OutputStream)
             output[0].axis = 3;
             output[1].axis = 3;
             output[2].axis = 3;
-            matProj = ProjectionZ;
             output[i].position = float4(output[i].voxelPos.x, output[i].voxelPos.z, 0, 1);
         }
     
