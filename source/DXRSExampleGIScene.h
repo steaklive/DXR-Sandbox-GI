@@ -148,11 +148,14 @@ private:
 	DXRSBuffer* mLPVCB;
 
 	RootSignature                                        mVCTVoxelizationRS;
+	RootSignature                                        mVCTMainRS;
 	GraphicsPSO											 mVCTVoxelizationPSO;
+	GraphicsPSO											 mVCTMainPSO;
 	DXRSRenderTarget*									 mVCTVoxelization3DRT;
 	RootSignature                                        mVCTVoxelizationDebugRS;
 	GraphicsPSO											 mVCTVoxelizationDebugPSO;
 	DXRSRenderTarget*									 mVCTVoxelizationDebugRT;
+	DXRSRenderTarget*									 mVCTMainRT;
 	__declspec(align(16)) struct VCTVoxelizationCBData
 	{
 		XMMATRIX WorldVoxelCube;
@@ -271,6 +274,7 @@ private:
 	float mLPVAttenuation = 1.0f;
 	XMMATRIX mWorldToLPV;
 
+	bool mIsFirstFrameVCT = true;
 	bool mVCTRenderDebug = false;
 	float mWorldVoxelScale = VCT_SCENE_VOLUME_SIZE * 0.5f;
 
@@ -282,4 +286,5 @@ private:
 	D3D12_RASTERIZER_DESC mRasterizerState;
 	D3D12_RASTERIZER_DESC mRasterizerStateShadow;
 	D3D12_SAMPLER_DESC mBilinearSampler;
+
 };

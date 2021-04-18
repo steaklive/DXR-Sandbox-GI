@@ -172,7 +172,7 @@ PSOutput PSMain(PSInput input)
     output.diffuse.rgb = indirectLighting + directLighting * shadow;
     
     if (useVCT) 
-        output.diffuse += float4(colVCT.rgb, 0.5f);
+        output.diffuse = float4(colVCT.rgb, 1.0f);
     
     return output;
 }
