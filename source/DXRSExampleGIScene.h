@@ -149,20 +149,32 @@ private:
 
 	RootSignature                                        mVCTVoxelizationRS;
 	RootSignature                                        mVCTMainRS;
+	RootSignature                                        mVCTAnisoMipmappingPrepareRS;
+	RootSignature                                        mVCTAnisoMipmappingMainRS;
 	GraphicsPSO											 mVCTVoxelizationPSO;
 	GraphicsPSO											 mVCTMainPSO;
+	ComputePSO											 mVCTAnisoMipmappingPreparePSO;
+	ComputePSO											 mVCTAnisoMipmappingMainPSO;
 	DXRSRenderTarget*									 mVCTVoxelization3DRT;
 	RootSignature                                        mVCTVoxelizationDebugRS;
 	GraphicsPSO											 mVCTVoxelizationDebugPSO;
 	DXRSRenderTarget*									 mVCTVoxelizationDebugRT;
 	DXRSRenderTarget*									 mVCTMainRT;
+	std::vector<DXRSRenderTarget*>						 mVCTAnisoMipmappinPrepareRTs;
+	std::vector<DXRSRenderTarget*>						 mVCTAnisoMipmappinMainRTs;
 	__declspec(align(16)) struct VCTVoxelizationCBData
 	{
 		XMMATRIX WorldVoxelCube;
 		XMMATRIX ViewProjection;
 		float WorldVoxelScale;
 	};
+	__declspec(align(16)) struct VCTAnisoMipmappingCBData
+	{
+		int MipDimension;
+		int MipLevel;
+	};
 	DXRSBuffer* mVCTVoxelizationCB;
+	DXRSBuffer* mVCTAnisoMipmappingCB;
 
 	// Composite
 	RootSignature mCompositeRS;

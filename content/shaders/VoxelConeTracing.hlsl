@@ -67,11 +67,13 @@ float4 GetVoxel(float3 worldPosition, float lod)
     
     voxelTexture.GetDimensions(width, height, depth);
     float3 voxelTextureUV = worldPosition / (WorldVoxelScale);
-    voxelTextureUV = voxelTextureUV * 0.5 + 0.5;
+    voxelTextureUV.y = -voxelTextureUV.y;
+    voxelTextureUV = voxelTextureUV * 0.5f + 0.5f;
     
-    int3 coord = voxelTextureUV * float3(width, height, depth);
+    int3 coord = voxelTextureUV * int3(width, height, depth);
     return voxelTexture.Load(int4(coord, 0));
 }
+
 float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, out float occlusion)
 {
     float lod = 0.0;
@@ -141,6 +143,6 @@ PS_OUT PSMain(PS_IN input)
     float ao = 0.0f;
     float4 indirectDiffuse = CalculateIndirectDiffuse(worldPos.rgb, normal.rgb, ao);
 
-    output.result = GetVoxel(worldPos.rgb, 0.0f);//    float4(ao, ao, ao, 1.0f); //    indirectDiffuse;
+    output.result = /*float4(ao, ao, ao, 1.0f); //    */indirectDiffuse;
     return output;
 }

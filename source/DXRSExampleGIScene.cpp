@@ -1946,7 +1946,7 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 		commandList->ClearRenderTargetView(rtvHandlesFinal[0], clearColorBlack, 0, nullptr);
 
 		DXRS::DescriptorHandle srvHandle = gpuDescriptorHeap->GetHandleBlock(2);
-		gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[0]->GetSRV());
+		gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[1]->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[2]->GetSRV());
 
 		DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(1);
