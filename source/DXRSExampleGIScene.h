@@ -15,6 +15,7 @@
 #define RSM_SAMPLES_COUNT 512
 #define LPV_DIM 32
 #define VCT_SCENE_VOLUME_SIZE 128
+#define VCT_MIPS 6
 
 class DXRSExampleGIScene
 {
@@ -160,8 +161,8 @@ private:
 	GraphicsPSO											 mVCTVoxelizationDebugPSO;
 	DXRSRenderTarget*									 mVCTVoxelizationDebugRT;
 	DXRSRenderTarget*									 mVCTMainRT;
-	std::vector<DXRSRenderTarget*>						 mVCTAnisoMipmappinPrepareRTs;
-	std::vector<DXRSRenderTarget*>						 mVCTAnisoMipmappinMainRTs;
+	std::vector<DXRSRenderTarget*>						 mVCTAnisoMipmappinPrepare3DRTs;
+	std::vector<DXRSRenderTarget*>						 mVCTAnisoMipmappinMain3DRTs;
 	__declspec(align(16)) struct VCTVoxelizationCBData
 	{
 		XMMATRIX WorldVoxelCube;

@@ -1,12 +1,12 @@
-RWTexture3D<float4> voxelTexture : register(u0);
+Texture3D<float4> voxelTexture : register(t0);
 
 //TODO change to array
-RWTexture3D<float4> voxelTextureResultPosX : register(u1);
-RWTexture3D<float4> voxelTextureResultNegX : register(u2);
-RWTexture3D<float4> voxelTextureResultPosY : register(u3);
-RWTexture3D<float4> voxelTextureResultNegY : register(u4);
-RWTexture3D<float4> voxelTextureResultPosZ : register(u5);
-RWTexture3D<float4> voxelTextureResultNegZ : register(u6);
+RWTexture3D<float4> voxelTextureResultPosX : register(u0);
+RWTexture3D<float4> voxelTextureResultNegX : register(u1);
+RWTexture3D<float4> voxelTextureResultPosY : register(u2);
+RWTexture3D<float4> voxelTextureResultNegY : register(u3);
+RWTexture3D<float4> voxelTextureResultPosZ : register(u4);
+RWTexture3D<float4> voxelTextureResultNegZ : register(u5);
 
 cbuffer MipmapCB : register(b0)
 {

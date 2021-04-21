@@ -5,7 +5,7 @@
 class DXRSRenderTarget
 {
 public:
-	DXRSRenderTarget(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManger, int width, int height, DXGI_FORMAT aFormat, D3D12_RESOURCE_FLAGS flags, LPCWSTR name, int depth = -1);
+	DXRSRenderTarget(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManger, int width, int height, DXGI_FORMAT aFormat, D3D12_RESOURCE_FLAGS flags, LPCWSTR name, int depth = -1, int mips = 1);
 	~DXRSRenderTarget();
 
 	ID3D12Resource* GetResource() { return mRenderTarget.Get(); }

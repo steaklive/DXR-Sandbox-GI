@@ -1,6 +1,6 @@
 #include "DXRSRenderTarget.h"
 
-DXRSRenderTarget::DXRSRenderTarget(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager, int width, int height, DXGI_FORMAT aFormat, D3D12_RESOURCE_FLAGS flags, LPCWSTR name, int depth)
+DXRSRenderTarget::DXRSRenderTarget(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager, int width, int height, DXGI_FORMAT aFormat, D3D12_RESOURCE_FLAGS flags, LPCWSTR name, int depth, int mips)
 {
 	mWidth = width;
 	mHeight = height;
@@ -12,7 +12,7 @@ DXRSRenderTarget::DXRSRenderTarget(ID3D12Device* device, DXRS::DescriptorHeapMan
 
 	// Describe and create a Texture2D/3D
 	D3D12_RESOURCE_DESC textureDesc = {};
-	textureDesc.MipLevels = 1;
+	textureDesc.MipLevels = mips;
 	textureDesc.Format = format;
 	textureDesc.Width = width;
 	textureDesc.Height = height;
@@ -49,11 +49,11 @@ DXRSRenderTarget::DXRSRenderTarget(ID3D12Device* device, DXRS::DescriptorHeapMan
 	srvDesc.Format = aFormat;
 	if (depth > 0) {
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
-		srvDesc.Texture3D.MipLevels = 1;
+		srvDesc.Texture3D.MipLevels = mips;
 	}
 	else {
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MipLevels = 1;
+		srvDesc.Texture2D.MipLevels = mips;
 	}
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
