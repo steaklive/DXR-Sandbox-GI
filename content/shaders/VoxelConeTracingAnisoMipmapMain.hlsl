@@ -37,6 +37,17 @@ void CSMain(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : 
     if (DTid.x >= MipDimension || DTid.y >= MipDimension || DTid.z >= MipDimension)
         return;
     
+    if (MipLevel == 0)
+    {
+        voxelTextureResultPosX[DTid] = voxelTextureSrcPosX[DTid];
+        voxelTextureResultNegX[DTid] = voxelTextureSrcNegX[DTid];
+        voxelTextureResultPosY[DTid] = voxelTextureSrcPosY[DTid];
+        voxelTextureResultNegY[DTid] = voxelTextureSrcNegY[DTid];
+        voxelTextureResultPosZ[DTid] = voxelTextureSrcPosZ[DTid];
+        voxelTextureResultNegZ[DTid] = voxelTextureSrcNegZ[DTid];
+        return;
+    }
+    
     float4 values[8];
     
     int3 sourcePos = DTid * 2;

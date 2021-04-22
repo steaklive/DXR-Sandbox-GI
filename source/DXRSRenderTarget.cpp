@@ -56,41 +56,80 @@ DXRSRenderTarget::DXRSRenderTarget(ID3D12Device* device, DXRS::DescriptorHeapMan
 		srvDesc.Texture2D.MipLevels = mips;
 	}
 
-	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-	rtvDesc.Format = aFormat;
-	if (depth > 0) {
-		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
-		rtvDesc.Texture3D.MipSlice = 0;
-		rtvDesc.Texture3D.WSize = depth;
-	}
-	else {
-		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-		rtvDesc.Texture2D.MipSlice = 0;
-	}
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-	uavDesc.Format = aFormat;
-	if (depth > 0) {
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
-		uavDesc.Texture3D.MipSlice = 0;
-		uavDesc.Texture3D.WSize = depth;
-	}
-	else {
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		uavDesc.Texture2D.MipSlice = 0;
-	}
-
-	mDescriptorRTV = descriptorManager->CreateCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	device->CreateRenderTargetView(mRenderTarget.Get(), &rtvDesc, mDescriptorRTV.GetCPUHandle());
-
 	mDescriptorSRV = descriptorManager->CreateCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	device->CreateShaderResourceView(mRenderTarget.Get(), &srvDesc, mDescriptorSRV.GetCPUHandle());
 
-	if (flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+	mDescriptorUAVMipsHandles.resize(mips);
+	mDescriptorRTVMipsHandles.resize(mips);
+
+	for (int mipLevel = 0; mipLevel < mips; mipLevel++)
 	{
-		mDescriptorUAV = descriptorManager->CreateCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		device->CreateUnorderedAccessView(mRenderTarget.Get(), nullptr, &uavDesc, mDescriptorUAV.GetCPUHandle());
+		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+		rtvDesc.Format = aFormat;
+		if (depth > 0) {
+			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
+			rtvDesc.Texture3D.MipSlice = mipLevel;
+			rtvDesc.Texture3D.WSize = (depth >> mipLevel);
+		}
+		else {
+			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+			rtvDesc.Texture2D.MipSlice = mipLevel;
+		}
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.Format = aFormat;
+		if (depth > 0) {
+			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+			uavDesc.Texture3D.MipSlice = mipLevel;
+			uavDesc.Texture3D.WSize = (depth >> mipLevel);
+		}
+		else {
+			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+			uavDesc.Texture2D.MipSlice = mipLevel;
+		}
+
+		mDescriptorRTVMipsHandles[mipLevel] = descriptorManager->CreateCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		device->CreateRenderTargetView(mRenderTarget.Get(), &rtvDesc, mDescriptorRTVMipsHandles[mipLevel].GetCPUHandle());
+
+		if (flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+		{
+			mDescriptorUAVMipsHandles[mipLevel] = descriptorManager->CreateCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			device->CreateUnorderedAccessView(mRenderTarget.Get(), nullptr, &uavDesc, mDescriptorUAVMipsHandles[mipLevel].GetCPUHandle());
+		}
 	}
+
+	//D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	//rtvDesc.Format = aFormat;
+	//if (depth > 0) {
+	//	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
+	//	rtvDesc.Texture3D.MipSlice = 0;
+	//	rtvDesc.Texture3D.WSize = depth;
+	//}
+	//else {
+	//	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	//	rtvDesc.Texture2D.MipSlice = 0;
+	//}
+
+	//D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	//uavDesc.Format = aFormat;
+	//if (depth > 0) {
+	//	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+	//	uavDesc.Texture3D.MipSlice = 0;
+	//	uavDesc.Texture3D.WSize = depth;
+	//}
+	//else {
+	//	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+	//	uavDesc.Texture2D.MipSlice = 0;
+	//}
+
+	//mDescriptorRTV = descriptorManager->CreateCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	//device->CreateRenderTargetView(mRenderTarget.Get(), &rtvDesc, mDescriptorRTV.GetCPUHandle());
+
+	//if (flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+	//{
+	//	mDescriptorUAV = descriptorManager->CreateCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	//	device->CreateUnorderedAccessView(mRenderTarget.Get(), nullptr, &uavDesc, mDescriptorUAV.GetCPUHandle());
+	//}
 }
 
 void DXRSRenderTarget::TransitionTo(std::vector<CD3DX12_RESOURCE_BARRIER>& barriers, ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES stateAfter)

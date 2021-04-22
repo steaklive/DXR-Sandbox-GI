@@ -176,6 +176,7 @@ private:
 	};
 	DXRSBuffer* mVCTVoxelizationCB;
 	DXRSBuffer* mVCTAnisoMipmappingCB;
+	std::vector<DXRSBuffer*> mVCTAnisoMipmappingMainCB;
 
 	// Composite
 	RootSignature mCompositeRS;

@@ -21,10 +21,16 @@ static const float diffuseConeWeights[] =
     3.0f * PI / 20.0f,
 };
 
-RWTexture3D<float4> voxelTexture : register(u0);
 Texture2D<float4> normalBuffer : register(t0);
 Texture2D<float4> worldPosBuffer : register(t1);
-//Texture2D<float> depthBuffer : register(t3);
+Texture3D<float4> voxelTexturePosX : register(t2);
+Texture3D<float4> voxelTextureNegX : register(t3);
+Texture3D<float4> voxelTexturePosY : register(t4);
+Texture3D<float4> voxelTextureNegY : register(t5);
+Texture3D<float4> voxelTexturePosZ : register(t6);
+Texture3D<float4> voxelTextureNegZ : register(t7);
+
+RWTexture3D<float4> voxelTexture : register(u0);
 
 cbuffer VoxelizationCB : register(b0)
 {
@@ -59,23 +65,53 @@ PS_IN VSMain(VS_IN input)
     
     return result;
 }
-float4 GetVoxel(float3 worldPosition, float lod)
+
+float4 GetAnisotropicSample(float3 uv, float3 weight, float lod, bool posX, bool posY, bool posZ)
 {
+    float anisoLevel = max(lod - 1.0f, 0.0f);
+    
     uint width;
     uint height;
     uint depth;
+    voxelTexturePosX.GetDimensions(width, height, depth);
+    int3 coord = uv * int3(width, height, depth);
     
-    voxelTexture.GetDimensions(width, height, depth);
+    float4 anisoSample = 
+    weight.x * ((posX) ? voxelTexturePosX.Load(int4(coord, anisoLevel)) : voxelTextureNegX.Load(int4(coord, anisoLevel))) +
+    weight.y * ((posY) ? voxelTexturePosY.Load(int4(coord, anisoLevel)) : voxelTextureNegY.Load(int4(coord, anisoLevel))) +
+    weight.z * ((posZ) ? voxelTexturePosZ.Load(int4(coord, anisoLevel)) : voxelTextureNegZ.Load(int4(coord, anisoLevel)));
+
+    if (lod < 1.0f)
+    {
+        uint width;
+        uint height;
+        uint depth;
+        voxelTexture.GetDimensions(width, height, depth);
+        
+        coord = uv * int3(width, height, depth);
+        float4 baseColor = voxelTexture.Load(int4(coord, 0));
+        anisoSample = lerp(baseColor, anisoSample, clamp(lod, 0.0f, 1.0f));
+    }
+
+    return anisoSample;
+}
+
+float4 GetVoxel(float3 worldPosition, float3 weight, float lod, bool posX, bool posY, bool posZ)
+{
     float3 voxelTextureUV = worldPosition / (WorldVoxelScale);
     voxelTextureUV.y = -voxelTextureUV.y;
     voxelTextureUV = voxelTextureUV * 0.5f + 0.5f;
     
-    int3 coord = voxelTextureUV * int3(width, height, depth);
-    return voxelTexture.Load(int4(coord, 0));
+    return GetAnisotropicSample(voxelTextureUV, weight, lod, posX, posY, posZ);
 }
 
 float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, out float occlusion)
 {
+    uint3 visibleFace;
+    visibleFace.x = (direction.x < 0.0) ? 0 : 1;
+    visibleFace.y = (direction.y < 0.0) ? 2 : 3;
+    visibleFace.z = (direction.z < 0.0) ? 4 : 5;
+    
     float lod = 0.0;
     float4 color = float4(0.0f, 0.0f, 0.0f, 0.0f);
     occlusion = 0.0;
@@ -83,6 +119,8 @@ float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, ou
     float voxelWorldSize = 1.0f;//    WorldVoxelScale / VoxelDimensions;
     float dist = voxelWorldSize;
     float3 startPos = pos + normal * dist;
+    
+    float3 weight = direction * direction;
     
     const float maxDistance = 100.0f;
     const float samplingFactor = 0.5f;
@@ -93,7 +131,7 @@ float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, ou
     {
         float diameter = 2.0f * aperture * dist;
         float lodLevel = log2(diameter / voxelWorldSize);
-        float4 voxelColor = GetVoxel(startPos + dist * direction, lodLevel);
+        float4 voxelColor = GetVoxel(startPos + dist * direction, weight, lodLevel, direction.x > 0.0, direction.y > 0.0, direction.z > 0.0);
     
         // front-to-back
         color += (1.0 - color.a) * voxelColor;
