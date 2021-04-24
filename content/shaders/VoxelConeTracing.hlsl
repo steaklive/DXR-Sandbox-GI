@@ -39,6 +39,13 @@ cbuffer VoxelizationCB : register(b0)
     float WorldVoxelScale;
 };
 
+cbuffer VCTMainCB : register(b1)
+{
+    float Strength;
+    float MaxConeTraceDistance;
+    float AOFalloff;
+};
+
 struct VS_IN
 {
     float4 position : POSITION;
@@ -68,12 +75,17 @@ PS_IN VSMain(VS_IN input)
 
 float4 GetAnisotropicSample(float3 uv, float3 weight, float lod, bool posX, bool posY, bool posZ)
 {
-    float anisoLevel = max(lod - 1.0f, 0.0f);
+    int anisoLevel = max(lod - 1.0f, 0.0f);
     
     uint width;
     uint height;
     uint depth;
     voxelTexturePosX.GetDimensions(width, height, depth);
+    
+    width >>= anisoLevel;
+    height >>= anisoLevel;
+    depth >>= anisoLevel;
+    
     int3 coord = uv * int3(width, height, depth);
     
     float4 anisoSample = 
@@ -122,12 +134,9 @@ float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, ou
     
     float3 weight = direction * direction;
     
-    const float maxDistance = 100.0f;
     const float samplingFactor = 0.5f;
-    const float aoFalloff = 700.0f;
-    //float falloff = 0.5f * aoFalloff * voxelScale;
-    
-    while (dist < maxDistance && color.a < 0.95f)
+
+    while (dist < MaxConeTraceDistance && color.a < 0.95f)
     {
         float diameter = 2.0f * aperture * dist;
         float lodLevel = log2(diameter / voxelWorldSize);
@@ -136,7 +145,7 @@ float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, ou
         // front-to-back
         color += (1.0 - color.a) * voxelColor;
         if (occlusion < 1.0f)
-            occlusion += ((1.0f - occlusion) * voxelColor.a) / (1.0f + /*falloff*/0.03 * diameter);
+            occlusion += ((1.0f - occlusion) * voxelColor.a) / (1.0f + AOFalloff * diameter);
         
         dist += diameter * samplingFactor;
     }
@@ -166,7 +175,7 @@ float4 CalculateIndirectDiffuse(float3 worldPos, float3 normal, out float ao)
         result += TraceCone(worldPos, normal, coneDirection, coneAperture, ao) * diffuseConeWeights[i];
     }
     
-    return result;
+    return Strength * result;
 }
 
 PS_OUT PSMain(PS_IN input)

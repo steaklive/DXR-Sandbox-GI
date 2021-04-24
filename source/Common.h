@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <system_error>
+#include <cmath>
 
 #include "Audio.h"
 #include "CommonStates.h"

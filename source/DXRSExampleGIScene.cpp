@@ -376,12 +376,18 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	lpvData.LPVAttenuation = mLPVAttenuation;
 	memcpy(mLPVCB->Map(), &lpvData, sizeof(lpvData));
 
-	VCTVoxelizationCBData data = {};
+	VCTVoxelizationCBData voxelData = {};
 	float scale = VCT_SCENE_VOLUME_SIZE / mWorldVoxelScale;
-	data.WorldVoxelCube = XMMatrixScaling(scale, -scale, scale) * XMMatrixTranslation(-VCT_SCENE_VOLUME_SIZE * 0.5f, VCT_SCENE_VOLUME_SIZE * 0.5f, -VCT_SCENE_VOLUME_SIZE * 0.5f);
-	data.ViewProjection = mCameraView * mCameraProjection;
-	data.WorldVoxelScale = mWorldVoxelScale;
-	memcpy(mVCTVoxelizationCB->Map(), &data, sizeof(data));
+	voxelData.WorldVoxelCube = XMMatrixScaling(scale, -scale, scale) * XMMatrixTranslation(-VCT_SCENE_VOLUME_SIZE * 0.5f, VCT_SCENE_VOLUME_SIZE * 0.5f, -VCT_SCENE_VOLUME_SIZE * 0.5f);
+	voxelData.ViewProjection = mCameraView * mCameraProjection;
+	voxelData.WorldVoxelScale = mWorldVoxelScale;
+	memcpy(mVCTVoxelizationCB->Map(), &voxelData, sizeof(voxelData));
+
+	VCTMainCBData vctMainData = {};
+	vctMainData.Strength = mVCTIndirectStrength;
+	vctMainData.MaxConeTraceDistance = mVCTMaxConeTraceDistance;
+	vctMainData.AOFalloff = mVCTAoFalloff;
+	memcpy(mVCTMainCB->Map(), &vctMainData, sizeof(vctMainData));
 }
 
 void DXRSExampleGIScene::UpdateImGui()
@@ -438,6 +444,9 @@ void DXRSExampleGIScene::UpdateImGui()
 			}
 			if (ImGui::CollapsingHeader("Voxel Cone Tracing")) {
 				ImGui::Checkbox("Render Voxels", &mVCTRenderDebug);
+				ImGui::SliderFloat("Strength", &mVCTIndirectStrength, 0.0f, 1.0f);
+				ImGui::SliderFloat("Max Cone Trace Dist", &mVCTMaxConeTraceDistance, 0.0f, 500.0f);
+				ImGui::SliderFloat("AO Falloff", &mVCTAoFalloff, 0.0f, 2.0f);
 			}
 		}
 		ImGui::Separator();
@@ -1797,7 +1806,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
 
 		mVCTMainRS.Reset(3, 0);
-		mVCTMainRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mVCTMainRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
 		mVCTMainRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8, D3D12_SHADER_VISIBILITY_ALL);
 		mVCTMainRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mVCTMainRS.Finalize(device, L"VCT main pass RS", rootSignatureFlags);
@@ -1845,6 +1854,14 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		mVCTMainPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
 		mVCTMainPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
 		mVCTMainPSO.Finalize(device);
+
+
+		DXRSBuffer::Description cbDesc;
+		cbDesc.mElementSize = sizeof(VCTMainCBData);
+		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+
+		mVCTMainCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT main CB");
 	}
 
 	// aniso mipmapping prepare
@@ -2117,12 +2134,22 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTAnisoMipmappingMainCB[mip]->GetCBV());
 
 			DXRS::DescriptorHandle uavHandle = gpuDescriptorHeap->GetHandleBlock(12);
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[0]->GetUAV());
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[1]->GetUAV());
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[2]->GetUAV());
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[3]->GetUAV());
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[4]->GetUAV());
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[5]->GetUAV());
+			if (mip == 0) {
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[0]->GetUAV());
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[1]->GetUAV());
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[2]->GetUAV());
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[3]->GetUAV());
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[4]->GetUAV());
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[5]->GetUAV());
+			}
+			else {
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetUAV(mip - 1));
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetUAV(mip - 1));
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetUAV(mip - 1));
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetUAV(mip - 1));
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetUAV(mip - 1));
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetUAV(mip - 1));
+			}
 			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetUAV(mip));
 			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetUAV(mip));
 			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetUAV(mip));
@@ -2171,8 +2198,9 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 		gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetSRV());
 
-		DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(1);
+		DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
 		gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
+		gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTMainCB->GetCBV());
 
 		DXRS::DescriptorHandle uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
 		gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTVoxelization3DRT->GetUAV());
