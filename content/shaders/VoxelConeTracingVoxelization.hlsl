@@ -53,8 +53,6 @@ void GSMain(triangle GS_IN input[3], inout TriangleStream<PS_IN> OutputStream)
     output[1] = (PS_IN) 0;
     output[2] = (PS_IN) 0;
     
-    float4x4 matProj; //for rasterization only
-
     float3 p1 = input[1].position.rgb - input[0].position.rgb;
     float3 p2 = input[2].position.rgb - input[0].position.rgb;
     float3 n = abs(normalize(cross(p1, p2)));
@@ -67,29 +65,12 @@ void GSMain(triangle GS_IN input[3], inout TriangleStream<PS_IN> OutputStream)
         output[1].voxelPos = input[i].position.xyz / WorldVoxelScale;
         output[2].voxelPos = input[i].position.xyz / WorldVoxelScale;
         if (axis == n.z)
-        {
-            output[0].axis = 1;
-            output[1].axis = 1;
-            output[2].axis = 1;
             output[i].position = float4(output[i].voxelPos.x, output[i].voxelPos.y, 0, 1);
-
-        }
         else if (axis == n.x)
-        {
-            output[0].axis = 2;
-            output[1].axis = 2;
-            output[2].axis = 2;
             output[i].position = float4(output[i].voxelPos.y, output[i].voxelPos.z, 0, 1);
-        }
         else
-        {
-            output[0].axis = 3;
-            output[1].axis = 3;
-            output[2].axis = 3;
             output[i].position = float4(output[i].voxelPos.x, output[i].voxelPos.z, 0, 1);
-        }
-    
-        //output[i].position.xyz = mul(transpose(matProj), input[i].position);
+
         output[i].normal = input[i].normal;
         OutputStream.Append(output[i]);
     }

@@ -13,12 +13,7 @@ static const float3 diffuseConeDirections[] =
 };
 static const float diffuseConeWeights[] =
 {
-    PI / 4.0f,
-    3.0f * PI / 20.0f,
-    3.0f * PI / 20.0f,
-    3.0f * PI / 20.0f,
-    3.0f * PI / 20.0f,
-    3.0f * PI / 20.0f,
+    0.25, 0.15, 0.15, 0.15, 0.15, 0.15
 };
 
 Texture2D<float4> normalBuffer : register(t0);
@@ -29,8 +24,9 @@ Texture3D<float4> voxelTexturePosY : register(t4);
 Texture3D<float4> voxelTextureNegY : register(t5);
 Texture3D<float4> voxelTexturePosZ : register(t6);
 Texture3D<float4> voxelTextureNegZ : register(t7);
+Texture3D<float4> voxelTexture : register(t8);
 
-RWTexture3D<float4> voxelTexture : register(u0);
+SamplerState LinearSampler : register(s0);
 
 cbuffer VoxelizationCB : register(b0)
 {
@@ -41,9 +37,12 @@ cbuffer VoxelizationCB : register(b0)
 
 cbuffer VCTMainCB : register(b1)
 {
-    float Strength;
+    float4 CameraPos;
+    float IndirectDiffuseStrength;
+    float IndirectSpecularStrength;
     float MaxConeTraceDistance;
     float AOFalloff;
+    float SamplingFactor;
 };
 
 struct VS_IN
@@ -86,12 +85,10 @@ float4 GetAnisotropicSample(float3 uv, float3 weight, float lod, bool posX, bool
     height >>= anisoLevel;
     depth >>= anisoLevel;
     
-    int3 coord = uv * int3(width, height, depth);
-    
     float4 anisoSample = 
-    weight.x * ((posX) ? voxelTexturePosX.Load(int4(coord, anisoLevel)) : voxelTextureNegX.Load(int4(coord, anisoLevel))) +
-    weight.y * ((posY) ? voxelTexturePosY.Load(int4(coord, anisoLevel)) : voxelTextureNegY.Load(int4(coord, anisoLevel))) +
-    weight.z * ((posZ) ? voxelTexturePosZ.Load(int4(coord, anisoLevel)) : voxelTextureNegZ.Load(int4(coord, anisoLevel)));
+    weight.x * ((posX) ? voxelTexturePosX.SampleLevel(LinearSampler, uv, anisoLevel) : voxelTextureNegX.SampleLevel(LinearSampler, uv, anisoLevel)) +
+    weight.y * ((posY) ? voxelTexturePosY.SampleLevel(LinearSampler, uv, anisoLevel) : voxelTextureNegY.SampleLevel(LinearSampler, uv, anisoLevel)) +
+    weight.z * ((posZ) ? voxelTexturePosZ.SampleLevel(LinearSampler, uv, anisoLevel) : voxelTextureNegZ.SampleLevel(LinearSampler, uv, anisoLevel));
 
     if (lod < 1.0f)
     {
@@ -100,8 +97,7 @@ float4 GetAnisotropicSample(float3 uv, float3 weight, float lod, bool posX, bool
         uint depth;
         voxelTexture.GetDimensions(width, height, depth);
         
-        coord = uv * int3(width, height, depth);
-        float4 baseColor = voxelTexture.Load(int4(coord, 0));
+        float4 baseColor = voxelTexture.SampleLevel(LinearSampler, uv, 0);
         anisoSample = lerp(baseColor, anisoSample, clamp(lod, 0.0f, 1.0f));
     }
 
@@ -133,10 +129,8 @@ float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, ou
     float3 startPos = pos + normal * dist;
     
     float3 weight = direction * direction;
-    
-    const float samplingFactor = 0.5f;
 
-    while (dist < MaxConeTraceDistance && color.a < 0.95f)
+    while (dist < MaxConeTraceDistance && color.a < 1.0f)
     {
         float diameter = 2.0f * aperture * dist;
         float lodLevel = log2(diameter / voxelWorldSize);
@@ -147,12 +141,26 @@ float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, ou
         if (occlusion < 1.0f)
             occlusion += ((1.0f - occlusion) * voxelColor.a) / (1.0f + AOFalloff * diameter);
         
-        dist += diameter * samplingFactor;
+        dist += diameter * SamplingFactor;
     }
 
     return color;
 }
 
+float4 CalculateIndirectSpecular(float3 worldPos, float3 normal, float4 specular)
+{
+    float4 result;
+    float3 viewDirection = normalize(CameraPos.rgb - worldPos);
+    float3 coneDirection = normalize(reflect(-viewDirection, normal));
+    
+    const float oneDegree = 0.0174533f;
+    float aperture = clamp(tan(PI * 0.5f * (1.0f - specular.a)), oneDegree * 8, PI);
+
+    float ao = 5.0f;
+    result = TraceCone(worldPos, normal, coneDirection, aperture, ao);
+    
+    return IndirectSpecularStrength * result * float4(specular.rgb, 1.0f);
+}
 
 float4 CalculateIndirectDiffuse(float3 worldPos, float3 normal, out float ao)
 {
@@ -166,16 +174,22 @@ float4 CalculateIndirectDiffuse(float3 worldPos, float3 normal, out float ao)
     float3 right = normalize(upDir - dot(normal, upDir) * normal);
     float3 up = cross(right, normal);
     
+    float finalAo = 0.0f;
+    float tempAo = 0.0f;
+    
     for (int i = 0; i < NUM_CONES; i++)
     {
         coneDirection = normal;
         coneDirection += diffuseConeDirections[i].x * right + diffuseConeDirections[i].z * up;
         coneDirection = normalize(coneDirection);
 
-        result += TraceCone(worldPos, normal, coneDirection, coneAperture, ao) * diffuseConeWeights[i];
+        result += TraceCone(worldPos, normal, coneDirection, coneAperture, tempAo) * diffuseConeWeights[i];
+        finalAo += tempAo * diffuseConeWeights[i];
     }
     
-    return Strength * result;
+    ao = finalAo;
+    
+    return IndirectDiffuseStrength * result;
 }
 
 PS_OUT PSMain(PS_IN input)
@@ -189,7 +203,8 @@ PS_OUT PSMain(PS_IN input)
     
     float ao = 0.0f;
     float4 indirectDiffuse = CalculateIndirectDiffuse(worldPos.rgb, normal.rgb, ao);
+    float4 indirectSpecular = CalculateIndirectSpecular(worldPos.rgb, normal.rgb, float4(0.9f, 0.9f, 0.9f, 1.0f));
 
-    output.result = /*float4(ao, ao, ao, 1.0f); //    */indirectDiffuse;
+    output.result = saturate(float4(indirectDiffuse.rgb + indirectSpecular.rgb, ao));
     return output;
 }

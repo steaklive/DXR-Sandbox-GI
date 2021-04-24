@@ -38,6 +38,7 @@ cbuffer IlluminationFlagsBuffer : register(b3)
     int useRSM;
     int useLPV;
     int useVCT;
+    int showOnlyAO;
 }
 
 struct VSInput
@@ -116,6 +117,8 @@ PSOutput PSMain(PSInput input)
     float3 indirectLighting = float3(0.0f, 0.0f, 0.0f);
     float3 directLighting = float3(0.0f, 0.0f, 0.0f);
     
+    float ao = 1.0f;
+    
     // RSM
     if (useRSM)
     {
@@ -146,6 +149,16 @@ PSOutput PSMain(PSInput input)
         indirectLighting += lpv;
     }
     
+    //VCT
+    if (useVCT)
+    {
+        float4 vct = vctBuffer[inPos];
+        indirectLighting += vct.rgb;
+        ao = vct.a;
+    }
+    
+    
+    
     float shadow = 1.0f;
     if (useShadows)
     {
@@ -167,12 +180,10 @@ PSOutput PSMain(PSInput input)
         directLighting = (lightIntensity * NdotL) * lightColor * albedo.rgb;
     }
     
-    float4 colVCT = vctBuffer[inPos];
+    output.diffuse.rgb = ao * indirectLighting + directLighting * shadow;
     
-    output.diffuse.rgb = indirectLighting + directLighting * shadow;
-    
-    if (useVCT) 
-        output.diffuse = float4(colVCT.rgb, 1.0f);
+    if (showOnlyAO)
+        output.diffuse.rgb = float3(ao, ao, ao);
     
     return output;
 }

@@ -1,24 +1,16 @@
-﻿  imgui.cpp
-  imgui_demo.cpp
-  imgui_draw.cpp
-  imgui_impl_dx12.cpp
-  imgui_impl_win32.cpp
-  imgui_widgets.cpp
-  DescriptorHeap.cpp
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DescriptorHeap.h(5,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+﻿  DXRS.cpp
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSGraphics.h(78,1): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
-  DXRSBuffer.cpp
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DescriptorHeap.h(5,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSGraphics.h(78,1): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
-  DXRSDepthBuffer.cpp
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DescriptorHeap.h(5,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSGraphics.h(78,1): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSMesh.h(50,23): warning C4267: 'return': conversion from 'size_t' to 'UINT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.h(121,58): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.h(236,55): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.h(237,59): warning C4305: 'initializing': truncation from 'double' to 'float'
   DXRSExampleGIScene.cpp
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSGraphics.h(78,1): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DescriptorHeap.h(5,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSMesh.h(50,23): warning C4267: 'return': conversion from 'size_t' to 'UINT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.h(232,55): warning C4305: 'initializing': truncation from 'double' to 'float'
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.h(233,59): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.h(236,55): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.h(237,59): warning C4305: 'initializing': truncation from 'double' to 'float'
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(49,245): warning C4305: 'argument': truncation from 'double' to 'float'
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(50,260): warning C4305: 'argument': truncation from 'double' to 'float'
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(51,260): warning C4305: 'argument': truncation from 'double' to 'float'
@@ -30,179 +22,73 @@ C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGI
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(257,35): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(316,14): warning C4244: 'initializing': conversion from 'LONG' to 'float', possible loss of data
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(317,15): warning C4244: 'initializing': conversion from 'LONG' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(364,116): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(364,66): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(462,32): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(485,30): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(486,30): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(505,14): warning C4244: 'initializing': conversion from 'LONG' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(506,15): warning C4244: 'initializing': conversion from 'LONG' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(763,135): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(763,93): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(764,41): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(764,35): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(768,118): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(768,91): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(769,48): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(769,42): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(873,110): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(873,77): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1157,135): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1157,93): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1158,41): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1158,35): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1184,130): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1184,98): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1185,46): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1185,40): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1235,106): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1235,85): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1236,48): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1236,42): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1324,124): warning C4244: 'argument': conversion from 'UINT' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1324,88): warning C4244: 'argument': conversion from 'UINT' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1325,58): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1325,52): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1553,135): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1553,93): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1554,41): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1554,35): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1560,46): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1560,40): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1620,45): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1620,39): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1981,135): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1981,93): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1982,41): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1982,35): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1990,45): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1990,39): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-  DXRSGraphics.cpp
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSGraphics.h(78,1): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DescriptorHeap.h(5,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29910\include\xstring(2468,23): warning C4244: 'argument': conversion from 'wchar_t' to 'const _Elem', possible loss of data
-          with
-          [
-              _Elem=char
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29910\include\xstring(2479): message : see reference to function template instantiation 'void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(_Iter,const _Iter,std::input_iterator_tag)' being compiled
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29910\include\xstring(2479): message : see reference to function template instantiation 'void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(_Iter,const _Iter,std::input_iterator_tag)' being compiled
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29910\include\xstring(2459): message : see reference to function template instantiation 'void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(const _Iter,const _Iter,std::forward_iterator_tag)' being compiled
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29910\include\xstring(2459): message : see reference to function template instantiation 'void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(const _Iter,const _Iter,std::forward_iterator_tag)' being compiled
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSGraphics.cpp(662): message : see reference to function template instantiation 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)' being compiled
-          with
-          [
-              _Elem=wchar_t,
-              _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
-              _Alloc=std::allocator<char>
-          ]
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSGraphics.cpp(662): message : see reference to function template instantiation 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)' being compiled
-          with
-          [
-              _Elem=wchar_t,
-              _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
-              _Alloc=std::allocator<char>
-          ]
-  DXRSModel.cpp
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSGraphics.h(78,1): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DescriptorHeap.h(5,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSMesh.h(50,23): warning C4267: 'return': conversion from 'size_t' to 'UINT', possible loss of data
-  DXRS.cpp
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSGraphics.h(78,1): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DescriptorHeap.h(5,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSMesh.h(50,23): warning C4267: 'return': conversion from 'size_t' to 'UINT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.h(121,58): warning C4305: 'initializing': truncation from 'double' to 'float'
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.h(232,55): warning C4305: 'initializing': truncation from 'double' to 'float'
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.h(233,59): warning C4305: 'initializing': truncation from 'double' to 'float'
-  DXRSMesh.cpp
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DescriptorHeap.h(5,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSGraphics.h(78,1): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSMesh.h(50,23): warning C4267: 'return': conversion from 'size_t' to 'UINT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSMesh.cpp(165,49): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
-  DXRSModelMaterial.cpp
-  DXRSExampleRTScene.cpp
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSGraphics.h(78,1): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DescriptorHeap.h(5,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSMesh.h(50,23): warning C4267: 'return': conversion from 'size_t' to 'UINT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.h(121,58): warning C4305: 'initializing': truncation from 'double' to 'float'
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(44,188): warning C4305: 'argument': truncation from 'double' to 'float'
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(783,138): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(783,96): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(784,44): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(784,38): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(928,27): warning C4244: '=': conversion from 'float' to 'UINT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(929,28): warning C4244: '=': conversion from 'float' to 'UINT', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(995,17): warning C4244: 'initializing': conversion from 'LONG' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(996,18): warning C4244: 'initializing': conversion from 'LONG' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(1078,33): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(1079,33): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(1098,17): warning C4244: 'initializing': conversion from 'LONG' to 'float', possible loss of data
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleRTScene.cpp(1099,18): warning C4244: 'initializing': conversion from 'LONG' to 'float', possible loss of data
-  DXRSRenderTarget.cpp
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DescriptorHeap.h(5,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSGraphics.h(78,1): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
-  PipelineStateObject.cpp
-  RaytracingPipelineGenerator.cpp
-  RootSignature.cpp
-  Generating Code...
-  Compiling...
-  ShaderBindingTableGenerator.cpp
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29910\include\xstring(2468,23): warning C4244: 'argument': conversion from 'wchar_t' to 'const _Elem', possible loss of data
-          with
-          [
-              _Elem=char
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29910\include\xstring(2479): message : see reference to function template instantiation 'void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(_Iter,const _Iter,std::input_iterator_tag)' being compiled
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29910\include\xstring(2479): message : see reference to function template instantiation 'void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(_Iter,const _Iter,std::input_iterator_tag)' being compiled
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29910\include\xstring(2459): message : see reference to function template instantiation 'void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(const _Iter,const _Iter,std::forward_iterator_tag)' being compiled
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29910\include\xstring(2459): message : see reference to function template instantiation 'void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct<wchar_t*>(const _Iter,const _Iter,std::forward_iterator_tag)' being compiled
-          with
-          [
-              _Iter=wchar_t *
-          ]
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\ShaderBindingTableGenerator.cpp(213): message : see reference to function template instantiation 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)' being compiled
-          with
-          [
-              _Elem=wchar_t,
-              _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
-              _Alloc=std::allocator<char>
-          ]
-C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\ShaderBindingTableGenerator.cpp(213): message : see reference to function template instantiation 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)' being compiled
-          with
-          [
-              _Elem=wchar_t,
-              _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
-              _Alloc=std::allocator<char>
-          ]
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(365,116): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(365,66): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(469,32): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(492,30): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(493,30): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(512,14): warning C4244: 'initializing': conversion from 'LONG' to 'float', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(513,15): warning C4244: 'initializing': conversion from 'LONG' to 'float', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(770,135): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(770,93): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(771,41): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(771,35): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(775,118): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(775,91): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(776,48): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(776,42): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(880,110): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(880,77): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1164,135): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1164,93): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1165,41): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1165,35): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1191,130): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1191,98): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1192,46): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1192,40): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1242,106): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1242,85): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1243,48): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1243,42): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1331,124): warning C4244: 'argument': conversion from 'UINT' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1331,88): warning C4244: 'argument': conversion from 'UINT' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1332,58): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1332,52): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1560,135): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1560,93): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1561,41): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1561,35): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1567,46): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1567,40): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1627,45): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1627,39): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1988,135): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1988,93): warning C4244: 'argument': conversion from 'LONG' to 'FLOAT', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1989,41): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1989,35): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1997,45): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\source\DXRSExampleGIScene.cpp(1997,39): warning C4244: 'argument': conversion from 'float' to 'LONG', possible loss of data
   Generating Code...
 imgui.obj : warning LNK4075: ignoring '/EDITANDCONTINUE' due to '/INCREMENTAL:NO' specification
      Creating library C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\\bin\x64\Debug\DXR-Sandbox-GI.lib and object C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\\bin\x64\Debug\DXR-Sandbox-GI.exp
+ShaderBindingTableGenerator.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+RootSignature.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+RaytracingPipelineGenerator.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+PipelineStateObject.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+DXRSRenderTarget.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+DXRSExampleRTScene.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+DXRSModelMaterial.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+DXRSMesh.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+DXRSModel.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+DXRSGraphics.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+DXRSDepthBuffer.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+DXRSBuffer.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+DescriptorHeap.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+imgui_widgets.obj : warning LNK4204: '' is missing debugging information for referencing module; linking object as if no debug info
+imgui_impl_win32.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+imgui_impl_dx12.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+imgui_draw.obj : warning LNK4204: '' is missing debugging information for referencing module; linking object as if no debug info
+imgui_demo.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
+imgui.obj : warning LNK4204: 'C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\vc142.pdb' is missing debugging information for referencing module; linking object as if no debug info
   DXR-Sandbox.vcxproj -> C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\DXR-Sandbox-GI.exe

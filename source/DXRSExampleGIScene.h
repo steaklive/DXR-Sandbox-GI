@@ -176,9 +176,12 @@ private:
 	};
 	__declspec(align(16)) struct VCTMainCBData
 	{
-		float Strength;
+		XMFLOAT4 CameraPos;
+		float IndirectDiffuseStrength;
+		float IndirectSpecularStrength;
 		float MaxConeTraceDistance;
 		float AOFalloff;
+		float SamplingFactor;
 	};
 
 	DXRSBuffer* mVCTVoxelizationCB;
@@ -226,6 +229,7 @@ private:
 		int useRSM;
 		int useLPV;
 		int useVCT;
+		int showOnlyAO;
 	};
 
 	// Directional light
@@ -240,6 +244,7 @@ private:
 	bool mUseRSM = false;
 	bool mUseLPV = false;
 	bool mUseVCT = false;
+	bool mShowOnlyAO = false;
 
 	// Shadows
 	GraphicsPSO mShadowMappingPSO;
@@ -299,9 +304,11 @@ private:
 	bool mIsFirstFrameVCT = true;
 	bool mVCTRenderDebug = false;
 	float mWorldVoxelScale = VCT_SCENE_VOLUME_SIZE * 0.5f;
-	float mVCTIndirectStrength = 1.0f;
+	float mVCTIndirectDiffuseStrength = 1.0f;
+	float mVCTIndirectSpecularStrength = 1.0f;
 	float mVCTMaxConeTraceDistance = 100.0f;
 	float mVCTAoFalloff = 0.03f;
+	float mVCTSamplingFactor = 0.5f;
 
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRW;
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRead;
