@@ -14,7 +14,7 @@
 #define RSM_SIZE 2048
 #define RSM_SAMPLES_COUNT 512
 #define LPV_DIM 32
-#define VCT_SCENE_VOLUME_SIZE 128
+#define VCT_SCENE_VOLUME_SIZE 256
 #define VCT_MIPS 6
 
 class DXRSExampleGIScene
@@ -167,6 +167,7 @@ private:
 	{
 		XMMATRIX WorldVoxelCube;
 		XMMATRIX ViewProjection;
+		XMMATRIX ShadowViewProjection;
 		float WorldVoxelScale;
 	};
 	__declspec(align(16)) struct VCTAnisoMipmappingCBData
@@ -182,6 +183,7 @@ private:
 		float MaxConeTraceDistance;
 		float AOFalloff;
 		float SamplingFactor;
+		float VoxelSampleOffset;
 	};
 
 	DXRSBuffer* mVCTVoxelizationCB;
@@ -309,6 +311,7 @@ private:
 	float mVCTMaxConeTraceDistance = 100.0f;
 	float mVCTAoFalloff = 0.03f;
 	float mVCTSamplingFactor = 0.5f;
+	float mVCTVoxelSampleOffset = 0.0f;
 
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRW;
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRead;

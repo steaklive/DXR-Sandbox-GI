@@ -378,9 +378,10 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	memcpy(mLPVCB->Map(), &lpvData, sizeof(lpvData));
 
 	VCTVoxelizationCBData voxelData = {};
-	float scale = VCT_SCENE_VOLUME_SIZE / mWorldVoxelScale;
-	voxelData.WorldVoxelCube = XMMatrixScaling(scale, -scale, scale) * XMMatrixTranslation(-VCT_SCENE_VOLUME_SIZE * 0.5f, VCT_SCENE_VOLUME_SIZE * 0.5f, -VCT_SCENE_VOLUME_SIZE * 0.5f);
+	float scale = 1.0f;// VCT_SCENE_VOLUME_SIZE / mWorldVoxelScale;
+	voxelData.WorldVoxelCube = XMMatrixTranslation(-VCT_SCENE_VOLUME_SIZE * 0.25f, -VCT_SCENE_VOLUME_SIZE * 0.25f, -VCT_SCENE_VOLUME_SIZE * 0.25f) * XMMatrixScaling(scale, -scale, scale);
 	voxelData.ViewProjection = mCameraView * mCameraProjection;
+	voxelData.ShadowViewProjection = mLightViewProjection;
 	voxelData.WorldVoxelScale = mWorldVoxelScale;
 	memcpy(mVCTVoxelizationCB->Map(), &voxelData, sizeof(voxelData));
 
@@ -391,6 +392,7 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	vctMainData.MaxConeTraceDistance = mVCTMaxConeTraceDistance;
 	vctMainData.AOFalloff = mVCTAoFalloff;
 	vctMainData.SamplingFactor = mVCTSamplingFactor;
+	vctMainData.VoxelSampleOffset = mVCTVoxelSampleOffset;
 	memcpy(mVCTMainCB->Map(), &vctMainData, sizeof(vctMainData));
 }
 
@@ -454,6 +456,7 @@ void DXRSExampleGIScene::UpdateImGui()
 				ImGui::SliderFloat("Max Cone Trace Dist", &mVCTMaxConeTraceDistance, 0.0f, 250.0f);
 				ImGui::SliderFloat("AO Falloff", &mVCTAoFalloff, 0.0f, 2.0f);
 				ImGui::SliderFloat("Sampling Factor", &mVCTSamplingFactor, 0.01f, 3.0f);
+				ImGui::SliderFloat("Sample Offset", &mVCTVoxelSampleOffset, -0.1f, 0.1f);
 			}
 		}
 		ImGui::Separator();
@@ -1676,6 +1679,21 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 {
 	// voxelization
 	{
+		D3D12_SAMPLER_DESC shadowSampler;
+		shadowSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+		shadowSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		shadowSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		shadowSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		shadowSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		shadowSampler.MipLODBias = 0;
+		shadowSampler.MaxAnisotropy = 16;
+		shadowSampler.MinLOD = 0.0f;
+		shadowSampler.MaxLOD = D3D12_FLOAT32_MAX;
+		shadowSampler.BorderColor[0] = 1.0f;
+		shadowSampler.BorderColor[1] = 1.0f;
+		shadowSampler.BorderColor[2] = 1.0f;
+		shadowSampler.BorderColor[3] = 1.0f;
+
 		DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
@@ -1688,9 +1706,11 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT |
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
 
-		mVCTVoxelizationRS.Reset(2, 0);
+		mVCTVoxelizationRS.Reset(3, 1);
+		mVCTVoxelizationRS.InitStaticSampler(0, shadowSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 		mVCTVoxelizationRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
-		mVCTVoxelizationRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mVCTVoxelizationRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mVCTVoxelizationRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mVCTVoxelizationRS.Finalize(device, L"VCT voxelization pass RS", rootSignatureFlags);
 
 		ComPtr<ID3DBlob> vertexShader;
@@ -1742,6 +1762,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		float scale = 1.0f;
 		data.WorldVoxelCube = XMMatrixScaling(scale, scale, scale);
 		data.ViewProjection = mCameraView * mCameraProjection;
+		data.ShadowViewProjection = mLightViewProjection;
 		data.WorldVoxelScale = mWorldVoxelScale;
 		memcpy(mVCTVoxelizationCB->Map(), &data, sizeof(data));
 	}
@@ -2008,18 +2029,23 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 
 		DXRS::DescriptorHandle cbvHandle;
 		DXRS::DescriptorHandle uavHandle;
+		DXRS::DescriptorHandle srvHandle;
 
 		for (auto& model : mObjects) {
-			RenderObject(model, [this, gpuDescriptorHeap, commandList, &cbvHandle, &uavHandle, device](U_PTR<DXRSModel>& anObject) {
+			RenderObject(model, [this, gpuDescriptorHeap, commandList, &cbvHandle, &uavHandle, &srvHandle, device](U_PTR<DXRSModel>& anObject) {
 				cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
 				gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
 				gpuDescriptorHeap->AddToHandle(device, cbvHandle, anObject->GetCB()->GetCBV());
+
+				srvHandle = gpuDescriptorHeap->GetHandleBlock(1);
+				gpuDescriptorHeap->AddToHandle(device, srvHandle, mShadowDepth->GetSRV());
 
 				uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
 				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTVoxelization3DRT->GetUAV());
 
 				commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
-				commandList->SetGraphicsRootDescriptorTable(1, uavHandle.GetGPUHandle());
+				commandList->SetGraphicsRootDescriptorTable(1, srvHandle.GetGPUHandle());
+				commandList->SetGraphicsRootDescriptorTable(2, uavHandle.GetGPUHandle());
 
 				anObject->Render(commandList);
 			});
@@ -2028,10 +2054,6 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 		//reset back
 		commandList->RSSetViewports(1, &viewport);
 		commandList->RSSetScissorRects(1, &rect);
-
-		// TODO make first frame optimization
-		//if (mIsFirstFrameVCT)
-		//	mIsFirstFrameVCT = false;
 	}
 	PIXEndEvent(commandList);
 

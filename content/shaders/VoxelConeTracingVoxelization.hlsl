@@ -2,6 +2,7 @@ cbuffer VoxelizationCB : register(b0)
 {
     float4x4 WorldVoxelCube;
     float4x4 ViewProjection;
+    float4x4 ShadowViewProjection;
     float WorldVoxelScale;
 };
 
@@ -33,6 +34,9 @@ struct PS_IN
 };
 
 RWTexture3D<float4> outputTexture : register(u0);
+Texture2D<float> shadowBuffer : register(t0);
+
+SamplerComparisonState PcfShadowMapSampler : register(s0);
 
 GS_IN VSMain(VS_IN input)
 {
@@ -61,9 +65,9 @@ void GSMain(triangle GS_IN input[3], inout TriangleStream<PS_IN> OutputStream)
     
     for (uint i = 0; i < 3; ++i)
     {
-        output[0].voxelPos = input[i].position.xyz / WorldVoxelScale;
-        output[1].voxelPos = input[i].position.xyz / WorldVoxelScale;
-        output[2].voxelPos = input[i].position.xyz / WorldVoxelScale;
+        output[0].voxelPos = input[i].position.xyz / WorldVoxelScale * 2.0f;
+        output[1].voxelPos = input[i].position.xyz / WorldVoxelScale * 2.0f;
+        output[2].voxelPos = input[i].position.xyz / WorldVoxelScale * 2.0f;
         if (axis == n.z)
             output[i].position = float4(output[i].voxelPos.x, output[i].voxelPos.y, 0, 1);
         else if (axis == n.x)
@@ -76,6 +80,15 @@ void GSMain(triangle GS_IN input[3], inout TriangleStream<PS_IN> OutputStream)
     }
     OutputStream.RestartStrip();
 }
+
+float3 VoxelToWorld(float3 pos)
+{
+    float3 result = pos;
+    result *= WorldVoxelScale;
+
+    return result * 0.5f;
+}
+
 
 void PSMain(PS_IN input)
 {
@@ -90,6 +103,13 @@ void PSMain(PS_IN input)
     
     int3 finalVoxelPos = width * float3(0.5f * voxelPos + float3(0.5f, 0.5f, 0.5f));
     float4 colorRes = float4(DiffuseColor.rgb, 1.0f);
-    //TODO add shadow map contribution
-    outputTexture[finalVoxelPos] = colorRes;
+    voxelPos.y = -voxelPos.y; 
+    
+    float4 worldPos = float4(VoxelToWorld(voxelPos), 1.0f);
+    float4 lightSpacePos = mul(ShadowViewProjection, worldPos);
+    float4 shadowcoord = lightSpacePos / lightSpacePos.w;
+    shadowcoord.rg = shadowcoord.rg * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
+    float shadow = shadowBuffer.SampleCmpLevelZero(PcfShadowMapSampler, shadowcoord.xy, shadowcoord.z);
+
+    outputTexture[finalVoxelPos] = colorRes * float4(shadow, shadow, shadow, shadow);
 }

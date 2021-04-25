@@ -1,6 +1,8 @@
 #include "Common.hlsl"
 
 #define NUM_CONES 6
+#define VOXEL_GRID_RES 256
+
 static const float coneAperture = 0.577f; // 6 cones, 60deg each, tan(30deg) = aperture
 static const float3 diffuseConeDirections[] =
 {
@@ -32,6 +34,7 @@ cbuffer VoxelizationCB : register(b0)
 {
     float4x4 WorldVoxelCube;
     float4x4 ViewProjection;
+    float4x4 ShadowViewProjection;
     float WorldVoxelScale;
 };
 
@@ -43,6 +46,7 @@ cbuffer VCTMainCB : register(b1)
     float MaxConeTraceDistance;
     float AOFalloff;
     float SamplingFactor;
+    float VoxelSampleOffset;
 };
 
 struct VS_IN
@@ -106,9 +110,10 @@ float4 GetAnisotropicSample(float3 uv, float3 weight, float lod, bool posX, bool
 
 float4 GetVoxel(float3 worldPosition, float3 weight, float lod, bool posX, bool posY, bool posZ)
 {
-    float3 voxelTextureUV = worldPosition / (WorldVoxelScale);
+    float3 offset = float3(VoxelSampleOffset, VoxelSampleOffset, VoxelSampleOffset);
+    float3 voxelTextureUV = worldPosition / WorldVoxelScale * 2.0f;
     voxelTextureUV.y = -voxelTextureUV.y;
-    voxelTextureUV = voxelTextureUV * 0.5f + 0.5f;
+    voxelTextureUV = voxelTextureUV * 0.5f + 0.5f + offset;
     
     return GetAnisotropicSample(voxelTextureUV, weight, lod, posX, posY, posZ);
 }
@@ -124,7 +129,7 @@ float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, ou
     float4 color = float4(0.0f, 0.0f, 0.0f, 0.0f);
     occlusion = 0.0;
 
-    float voxelWorldSize = 1.0f;//    WorldVoxelScale / VoxelDimensions;
+    float voxelWorldSize = WorldVoxelScale / VOXEL_GRID_RES;
     float dist = voxelWorldSize;
     float3 startPos = pos + normal * dist;
     
