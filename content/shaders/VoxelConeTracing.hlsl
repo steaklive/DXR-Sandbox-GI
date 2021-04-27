@@ -135,7 +135,7 @@ float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, ou
     
     float3 weight = direction * direction;
 
-    while (dist < MaxConeTraceDistance && color.a < 1.0f)
+    while (dist < MaxConeTraceDistance && color.a < 0.9f)
     {
         float diameter = 2.0f * aperture * dist;
         float lodLevel = log2(diameter / voxelWorldSize);
@@ -157,9 +157,9 @@ float4 CalculateIndirectSpecular(float3 worldPos, float3 normal, float4 specular
     float4 result;
     float3 viewDirection = normalize(CameraPos.rgb - worldPos);
     float3 coneDirection = normalize(reflect(-viewDirection, normal));
-    
+        
     const float oneDegree = 0.0174533f;
-    float aperture = clamp(tan(PI * 0.5f * (1.0f - specular.a)), oneDegree * 8, PI);
+    float aperture = clamp(tan(PI * 0.5f * (1.0f - specular.a)), oneDegree, PI);
 
     float ao = 5.0f;
     result = TraceCone(worldPos, normal, coneDirection, aperture, ao);
@@ -202,8 +202,7 @@ PS_OUT PSMain(PS_IN input)
     PS_OUT output = (PS_OUT) 0;
     float2 inPos = input.position.xy;
     
-    //float depth = depthBuffer[inPos].x;
-    float4 normal = normalize(normalBuffer[inPos]);
+    float3 normal = normalize(normalBuffer[inPos].rgb);
     float4 worldPos = worldPosBuffer[inPos];
     
     float ao = 0.0f;
