@@ -237,7 +237,7 @@ private:
 	// Directional light
 	float mDirectionalLightColor[4]{ 0.9, 0.9, 0.9, 1.0 };
 	float mDirectionalLightDir[4]{ 0.191, 1.0f, 0.574f, 1.0 };
-	float mDirectionalLightIntensity = 1.7f;
+	float mDirectionalLightIntensity = 1.0f;
 	bool mDynamicDirectionalLight = false;
 	float mDynamicDirectionalLightSpeed = 1.0f;
 

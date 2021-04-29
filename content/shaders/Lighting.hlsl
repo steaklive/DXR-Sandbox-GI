@@ -110,7 +110,7 @@ PSOutput PSMain(PSInput input)
     float2 inPos = input.position.xy;    
     
     float depth = depthBuffer[inPos].x;
-    float4 normal = normalize(normalBuffer[inPos]);
+    float3 normal = normalize(normalBuffer[inPos].rgb);
     float4 albedo = albedoBuffer[inPos];
     float4 worldPos = worldPosBuffer[inPos];
     
@@ -135,7 +135,7 @@ PSOutput PSMain(PSInput input)
     {
     
         float3 lpv = float3(0.0f, 0.0f, 0.0f);
-        float4 SHintensity = DirToSH(-normal.rgb);
+        float4 SHintensity = DirToSH(normal.rgb);
         float3 lpvCellCoords = (worldPos.rgb * LPV_SCALE + float3(LPV_DIM_HALF, LPV_DIM_HALF, LPV_DIM_HALF)) * LPV_DIM_INVERSE;
         float4 lpvIntensity =
         float4(
