@@ -18,6 +18,9 @@ static const float diffuseConeWeights[] =
     0.25, 0.15, 0.15, 0.15, 0.15, 0.15
 };
 
+static const float specularOneDegree = 0.0174533f; //in radians
+static const int specularMaxDegreesCount = 5;
+
 Texture2D<float4> normalBuffer : register(t0);
 Texture2D<float4> worldPosBuffer : register(t1);
 Texture3D<float4> voxelTexturePosX : register(t2);
@@ -95,12 +98,7 @@ float4 GetAnisotropicSample(float3 uv, float3 weight, float lod, bool posX, bool
     weight.z * ((posZ) ? voxelTexturePosZ.SampleLevel(LinearSampler, uv, anisoLevel) : voxelTextureNegZ.SampleLevel(LinearSampler, uv, anisoLevel));
 
     if (lod < 1.0f)
-    {
-        uint width;
-        uint height;
-        uint depth;
-        voxelTexture.GetDimensions(width, height, depth);
-        
+    {      
         float4 baseColor = voxelTexture.SampleLevel(LinearSampler, uv, 0);
         anisoSample = lerp(baseColor, anisoSample, clamp(lod, 0.0f, 1.0f));
     }
@@ -118,18 +116,13 @@ float4 GetVoxel(float3 worldPosition, float3 weight, float lod, bool posX, bool 
     return GetAnisotropicSample(voxelTextureUV, weight, lod, posX, posY, posZ);
 }
 
-float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, out float occlusion)
+float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, out float occlusion, bool calculateAO, uint voxelResolution)
 {
-    uint3 visibleFace;
-    visibleFace.x = (direction.x < 0.0) ? 0 : 1;
-    visibleFace.y = (direction.y < 0.0) ? 2 : 3;
-    visibleFace.z = (direction.z < 0.0) ? 4 : 5;
-    
     float lod = 0.0;
     float4 color = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    occlusion = 0.0;
 
-    float voxelWorldSize = WorldVoxelScale / VOXEL_GRID_RES;
+    occlusion = 0.0f;
+    float voxelWorldSize = WorldVoxelScale / voxelResolution;
     float dist = voxelWorldSize;
     float3 startPos = pos + normal * dist;
     
@@ -143,7 +136,7 @@ float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, ou
     
         // front-to-back
         color += (1.0 - color.a) * voxelColor;
-        if (occlusion < 1.0f)
+        if (occlusion < 1.0f && calculateAO)
             occlusion += ((1.0f - occlusion) * voxelColor.a) / (1.0f + AOFalloff * diameter);
         
         dist += diameter * SamplingFactor;
@@ -152,22 +145,21 @@ float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, ou
     return color;
 }
 
-float4 CalculateIndirectSpecular(float3 worldPos, float3 normal, float4 specular)
+float4 CalculateIndirectSpecular(float3 worldPos, float3 normal, float4 specular, uint voxelResolution)
 {
     float4 result;
     float3 viewDirection = normalize(CameraPos.rgb - worldPos);
     float3 coneDirection = normalize(reflect(-viewDirection, normal));
         
-    const float oneDegree = 0.0174533f;
-    float aperture = clamp(tan(PI * 0.5f * (1.0f - specular.a)), oneDegree, PI);
+    float aperture = clamp(tan(PI * 0.5f * (1.0f - specular.a)), specularOneDegree * specularMaxDegreesCount, PI);
 
-    float ao = 5.0f;
-    result = TraceCone(worldPos, normal, coneDirection, aperture, ao);
+    float ao = -1.0f;
+    result = TraceCone(worldPos, normal, coneDirection, aperture, ao, false, voxelResolution);
     
     return IndirectSpecularStrength * result * float4(specular.rgb, 1.0f);
 }
 
-float4 CalculateIndirectDiffuse(float3 worldPos, float3 normal, out float ao)
+float4 CalculateIndirectDiffuse(float3 worldPos, float3 normal, out float ao, uint voxelResolution)
 {
     float4 result;
     float3 coneDirection;
@@ -188,7 +180,7 @@ float4 CalculateIndirectDiffuse(float3 worldPos, float3 normal, out float ao)
         coneDirection += diffuseConeDirections[i].x * right + diffuseConeDirections[i].z * up;
         coneDirection = normalize(coneDirection);
 
-        result += TraceCone(worldPos, normal, coneDirection, coneAperture, tempAo) * diffuseConeWeights[i];
+        result += TraceCone(worldPos, normal, coneDirection, coneAperture, tempAo, true, voxelResolution) * diffuseConeWeights[i];
         finalAo += tempAo * diffuseConeWeights[i];
     }
     
@@ -205,9 +197,14 @@ PS_OUT PSMain(PS_IN input)
     float3 normal = normalize(normalBuffer[inPos].rgb);
     float4 worldPos = worldPosBuffer[inPos];
     
+    uint width;
+    uint height;
+    uint depth;
+    voxelTexture.GetDimensions(width, height, depth);
+    
     float ao = 0.0f;
-    float4 indirectDiffuse = CalculateIndirectDiffuse(worldPos.rgb, normal.rgb, ao);
-    float4 indirectSpecular = CalculateIndirectSpecular(worldPos.rgb, normal.rgb, float4(0.9f, 0.9f, 0.9f, 1.0f));
+    float4 indirectDiffuse = CalculateIndirectDiffuse(worldPos.rgb, normal.rgb, ao, width);
+    float4 indirectSpecular = CalculateIndirectSpecular(worldPos.rgb, normal.rgb, float4(0.9f, 0.9f, 0.9f, 1.0f), width);
 
     output.result = saturate(float4(indirectDiffuse.rgb + indirectSpecular.rgb, ao));
     return output;
