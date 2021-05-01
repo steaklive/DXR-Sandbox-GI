@@ -47,6 +47,7 @@ cbuffer VoxelizationCB : register(b0)
 cbuffer VCTMainCB : register(b1)
 {
     float4 CameraPos;
+    float2 UpsampleRatio;
     float IndirectDiffuseStrength;
     float IndirectSpecularStrength;
     float MaxConeTraceDistance;
@@ -198,9 +199,9 @@ void CSMain(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : 
     PS_OUT output = (PS_OUT) 0;
     float2 inPos = DTid.xy;
     
-    float3 normal = normalize(normalBuffer[inPos].rgb);
-    float4 worldPos = worldPosBuffer[inPos];
-    float4 albedo = albedoBuffer[inPos];
+    float3 normal = normalize(normalBuffer[inPos * UpsampleRatio].rgb);
+    float4 worldPos = worldPosBuffer[inPos * UpsampleRatio];
+    float4 albedo = albedoBuffer[inPos * UpsampleRatio];
     
     uint width;
     uint height;

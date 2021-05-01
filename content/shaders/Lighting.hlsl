@@ -152,12 +152,14 @@ PSOutput PSMain(PSInput input)
     //VCT
     if (useVCT)
     {
-        float4 vct = vctBuffer[inPos];
+        uint gWidth = 0;
+        uint gHeight = 0;
+        albedoBuffer.GetDimensions(gWidth, gHeight);
+        float4 vct = vctBuffer.Sample(BilinearSampler, inPos * float2(1.0f / gWidth, 1.0f / gHeight));
+        
         indirectLighting += vct.rgb;
         ao = vct.a;
-    }
-    
-    
+    }  
     
     float shadow = 1.0f;
     if (useShadows)

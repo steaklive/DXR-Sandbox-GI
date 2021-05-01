@@ -151,6 +151,7 @@ private:
 	RootSignature                                        mVCTVoxelizationRS;
 	RootSignature                                        mVCTMainRS;
 	RootSignature                                        mVCTMainRS_Compute;
+	RootSignature                                        mVCTMainUpsampleAndBlurRS;
 	RootSignature                                        mVCTAnisoMipmappingPrepareRS;
 	RootSignature                                        mVCTAnisoMipmappingMainRS;
 	GraphicsPSO											 mVCTVoxelizationPSO;
@@ -158,11 +159,13 @@ private:
 	ComputePSO											 mVCTMainPSO_Compute;
 	ComputePSO											 mVCTAnisoMipmappingPreparePSO;
 	ComputePSO											 mVCTAnisoMipmappingMainPSO;
+	ComputePSO											 mVCTMainUpsampleAndBlurPSO;
 	DXRSRenderTarget*									 mVCTVoxelization3DRT;
 	RootSignature                                        mVCTVoxelizationDebugRS;
 	GraphicsPSO											 mVCTVoxelizationDebugPSO;
 	DXRSRenderTarget*									 mVCTVoxelizationDebugRT;
 	DXRSRenderTarget*									 mVCTMainRT;
+	DXRSRenderTarget*									 mVCTMainUpsampleAndBlurRT;
 	std::vector<DXRSRenderTarget*>						 mVCTAnisoMipmappinPrepare3DRTs;
 	std::vector<DXRSRenderTarget*>						 mVCTAnisoMipmappinMain3DRTs;
 	__declspec(align(16)) struct VCTVoxelizationCBData
@@ -180,6 +183,7 @@ private:
 	__declspec(align(16)) struct VCTMainCBData
 	{
 		XMFLOAT4 CameraPos;
+		XMFLOAT2 UpsampleRatio;
 		float IndirectDiffuseStrength;
 		float IndirectSpecularStrength;
 		float MaxConeTraceDistance;
@@ -306,6 +310,7 @@ private:
 	XMMATRIX mWorldToLPV;
 
 	bool mIsFirstFrameVCT = true;
+	bool mVCTEnabled = true;
 	bool mVCTRenderDebug = false;
 	float mWorldVoxelScale = VCT_SCENE_VOLUME_SIZE * 0.5f;
 	float mVCTIndirectDiffuseStrength = 1.0f;
@@ -314,7 +319,9 @@ private:
 	float mVCTAoFalloff = 0.03f;
 	float mVCTSamplingFactor = 0.5f;
 	float mVCTVoxelSampleOffset = 0.0f;
+	float mVCTRTRatio = 0.33333f; // from MAX_SCREEN_WIDTH/HEIGHT
 	bool mVCTUseMainCompute = false;
+	bool mVCTMainRTUseUpsampleAndBlur = false;
 
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRW;
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRead;
