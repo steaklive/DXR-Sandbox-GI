@@ -28,9 +28,6 @@ struct PS_IN
 {
     float4 position : SV_POSITION;
     float3 voxelPos : VOXEL_POSITION;
-    float4 worldPos : POSITION_WORLD;
-    float3 normal : NORMAL;
-    int axis : AXIS;
 };
 
 RWTexture3D<float4> outputTexture : register(u0);
@@ -43,7 +40,6 @@ GS_IN VSMain(VS_IN input)
     GS_IN output = (GS_IN) 0;
     
     output.position = mul(World, float4(input.position.xyz, 1));
-    //output.position = mul(ViewProjection, float4(output.position.xyz, 1));
     output.normal = input.normal; //TODO *inverse ViewProj??
 
     return output;
@@ -56,18 +52,20 @@ void GSMain(triangle GS_IN input[3], inout TriangleStream<PS_IN> OutputStream)
     output[0] = (PS_IN) 0;
     output[1] = (PS_IN) 0;
     output[2] = (PS_IN) 0;
-    
+
     float3 p1 = input[1].position.rgb - input[0].position.rgb;
     float3 p2 = input[2].position.rgb - input[0].position.rgb;
     float3 n = abs(normalize(cross(p1, p2)));
        
 	float axis = max(n.x, max(n.y, n.z));
     
-    for (uint i = 0; i < 3; ++i)
+    [unroll]
+    for (uint i = 0; i < 3; i++)
     {
         output[0].voxelPos = input[i].position.xyz / WorldVoxelScale * 2.0f;
         output[1].voxelPos = input[i].position.xyz / WorldVoxelScale * 2.0f;
         output[2].voxelPos = input[i].position.xyz / WorldVoxelScale * 2.0f;
+        
         if (axis == n.z)
             output[i].position = float4(output[i].voxelPos.x, output[i].voxelPos.y, 0, 1);
         else if (axis == n.x)
@@ -75,7 +73,7 @@ void GSMain(triangle GS_IN input[3], inout TriangleStream<PS_IN> OutputStream)
         else
             output[i].position = float4(output[i].voxelPos.x, output[i].voxelPos.z, 0, 1);
 
-        output[i].normal = input[i].normal;
+        //output[i].normal = input[i].normal;
         OutputStream.Append(output[i]);
     }
     OutputStream.RestartStrip();

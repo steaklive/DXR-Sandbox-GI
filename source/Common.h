@@ -57,7 +57,7 @@ inline void ThrowIfFailed(HRESULT hr)
     if (FAILED(hr))
     {
 		std::string message = std::system_category().message(hr);
-		throw std::runtime_error(message.c_str());
+		//throw std::runtime_error(message.c_str());
     }
 }
 
