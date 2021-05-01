@@ -1,5 +1,5 @@
 # About
-Simple C++/DX12 framework which is a part of my bachelor thesis on real-time global illumination techniques
+Simple C++/DX12 framework for my bachelor thesis on real-time global illumination techniques
 (WIP)
 
 ![picture](screenshots/lpv.png)
@@ -7,9 +7,22 @@ Simple C++/DX12 framework which is a part of my bachelor thesis on real-time glo
 # Features
 - Deferred Rendering
 - Shadow Mapping
-- GI w/ Reflective Shadow Mapping
-- GI w/ Light Propagation Volume
-- GI w/ Voxel Cone Tracing (Diffuse + Specular + AO)
+- GI w/ Reflective Shadow Mapping (indirect diffuse)
+- GI w/ Light Propagation Volume (indirect diffuse)
+- GI w/ Voxel Cone Tracing (indirect diffuse + specular + AO)
+
+# Optimizations
+Reflective Shadow Mapping:
+- main pass in compute (or pixel)
+- efficient upsample & blur of main pass output in compute
+
+Light Propagation Volumes:
+- flux downsample in compute (or pixel)
+
+Voxel Cone Tracing:
+- main pass in compute (or pixel)
+- anisotropic mipmapping passes in compute
+- efficient upsample & blur of main pass output in compute
 
 # Additional dependencies
 - Assimp
