@@ -9,6 +9,7 @@ Simple C++/DX12 framework which is a part of my bachelor thesis on real-time glo
 - Shadow Mapping
 - GI w/ Reflective Shadow Mapping
 - GI w/ Light Propagation Volume
+- GI w/ Voxel Cone Tracing (Diffuse + Specular + AO)
 
 # Additional dependencies
 - Assimp
