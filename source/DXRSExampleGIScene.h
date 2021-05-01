@@ -319,7 +319,7 @@ private:
 	float mVCTAoFalloff = 0.03f;
 	float mVCTSamplingFactor = 0.5f;
 	float mVCTVoxelSampleOffset = 0.0f;
-	float mVCTRTRatio = 0.33333f; // from MAX_SCREEN_WIDTH/HEIGHT
+	float mVCTRTRatio = 0.5f; // from MAX_SCREEN_WIDTH/HEIGHT
 	bool mVCTUseMainCompute = false;
 	bool mVCTMainRTUseUpsampleAndBlur = false;
 
