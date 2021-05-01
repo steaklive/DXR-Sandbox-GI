@@ -2,6 +2,7 @@
 Simple C++/DX12 framework for my bachelor thesis on real-time global illumination techniques
 (WIP)
 
+![picture](screenshots/vct.png)
 ![picture](screenshots/lpv.png)
 
 # Features
