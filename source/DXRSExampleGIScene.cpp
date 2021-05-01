@@ -48,10 +48,10 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\room.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f), XMFLOAT4(0.7, 0.7, 0.7, 0.0)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\dragon.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(1.5f, 0.0f, -7.0f), XMFLOAT4(0.044f, 0.627f, 0, 0.0)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\bunny.fbx"), true, XMMatrixIdentity() * XMMatrixRotationY(-0.3752457f) * XMMatrixTranslation(21.0f, 13.9f, -19.0f), XMFLOAT4(0.8f, 0.71f, 0, 0.0)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\torus.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixRotationX(1.099557f) * XMMatrixTranslation(21.0f, 4.0f, -9.6f), XMFLOAT4(0.329f, 0.26f, 0.8f, 0.0)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_big.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-17.25f, -1.15f, -24.15f), XMFLOAT4(0.692f, 0.215f, 0.0f, 0.0)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_medium.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-21.0f, -0.4f, -13.20f), XMFLOAT4(0.005, 0.8, 0.426, 0.0)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_small.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-11.25f, -0.45f, -16.20f), XMFLOAT4(0.01, 0.0, 0.8, 0.0)));
+	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\torus.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixRotationX(1.099557f) * XMMatrixTranslation(21.0f, 4.0f, -9.6f), XMFLOAT4(0.329f, 0.26f, 0.8f, 1.0f)));
+	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_big.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-17.25f, -1.15f, -24.15f), XMFLOAT4(0.692f, 0.215f, 0.0f, 1.0f)));
+	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_medium.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-21.0f, -0.4f, -13.20f), XMFLOAT4(0.005, 0.8, 0.426, 0.7f)));
+	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_small.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-11.25f, -0.45f, -16.20f), XMFLOAT4(0.01, 0.0, 0.8, 0.75f)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\block.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixTranslation(3.0f, 8.0f, -30.0f), XMFLOAT4(0.9, 0.15, 1.0, 0.0)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\cube.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixRotationY(-0.907571f) * XMMatrixTranslation(21.0f, 5.0f, -19.0f) , XMFLOAT4(0.1, 0.75, 0.8, 0.0)));
 
@@ -454,6 +454,7 @@ void DXRSExampleGIScene::UpdateImGui()
 				}
 			}
 			if (ImGui::CollapsingHeader("Voxel Cone Tracing")) {
+				ImGui::Checkbox("Use CS for cone tracing", &mVCTUseMainCompute);
 				ImGui::Checkbox("Render Voxels", &mVCTRenderDebug);
 				ImGui::SliderFloat("Diffuse Strength", &mVCTIndirectDiffuseStrength, 0.0f, 1.0f);
 				ImGui::SliderFloat("Specular Strength", &mVCTIndirectSpecularStrength, 0.0f, 1.0f);
@@ -1823,79 +1824,6 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		mVCTVoxelizationDebugPSO.Finalize(device);
 	}
 
-	// main 
-	{
-		DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-
-		mVCTMainRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, format, flags, L"VCT Final Output");
-
-		//create root signature
-		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
-
-		mVCTMainRS.Reset(2, 1);
-		mVCTMainRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
-		mVCTMainRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
-		mVCTMainRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 9, D3D12_SHADER_VISIBILITY_ALL);
-		mVCTMainRS.Finalize(device, L"VCT main pass RS", rootSignatureFlags);
-
-		ComPtr<ID3DBlob> vertexShader;
-		ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-		// Enable better shader debugging with the graphics debugging tools.
-		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-		UINT compileFlags = 0;
-#endif
-
-		ID3DBlob* errorBlob = nullptr;
-
-		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\VoxelConeTracing.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
-		if (errorBlob)
-		{
-			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-			errorBlob->Release();
-		}
-		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\VoxelConeTracing.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
-		if (errorBlob)
-		{
-			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-			errorBlob->Release();
-		}
-		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-		};
-
-		DXGI_FORMAT formats[1];
-		formats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-		mVCTMainPSO.SetRootSignature(mVCTMainRS);
-		mVCTMainPSO.SetRasterizerState(mRasterizerState);
-		mVCTMainPSO.SetBlendState(mBlendState);
-		mVCTMainPSO.SetDepthStencilState(mDepthStateDisabled);
-		mVCTMainPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
-		mVCTMainPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-		mVCTMainPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
-		mVCTMainPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
-		mVCTMainPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
-		mVCTMainPSO.Finalize(device);
-
-
-		DXRSBuffer::Description cbDesc;
-		cbDesc.mElementSize = sizeof(VCTMainCBData);
-		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
-		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-
-		mVCTMainCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT main CB");
-	}
-
 	// aniso mipmapping prepare
 	{
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -1931,7 +1859,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 #endif
 		ID3DBlob* errorBlob = nullptr;
 
-		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\VoxelConeTracingAnisoMipmapPrepare.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\VoxelConeTracingAnisoMipmapPrepareCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
 		if (errorBlob)
 		{
 			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
@@ -1984,7 +1912,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 #endif
 		ID3DBlob* errorBlob = nullptr;
 
-		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\VoxelConeTracingAnisoMipmapMain.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\VoxelConeTracingAnisoMipmapMainCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
 		if (errorBlob)
 		{
 			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
@@ -2007,6 +1935,113 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT aniso mip mapping main mip 4 CB"));
 		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT aniso mip mapping main mip 5 CB"));
 	}
+
+	// main 
+	{
+		DXRSBuffer::Description cbDesc;
+		cbDesc.mElementSize = sizeof(VCTMainCBData);
+		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+
+		mVCTMainCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT main CB");
+		
+		DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+		mVCTMainRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, format, flags, L"VCT Final Output");
+
+		//create root signature
+		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
+
+		// PS
+		{
+			mVCTMainRS.Reset(2, 1);
+			mVCTMainRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
+			mVCTMainRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
+			mVCTMainRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10, D3D12_SHADER_VISIBILITY_ALL);
+			mVCTMainRS.Finalize(device, L"VCT main pass pixel version RS", rootSignatureFlags);
+
+			ComPtr<ID3DBlob> vertexShader;
+			ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+			// Enable better shader debugging with the graphics debugging tools.
+			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+			UINT compileFlags = 0;
+#endif
+
+			ID3DBlob* errorBlob = nullptr;
+
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\VoxelConeTracingPS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_1", compileFlags, 0, &vertexShader, &errorBlob));
+			if (errorBlob)
+			{
+				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				errorBlob->Release();
+			}
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\VoxelConeTracingPS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
+			if (errorBlob)
+			{
+				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				errorBlob->Release();
+			}
+			D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+			{
+				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+			};
+
+			DXGI_FORMAT formats[1];
+			formats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+			mVCTMainPSO.SetRootSignature(mVCTMainRS);
+			mVCTMainPSO.SetRasterizerState(mRasterizerState);
+			mVCTMainPSO.SetBlendState(mBlendState);
+			mVCTMainPSO.SetDepthStencilState(mDepthStateDisabled);
+			mVCTMainPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
+			mVCTMainPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+			mVCTMainPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
+			mVCTMainPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+			mVCTMainPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+			mVCTMainPSO.Finalize(device);
+		}
+
+		// CS
+		{
+			mVCTMainRS_Compute.Reset(3, 1);
+			mVCTMainRS_Compute.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
+			mVCTMainRS_Compute[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
+			mVCTMainRS_Compute[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10, D3D12_SHADER_VISIBILITY_ALL);
+			mVCTMainRS_Compute[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+			mVCTMainRS_Compute.Finalize(device, L"VCT main pass compute version RS", rootSignatureFlags);
+
+			ComPtr<ID3DBlob> computeShader;
+
+#if defined(_DEBUG)
+			// Enable better shader debugging with the graphics debugging tools.
+			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+			UINT compileFlags = 0;
+#endif
+			ID3DBlob* errorBlob = nullptr;
+
+			ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\VoxelConeTracingCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
+			if (errorBlob)
+			{
+				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				errorBlob->Release();
+			}
+
+			mVCTMainPSO_Compute.SetRootSignature(mVCTMainRS_Compute);
+			mVCTMainPSO_Compute.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
+			mVCTMainPSO_Compute.Finalize(device);
+		}
+	}
+
 }
 void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
@@ -2203,47 +2238,88 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 	}
 	PIXEndEvent(commandList);
 
-	PIXBeginEvent(commandList, 0, "VCT Main PS");
-	{
-		commandList->SetPipelineState(mVCTMainPSO.GetPipelineStateObject());
-		commandList->SetGraphicsRootSignature(mVCTMainRS.GetSignature());
-
-		mSandboxFramework->ResourceBarriersBegin(mBarriers);
-		mVCTVoxelization3DRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
-
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesFinal[] =
+	if (!mVCTUseMainCompute) {
+		PIXBeginEvent(commandList, 0, "VCT Main PS");
 		{
-			 mVCTMainRT->GetRTV().GetCPUHandle()
-		};
+			commandList->SetPipelineState(mVCTMainPSO.GetPipelineStateObject());
+			commandList->SetGraphicsRootSignature(mVCTMainRS.GetSignature());
 
-		commandList->OMSetRenderTargets(_countof(rtvHandlesFinal), rtvHandlesFinal, FALSE, nullptr);
-		commandList->ClearRenderTargetView(rtvHandlesFinal[0], clearColorBlack, 0, nullptr);
+			mSandboxFramework->ResourceBarriersBegin(mBarriers);
+			mVCTMainRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
 
-		DXRS::DescriptorHandle srvHandle = gpuDescriptorHeap->GetHandleBlock(9);
-		gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[1]->GetSRV());
-		gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[2]->GetSRV());
+			D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesFinal[] =
+			{
+				 mVCTMainRT->GetRTV().GetCPUHandle()
+			};
 
-		gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetSRV());
-		gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetSRV());
-		gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetSRV());
-		gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetSRV());
-		gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetSRV());
-		gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetSRV());
-		gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTVoxelization3DRT->GetSRV());
+			commandList->OMSetRenderTargets(_countof(rtvHandlesFinal), rtvHandlesFinal, FALSE, nullptr);
+			commandList->ClearRenderTargetView(rtvHandlesFinal[0], clearColorBlack, 0, nullptr);
 
-		DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
-		gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
-		gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTMainCB->GetCBV());
+			DXRS::DescriptorHandle srvHandle = gpuDescriptorHeap->GetHandleBlock(10);
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[0]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[1]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[2]->GetSRV());
 
-		commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
-		commandList->SetGraphicsRootDescriptorTable(1, srvHandle.GetGPUHandle());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTVoxelization3DRT->GetSRV());
 
-		commandList->IASetVertexBuffers(0, 1, &mSandboxFramework->GetFullscreenQuadBufferView());
-		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		commandList->DrawInstanced(4, 1, 0, 0);
+			DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTMainCB->GetCBV());
+
+			commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
+			commandList->SetGraphicsRootDescriptorTable(1, srvHandle.GetGPUHandle());
+
+			commandList->IASetVertexBuffers(0, 1, &mSandboxFramework->GetFullscreenQuadBufferView());
+			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+			commandList->DrawInstanced(4, 1, 0, 0);
+		}
+		PIXEndEvent(commandList);
 	}
-	PIXEndEvent(commandList);
+	else {
+		PIXBeginEvent(commandList, 0, "VCT Main CS");
+		{
+			commandList->SetPipelineState(mVCTMainPSO_Compute.GetPipelineStateObject());
+			commandList->SetComputeRootSignature(mVCTMainRS_Compute.GetSignature());
+
+			mSandboxFramework->ResourceBarriersBegin(mBarriers);
+			mVCTMainRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+			DXRS::DescriptorHandle uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTMainRT->GetUAV());
+
+			DXRS::DescriptorHandle srvHandle = gpuDescriptorHeap->GetHandleBlock(10);
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[0]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[1]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[2]->GetSRV());
+
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTVoxelization3DRT->GetSRV());
+
+			DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTMainCB->GetCBV());
+
+			commandList->SetComputeRootDescriptorTable(0, cbvHandle.GetGPUHandle());
+			commandList->SetComputeRootDescriptorTable(1, srvHandle.GetGPUHandle());
+			commandList->SetComputeRootDescriptorTable(2, uavHandle.GetGPUHandle());
+
+			commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mVCTMainRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mVCTMainRT->GetHeight()), 8u), 1u);
+		}
+		PIXEndEvent(commandList);
+	}
 }
 
 void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)

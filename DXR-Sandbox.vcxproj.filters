@@ -248,13 +248,16 @@
     <FxCompile Include="content\shaders\VoxelConeTracingVoxelizationDebug.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="content\shaders\VoxelConeTracing.hlsl">
+    <FxCompile Include="content\shaders\VoxelConeTracingPS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="content\shaders\VoxelConeTracingAnisoMipmapPrepare.hlsl">
+    <FxCompile Include="content\shaders\VoxelConeTracingAnisoMipmapPrepareCS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="content\shaders\VoxelConeTracingAnisoMipmapMain.hlsl">
+    <FxCompile Include="content\shaders\VoxelConeTracingAnisoMipmapMainCS.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="content\shaders\VoxelConeTracingCS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

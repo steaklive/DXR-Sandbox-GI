@@ -150,10 +150,12 @@ private:
 
 	RootSignature                                        mVCTVoxelizationRS;
 	RootSignature                                        mVCTMainRS;
+	RootSignature                                        mVCTMainRS_Compute;
 	RootSignature                                        mVCTAnisoMipmappingPrepareRS;
 	RootSignature                                        mVCTAnisoMipmappingMainRS;
 	GraphicsPSO											 mVCTVoxelizationPSO;
 	GraphicsPSO											 mVCTMainPSO;
+	ComputePSO											 mVCTMainPSO_Compute;
 	ComputePSO											 mVCTAnisoMipmappingPreparePSO;
 	ComputePSO											 mVCTAnisoMipmappingMainPSO;
 	DXRSRenderTarget*									 mVCTVoxelization3DRT;
@@ -312,6 +314,7 @@ private:
 	float mVCTAoFalloff = 0.03f;
 	float mVCTSamplingFactor = 0.5f;
 	float mVCTVoxelSampleOffset = 0.0f;
+	bool mVCTUseMainCompute = false;
 
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRW;
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRead;
