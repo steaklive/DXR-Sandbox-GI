@@ -147,10 +147,18 @@ private:
 		float LPVAttenuation;
 	};
 	DXRSBuffer* mLPVCB;
-	ComPtr<ID3D12CommandAllocator>						 mLPVPropagationBundleAllocator;
-	ComPtr<ID3D12GraphicsCommandList>					 mLPVPropagationBundle;
+
+	//we will store a pair of bundles due to double frame GPU descriptor heap
+	ComPtr<ID3D12CommandAllocator>						 mLPVPropagationBundle1Allocator;
+	ComPtr<ID3D12CommandAllocator>						 mLPVPropagationBundle2Allocator;
+	ComPtr<ID3D12GraphicsCommandList>					 mLPVPropagationBundle1;
+	ComPtr<ID3D12GraphicsCommandList>					 mLPVPropagationBundle2;
+	DXRS::GPUDescriptorHeap*							 mLPVPropagationBundle1UsedGPUHeap;
+	DXRS::GPUDescriptorHeap*							 mLPVPropagationBundle2UsedGPUHeap;
 	bool mUseBundleForLPVPropagation = false;
-	bool mLPVPropagationBundleClosed = false;
+	bool mLPVPropagationBundlesClosed = false;
+	bool mLPVPropagationBundle1Closed = false;
+	bool mLPVPropagationBundle2Closed = false;
 
 	RootSignature                                        mVCTVoxelizationRS;
 	RootSignature                                        mVCTMainRS;

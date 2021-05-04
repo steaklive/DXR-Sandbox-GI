@@ -256,7 +256,8 @@ void DXRSExampleGIScene::Render()
 	auto descriptorHeapManager = mSandboxFramework->GetDescriptorHeapManager();
 
 	mMainDescriptorHeap->Reset();
-	DXRS::GPUDescriptorHeap* gpuDescriptorHeap = mMainDescriptorHeap;// descriptorHeapManager->GetGPUHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	DXRS::GPUDescriptorHeap* gpuDescriptorHeap = descriptorHeapManager->GetGPUHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	gpuDescriptorHeap->Reset();
 
 	ID3D12DescriptorHeap* ppHeaps[] = { gpuDescriptorHeap->GetHeap() };
 	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
@@ -464,8 +465,11 @@ void DXRSExampleGIScene::UpdateImGui()
 				if (mUseBundleForLPVPropagation)
 				{
 					if (ImGui::Button("Update bundle")) {
-						mLPVPropagationBundleClosed = false;
-						mLPVPropagationBundle->Reset(mLPVPropagationBundleAllocator.Get(), nullptr);
+						mLPVPropagationBundle1Closed = false;
+						mLPVPropagationBundle2Closed = false;
+						mLPVPropagationBundlesClosed = false;
+						mLPVPropagationBundle1->Reset(mLPVPropagationBundle1Allocator.Get(), nullptr);
+						mLPVPropagationBundle2->Reset(mLPVPropagationBundle2Allocator.Get(), nullptr);
 					}
 				}
 			}
@@ -1530,8 +1534,10 @@ void DXRSExampleGIScene::InitLightPropagationVolume(ID3D12Device* device, DXRS::
 	{
 		// bundle data
 		{
-			ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_BUNDLE, IID_PPV_ARGS(&mLPVPropagationBundleAllocator)));
-			ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, mLPVPropagationBundleAllocator.Get(), nullptr, IID_PPV_ARGS(&mLPVPropagationBundle)));
+			ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_BUNDLE, IID_PPV_ARGS(&mLPVPropagationBundle1Allocator)));
+			ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, mLPVPropagationBundle1Allocator.Get(), nullptr, IID_PPV_ARGS(&mLPVPropagationBundle1)));
+			ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_BUNDLE, IID_PPV_ARGS(&mLPVPropagationBundle2Allocator)));
+			ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, mLPVPropagationBundle2Allocator.Get(), nullptr, IID_PPV_ARGS(&mLPVPropagationBundle2)));
 		}
 
 		DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -1681,30 +1687,54 @@ void DXRSExampleGIScene::RenderLightPropagationVolume(ID3D12Device* device, ID3D
 			commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[4], clearColorBlack, 0, nullptr);
 			commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[5], clearColorBlack, 0, nullptr);
 
-			ID3D12GraphicsCommandList* commandListPropagation = (mUseBundleForLPVPropagation && !mLPVPropagationBundleClosed) ? mLPVPropagationBundle.Get() : commandList;
+			// if bundles are used, record 1, then record 2, then use 1, then use 2, etc.
+			// we need 2 bundles since GPU descriptor heap is double buffered and a bundle has to share the same GPU descriptor heap with a parent command list
+			ID3D12GraphicsCommandList* commandListPropagation = commandList;
+			if (mUseBundleForLPVPropagation && !mLPVPropagationBundlesClosed) {
+				if (!mLPVPropagationBundle1Closed) 
+					commandListPropagation = mLPVPropagationBundle1.Get();
+				else if (!mLPVPropagationBundle2Closed) 
+					commandListPropagation = mLPVPropagationBundle2.Get();
+				else 
+					mLPVPropagationBundlesClosed = true;
+			}
+
 			ID3D12DescriptorHeap* ppHeaps[] = { gpuDescriptorHeap->GetHeap() };
 			commandListPropagation->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 			commandListPropagation->SetPipelineState(mLPVPropagationPSO.GetPipelineStateObject());
 			commandListPropagation->SetGraphicsRootSignature(mLPVPropagationRS.GetSignature());
 
-			auto srvHandleLPVInjection = mMainDescriptorHeap->GetHandleBlock(3);
+			auto srvHandleLPVInjection = gpuDescriptorHeap->GetHandleBlock(3);
 			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mLPVSHColorsRTs[0]->GetSRV());
 			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mLPVSHColorsRTs[1]->GetSRV());
 			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mLPVSHColorsRTs[2]->GetSRV());
 			commandListPropagation->SetGraphicsRootDescriptorTable(0, srvHandleLPVInjection.GetGPUHandle());
 
-			if (!mUseBundleForLPVPropagation || (mUseBundleForLPVPropagation && !mLPVPropagationBundleClosed)) {
+			//recording a bundle (or just normal command list)
+			if (!mUseBundleForLPVPropagation || (mUseBundleForLPVPropagation && !mLPVPropagationBundlesClosed)) {
 				for (int step = 0; step < mLPVPropagationSteps; step++) {
 					commandListPropagation->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 					commandListPropagation->DrawInstanced(3, LPV_DIM, 0, 0);
 				}
 			}
+
+			//executing a bundle depending on the frame index
 			if (mUseBundleForLPVPropagation) {
-				if (!mLPVPropagationBundleClosed) {
-					commandListPropagation->Close();
-					mLPVPropagationBundleClosed = true;
+				if (!mLPVPropagationBundlesClosed && !mLPVPropagationBundle1Closed) {
+					mLPVPropagationBundle1.Get()->Close();
+					mLPVPropagationBundle1Closed = true;
+					mLPVPropagationBundle1UsedGPUHeap = gpuDescriptorHeap;
 				}
-				commandList->ExecuteBundle(mLPVPropagationBundle.Get());
+				else if (!mLPVPropagationBundlesClosed && !mLPVPropagationBundle2Closed) {
+					mLPVPropagationBundle2.Get()->Close();
+					mLPVPropagationBundle2Closed = true;
+					mLPVPropagationBundle2UsedGPUHeap = gpuDescriptorHeap;
+				}
+
+				if (mLPVPropagationBundle1UsedGPUHeap == gpuDescriptorHeap)
+					commandList->ExecuteBundle(mLPVPropagationBundle1.Get());
+				else if (mLPVPropagationBundle2UsedGPUHeap == gpuDescriptorHeap) 
+					commandList->ExecuteBundle(mLPVPropagationBundle2.Get());
 			}
 		}
 		PIXEndEvent(commandList);
