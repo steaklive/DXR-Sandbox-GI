@@ -50,7 +50,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\bunny.fbx"), true, XMMatrixIdentity() * XMMatrixRotationY(-0.3752457f) * XMMatrixTranslation(21.0f, 13.9f, -19.0f), XMFLOAT4(0.8f, 0.71f, 0, 0.0)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\torus.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixRotationX(1.099557f) * XMMatrixTranslation(21.0f, 4.0f, -9.6f), XMFLOAT4(0.329f, 0.26f, 0.8f, 1.0f)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_big.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-17.25f, -1.15f, -24.15f), XMFLOAT4(0.692f, 0.215f, 0.0f, 1.0f)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_medium.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-21.0f, -0.4f, -13.20f), XMFLOAT4(0.005, 0.8, 0.426, 0.7f)));
+	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_medium.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-21.0f, -0.95f, -13.20f), XMFLOAT4(0.005, 0.8, 0.426, 0.7f)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_small.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-11.25f, -0.45f, -16.20f), XMFLOAT4(0.01, 0.0, 0.8, 0.75f)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\block.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixTranslation(3.0f, 8.0f, -30.0f), XMFLOAT4(0.9, 0.15, 1.0, 0.0)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\cube.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixRotationY(-0.907571f) * XMMatrixTranslation(21.0f, 5.0f, -19.0f) , XMFLOAT4(0.1, 0.75, 0.8, 0.0)));
@@ -202,6 +202,10 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 
 #pragma endregion
 
+	auto descriptorHeapManager = mSandboxFramework->GetDescriptorHeapManager();
+	mMainDescriptorHeap = descriptorHeapManager->GetGPUHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	mMainDescriptorHeap->Reset();
+
 	InitGbuffer(device, descriptorManager);
 	InitShadowMapping(device, descriptorManager);
 	InitReflectiveShadowMapping(device, descriptorManager);
@@ -251,8 +255,8 @@ void DXRSExampleGIScene::Render()
 	auto device = mSandboxFramework->GetD3DDevice();
 	auto descriptorHeapManager = mSandboxFramework->GetDescriptorHeapManager();
 
-	DXRS::GPUDescriptorHeap* gpuDescriptorHeap = descriptorHeapManager->GetGPUHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	gpuDescriptorHeap->Reset();
+	mMainDescriptorHeap->Reset();
+	DXRS::GPUDescriptorHeap* gpuDescriptorHeap = mMainDescriptorHeap;// descriptorHeapManager->GetGPUHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	ID3D12DescriptorHeap* ppHeaps[] = { gpuDescriptorHeap->GetHeap() };
 	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
@@ -455,6 +459,15 @@ void DXRSExampleGIScene::UpdateImGui()
 				ImGui::SliderFloat("Cutoff", &mLPVCutoff, 0.0f, 1.0f);
 				ImGui::SliderFloat("Power", &mLPVPower, 0.0f, 2.0f);
 				ImGui::SliderFloat("Attenuation", &mLPVAttenuation, 0.0f, 5.0f);
+				ImGui::Separator();
+				ImGui::Checkbox("Use DX12 bundles for propagation", &mUseBundleForLPVPropagation);
+				if (mUseBundleForLPVPropagation)
+				{
+					if (ImGui::Button("Update bundle")) {
+						mLPVPropagationBundleClosed = false;
+						mLPVPropagationBundle->Reset(mLPVPropagationBundleAllocator.Get(), nullptr);
+					}
+				}
 			}
 			if (ImGui::CollapsingHeader("Voxel Cone Tracing")) {
 				ImGui::Checkbox("Enabled", &mVCTEnabled);
@@ -1515,6 +1528,12 @@ void DXRSExampleGIScene::InitLightPropagationVolume(ID3D12Device* device, DXRS::
 
 	// propagation
 	{
+		// bundle data
+		{
+			ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_BUNDLE, IID_PPV_ARGS(&mLPVPropagationBundleAllocator)));
+			ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, mLPVPropagationBundleAllocator.Get(), nullptr, IID_PPV_ARGS(&mLPVPropagationBundle)));
+		}
+
 		DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
@@ -1631,58 +1650,65 @@ void DXRSExampleGIScene::RenderLightPropagationVolume(ID3D12Device* device, ID3D
 		}
 		PIXEndEvent(commandList);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesLPVPropagation[] =
+		PIXBeginEvent(commandList, 0, "LPV Propagation");
 		{
-			mLPVSHColorsRTs[0]->GetRTV().GetCPUHandle(),
-			mLPVSHColorsRTs[1]->GetRTV().GetCPUHandle(),
-			mLPVSHColorsRTs[2]->GetRTV().GetCPUHandle(),
-			mLPVAccumulationSHColorsRTs[0]->GetRTV().GetCPUHandle(),
-			mLPVAccumulationSHColorsRTs[1]->GetRTV().GetCPUHandle(),
-			mLPVAccumulationSHColorsRTs[2]->GetRTV().GetCPUHandle()
-		};
-		CD3DX12_VIEWPORT lpvBuffersViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, LPV_DIM, LPV_DIM);
-		CD3DX12_RECT lpvRect = CD3DX12_RECT(0.0f, 0.0f, LPV_DIM, LPV_DIM);
-		commandList->RSSetViewports(1, &lpvBuffersViewport);
-		commandList->RSSetScissorRects(1, &lpvRect);
-
-		for (int step = 0; step < mLPVPropagationSteps; step++) {
-			std::string titlePix = "LPV Propagation " + std::to_string(step);
-			PIXBeginEvent(commandList, 0, titlePix.c_str());
+			D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesLPVPropagation[] =
 			{
-				if (step == 0) {
-					commandList->SetPipelineState(mLPVPropagationPSO.GetPipelineStateObject());
-					commandList->SetGraphicsRootSignature(mLPVPropagationRS.GetSignature());
+				mLPVSHColorsRTs[0]->GetRTV().GetCPUHandle(),
+				mLPVSHColorsRTs[1]->GetRTV().GetCPUHandle(),
+				mLPVSHColorsRTs[2]->GetRTV().GetCPUHandle(),
+				mLPVAccumulationSHColorsRTs[0]->GetRTV().GetCPUHandle(),
+				mLPVAccumulationSHColorsRTs[1]->GetRTV().GetCPUHandle(),
+				mLPVAccumulationSHColorsRTs[2]->GetRTV().GetCPUHandle()
+			};
+			CD3DX12_VIEWPORT lpvBuffersViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, LPV_DIM, LPV_DIM);
+			CD3DX12_RECT lpvRect = CD3DX12_RECT(0.0f, 0.0f, LPV_DIM, LPV_DIM);
+			commandList->RSSetViewports(1, &lpvBuffersViewport);
+			commandList->RSSetScissorRects(1, &lpvRect);
 
-					mSandboxFramework->ResourceBarriersBegin(mBarriers);
-					mLPVSHColorsRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-					mLPVSHColorsRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-					mLPVSHColorsRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-					mLPVAccumulationSHColorsRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-					mLPVAccumulationSHColorsRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-					mLPVAccumulationSHColorsRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-					mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+			mSandboxFramework->ResourceBarriersBegin(mBarriers);
+			mLPVSHColorsRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mLPVSHColorsRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mLPVSHColorsRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mLPVAccumulationSHColorsRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mLPVAccumulationSHColorsRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mLPVAccumulationSHColorsRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+			commandList->OMSetRenderTargets(_countof(rtvHandlesLPVPropagation), rtvHandlesLPVPropagation, FALSE, nullptr);
+			commandList->OMSetBlendFactor(clearColorWhite);
+			commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[3], clearColorBlack, 0, nullptr);
+			commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[4], clearColorBlack, 0, nullptr);
+			commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[5], clearColorBlack, 0, nullptr);
+
+			ID3D12GraphicsCommandList* commandListPropagation = (mUseBundleForLPVPropagation && !mLPVPropagationBundleClosed) ? mLPVPropagationBundle.Get() : commandList;
+			ID3D12DescriptorHeap* ppHeaps[] = { gpuDescriptorHeap->GetHeap() };
+			commandListPropagation->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+			commandListPropagation->SetPipelineState(mLPVPropagationPSO.GetPipelineStateObject());
+			commandListPropagation->SetGraphicsRootSignature(mLPVPropagationRS.GetSignature());
+
+			auto srvHandleLPVInjection = mMainDescriptorHeap->GetHandleBlock(3);
+			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mLPVSHColorsRTs[0]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mLPVSHColorsRTs[1]->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mLPVSHColorsRTs[2]->GetSRV());
+			commandListPropagation->SetGraphicsRootDescriptorTable(0, srvHandleLPVInjection.GetGPUHandle());
+
+			if (!mUseBundleForLPVPropagation || (mUseBundleForLPVPropagation && !mLPVPropagationBundleClosed)) {
+				for (int step = 0; step < mLPVPropagationSteps; step++) {
+					commandListPropagation->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+					commandListPropagation->DrawInstanced(3, LPV_DIM, 0, 0);
 				}
-
-				commandList->OMSetRenderTargets(_countof(rtvHandlesLPVPropagation), rtvHandlesLPVPropagation, FALSE, nullptr);
-				commandList->OMSetBlendFactor(clearColorWhite);
-				if (step == 0) {
-					commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[3], clearColorBlack, 0, nullptr);
-					commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[4], clearColorBlack, 0, nullptr);
-					commandList->ClearRenderTargetView(rtvHandlesLPVPropagation[5], clearColorBlack, 0, nullptr);
-				}
-
-				DXRS::DescriptorHandle srvHandleLPVInjection = gpuDescriptorHeap->GetHandleBlock(3);
-				gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mLPVSHColorsRTs[0]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mLPVSHColorsRTs[1]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandleLPVInjection, mLPVSHColorsRTs[2]->GetSRV());
-
-				commandList->SetGraphicsRootDescriptorTable(0, srvHandleLPVInjection.GetGPUHandle());
-
-				commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-				commandList->DrawInstanced(3, LPV_DIM, 0, 0);
 			}
-			PIXEndEvent(commandList);
+			if (mUseBundleForLPVPropagation) {
+				if (!mLPVPropagationBundleClosed) {
+					commandListPropagation->Close();
+					mLPVPropagationBundleClosed = true;
+				}
+				commandList->ExecuteBundle(mLPVPropagationBundle.Get());
+			}
 		}
+		PIXEndEvent(commandList);
+
 		//reset back
 		commandList->RSSetViewports(1, &viewport);
 		commandList->RSSetScissorRects(1, &rect);

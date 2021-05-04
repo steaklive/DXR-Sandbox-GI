@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "DXRSGraphics.h"
 #include "DXRSTimer.h"
@@ -147,6 +147,10 @@ private:
 		float LPVAttenuation;
 	};
 	DXRSBuffer* mLPVCB;
+	ComPtr<ID3D12CommandAllocator>						 mLPVPropagationBundleAllocator;
+	ComPtr<ID3D12GraphicsCommandList>					 mLPVPropagationBundle;
+	bool mUseBundleForLPVPropagation = false;
+	bool mLPVPropagationBundleClosed = false;
 
 	RootSignature                                        mVCTVoxelizationRS;
 	RootSignature                                        mVCTMainRS;
@@ -203,6 +207,7 @@ private:
 
 	// UI
 	ComPtr<ID3D12DescriptorHeap> mUIDescriptorHeap;
+	DXRS::GPUDescriptorHeap* mMainDescriptorHeap;
 
 	// Lighting
 	RootSignature mLightingRS;
