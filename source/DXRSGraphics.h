@@ -44,6 +44,8 @@ public:
     bool WindowSizeChanged(int width, int height);
     void Prepare(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_PRESENT);
     void Present(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_RENDER_TARGET);
+    void PresentCompute();
+    void WaitForComputeToFinish();
     void WaitForGpu();
 
     ID3D12Device*               GetD3DDevice() const { return mDevice.Get(); }
@@ -52,9 +54,13 @@ public:
     IDXGIFactory4*              GetDXGIFactory() const { return mDXGIFactory.Get(); }
     D3D_FEATURE_LEVEL           GetDeviceFeatureLevel() const { return mD3DFeatureLevel; }
     
-    ID3D12CommandQueue*         GetCommandQueue() const { return mCommandQueue.Get(); }
-    ID3D12CommandAllocator*     GetCommandAllocator() const { return mCommandAllocators[mBackBufferIndex].Get(); }
-    ID3D12GraphicsCommandList*  GetCommandList() const { return mCommandList.Get(); }
+    ID3D12CommandQueue*         GetCommandQueueGraphics() const { return mCommandQueueGraphics.Get(); }
+    ID3D12CommandAllocator*     GetCommandAllocatorGraphics() const { return mCommandAllocatorsGraphics[mBackBufferIndex].Get(); }
+    ID3D12GraphicsCommandList*  GetCommandListGraphics() const { return mCommandListGraphics.Get(); }
+
+	ID3D12CommandQueue*         GetCommandQueueCompute() const { return mCommandQueueCompute.Get(); }
+	ID3D12CommandAllocator*     GetCommandAllocatorCompute() const { return mCommandAllocatorsCompute[mBackBufferIndex].Get(); }
+	ID3D12GraphicsCommandList*  GetCommandListCompute() const { return mCommandListCompute.Get(); }
    
     DXGI_FORMAT                 GetBackBufferFormat() const { return mBackBufferFormat; }
     DXGI_FORMAT                 GetDepthBufferFormat() const { return mDepthBufferFormat; }
@@ -101,13 +107,21 @@ private:
 
     DXRS::DescriptorHeapManager*        mDescriptorHeapManager;
 
-    ComPtr<ID3D12CommandQueue>          mCommandQueue;
-    ComPtr<ID3D12GraphicsCommandList>   mCommandList;
-    ComPtr<ID3D12CommandAllocator>      mCommandAllocators[MAX_BACK_BUFFER_COUNT];
+    ComPtr<ID3D12CommandQueue>          mCommandQueueGraphics;
+    ComPtr<ID3D12GraphicsCommandList>   mCommandListGraphics;
+    ComPtr<ID3D12CommandAllocator>      mCommandAllocatorsGraphics[MAX_BACK_BUFFER_COUNT];
 
-    ComPtr<ID3D12Fence>                 mFence;
-    UINT64                              mFenceValues[MAX_BACK_BUFFER_COUNT];
-    Wrappers::Event                     mFenceEvent;
+	ComPtr<ID3D12CommandQueue>          mCommandQueueCompute;
+	ComPtr<ID3D12GraphicsCommandList>   mCommandListCompute;
+	ComPtr<ID3D12CommandAllocator>      mCommandAllocatorsCompute[MAX_BACK_BUFFER_COUNT];
+
+    ComPtr<ID3D12Fence>                 mFenceGraphics;
+    UINT64                              mFenceValuesGraphics[MAX_BACK_BUFFER_COUNT];
+    Wrappers::Event                     mFenceEventGraphics;
+
+	ComPtr<ID3D12Fence>                 mFenceCompute;
+	UINT64                              mFenceValuesCompute[MAX_BACK_BUFFER_COUNT];
+	Wrappers::Event                     mFenceEventCompute;
 
     ComPtr<ID3D12Resource>              mRenderTargets[MAX_BACK_BUFFER_COUNT];
     ComPtr<ID3D12Resource>              mDepthStencilTarget;

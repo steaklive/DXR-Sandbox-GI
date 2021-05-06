@@ -173,7 +173,7 @@ DXRSMesh::DXRSMesh(ID3D12Device* device, DXRSModel& model, aiMesh& mesh)
 	cbDesc.mElementSize = sizeof(MeshInfo);
 	cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 	cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-	mMeshInfo = new DXRSBuffer(mModel.GetDXWrapper().GetD3DDevice(), descriptorManager, mModel.GetDXWrapper().GetCommandList(), cbDesc, L"Mesh Info CB");
+	mMeshInfo = new DXRSBuffer(mModel.GetDXWrapper().GetD3DDevice(), descriptorManager, mModel.GetDXWrapper().GetCommandListGraphics(), cbDesc, L"Mesh Info CB");
 	
 	MeshInfo buffer;
 	buffer.color = mModel.GetDiffuseColor(); // for now just color from the model

@@ -48,7 +48,7 @@ DXRSModel::DXRSModel(DXRSGraphics& dxWrapper, const std::string& filename, bool 
 	desc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 	desc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-	mBufferCB = new DXRSBuffer(dxWrapper.GetD3DDevice(), dxWrapper.GetDescriptorHeapManager(), dxWrapper.GetCommandList(), desc, L"Model CB");
+	mBufferCB = new DXRSBuffer(dxWrapper.GetD3DDevice(), dxWrapper.GetDescriptorHeapManager(), dxWrapper.GetCommandListGraphics(), desc, L"Model CB");
 
 	ModelConstantBuffer cbData = {};
 	cbData.World = transformWorld;

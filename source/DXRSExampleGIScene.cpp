@@ -97,7 +97,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	cbDescDXR.mElementSize = sizeof(CameraBuffer);
 	cbDescDXR.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 	cbDescDXR.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-	mCameraBuffer = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDescDXR, L"DXR CB");
+	mCameraBuffer = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDescDXR, L"DXR CB");
 
 	// create a null descriptor for unbound textures
 	mNullDescriptor = descriptorManager->CreateCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -217,7 +217,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 
 void DXRSExampleGIScene::Clear()
 {
-	auto commandList = mSandboxFramework->GetCommandList();
+	auto commandList = mSandboxFramework->GetCommandListGraphics();
 
 	auto rtvDescriptor = mSandboxFramework->GetRenderTargetView();
 	auto dsvDescriptor = mSandboxFramework->GetDepthStencilView();
@@ -249,9 +249,11 @@ void DXRSExampleGIScene::Render()
 
 	// Prepare the command list to render a new frame.
 	mSandboxFramework->Prepare();
+
 	Clear();
 
-	auto commandList = mSandboxFramework->GetCommandList();
+	auto commandListGraphics = mSandboxFramework->GetCommandListGraphics();
+	auto commandListCompute = mSandboxFramework->GetCommandListCompute();
 	auto device = mSandboxFramework->GetD3DDevice();
 	auto descriptorHeapManager = mSandboxFramework->GetDescriptorHeapManager();
 
@@ -260,47 +262,71 @@ void DXRSExampleGIScene::Render()
 	gpuDescriptorHeap->Reset();
 
 	ID3D12DescriptorHeap* ppHeaps[] = { gpuDescriptorHeap->GetHeap() };
-	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+	commandListGraphics->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	CD3DX12_VIEWPORT viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mSandboxFramework->GetOutputSize().right, mSandboxFramework->GetOutputSize().bottom);
 	CD3DX12_RECT rect = CD3DX12_RECT(0.0f, 0.0f, mSandboxFramework->GetOutputSize().right, mSandboxFramework->GetOutputSize().bottom);
-	commandList->RSSetViewports(1, &viewport);
-	commandList->RSSetScissorRects(1, &rect);
+	commandListGraphics->RSSetViewports(1, &viewport);
+	commandListGraphics->RSSetScissorRects(1, &rect);
 
-	RenderGbuffer(device, commandList, gpuDescriptorHeap);
-	RenderShadowMapping(device, commandList, gpuDescriptorHeap);
+	RenderGbuffer(device, commandListGraphics, gpuDescriptorHeap);
+	RenderShadowMapping(device, commandListGraphics, gpuDescriptorHeap);
 
 	//copy depth-stencil to custom depth
-	PIXBeginEvent(commandList, 0, "Copy Depth-Stencil to texture");
+	PIXBeginEvent(commandListGraphics, 0, "Copy Depth-Stencil to texture");
 	{
 		D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(mSandboxFramework->GetDepthStencil(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_SOURCE);
-		commandList->ResourceBarrier(1, &barrier);
-		commandList->CopyResource(mDepthStencil->GetResource(), mSandboxFramework->GetDepthStencil());
+		commandListGraphics->ResourceBarrier(1, &barrier);
+		commandListGraphics->CopyResource(mDepthStencil->GetResource(), mSandboxFramework->GetDepthStencil());
 		barrier = CD3DX12_RESOURCE_BARRIER::Transition(mSandboxFramework->GetDepthStencil(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		commandList->ResourceBarrier(1, &barrier);
+		commandListGraphics->ResourceBarrier(1, &barrier);
 	}
-	PIXEndEvent(commandList);
+	PIXEndEvent(commandListGraphics);
 
-	RenderReflectiveShadowMapping(device, commandList, gpuDescriptorHeap);
-	RenderLightPropagationVolume(device, commandList, gpuDescriptorHeap);
-	RenderVoxelConeTracing(device, commandList, gpuDescriptorHeap);
-	RenderLighting(device, commandList, gpuDescriptorHeap);
-	RenderComposite(device, commandList, gpuDescriptorHeap);
+	if (mUseAsyncCompute)
+	{
+		ID3D12CommandList* ppCommandLists[] = { commandListGraphics };
+
+		//execute graphics commands and out a wait for compute to finish
+		commandListGraphics->Close();
+		mSandboxFramework->GetCommandQueueGraphics()->ExecuteCommandLists(1, ppCommandLists);
+
+		mSandboxFramework->WaitForComputeToFinish();
+	}
+
+	if (mUseAsyncCompute)
+	{
+		RenderReflectiveShadowMapping(device, commandListCompute, gpuDescriptorHeap);
+		//RenderLightPropagationVolume(device, commandListCompute, gpuDescriptorHeap);
+		//RenderVoxelConeTracing(device, commandListCompute, gpuDescriptorHeap);
+
+		mSandboxFramework->PresentCompute();//signal graphics queue to continue execution
+
+		commandListGraphics->Reset(mSandboxFramework->GetCommandAllocatorGraphics(), nullptr);
+	}
+	else {
+		RenderReflectiveShadowMapping(device, commandListGraphics, gpuDescriptorHeap);
+		RenderLightPropagationVolume(device, commandListGraphics, gpuDescriptorHeap);
+		RenderVoxelConeTracing(device, commandListGraphics, gpuDescriptorHeap);
+	}
+
+	RenderLighting(device, commandListGraphics, gpuDescriptorHeap);
+	RenderComposite(device, commandListGraphics, gpuDescriptorHeap);
 
 	//draw imgui 
-	PIXBeginEvent(commandList, 0, "ImGui");
+	PIXBeginEvent(commandListGraphics, 0, "ImGui");
 	{
 		ID3D12DescriptorHeap* ppHeaps[] = { mUIDescriptorHeap.Get() };
-		commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+		commandListGraphics->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 		ImGui::Render();
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandListGraphics);
 	}
-	PIXEndEvent(commandList);
+	PIXEndEvent(commandListGraphics);
 
 	// Show the new frame.
 	mSandboxFramework->Present();
-	mGraphicsMemory->Commit(mSandboxFramework->GetCommandQueue());
+	mGraphicsMemory->Commit(mSandboxFramework->GetCommandQueueGraphics());
 }
 
 void DXRSExampleGIScene::Update(DXRSTimer const& timer)
@@ -316,7 +342,12 @@ void DXRSExampleGIScene::Update(DXRSTimer const& timer)
 void DXRSExampleGIScene::UpdateTransforms(DXRSTimer const& timer) 
 {
 	for (auto& model : mObjects) {
-		model->UpdateWorldMatrix(model->GetWorldMatrix()); //TODO unnecessary but can be used in the future for custom matrix update
+		if (mUseDynamicObjects && model->GetFileName().find("content\\models\\cube.fbx") != std::string::npos)
+		{
+			model->UpdateWorldMatrix(XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixRotationY(-0.907571f) * XMMatrixTranslation(sin(timer.GetTotalSeconds() * mDynamicDirectionalLightSpeed) * 5.0f, 5.0f, -19.0f));
+		}
+		else 
+			model->UpdateWorldMatrix(model->GetWorldMatrix()); //TODO unnecessary but can be used in the future for custom matrix update
 	}
 }
 
@@ -426,6 +457,7 @@ void DXRSExampleGIScene::UpdateImGui()
 		ImGui::Checkbox("Dynamic Light", &mDynamicDirectionalLight);
 		ImGui::SameLine();
 		ImGui::SliderFloat("Speed", &mDynamicDirectionalLightSpeed, 0.0f, 5.0f);
+		ImGui::Checkbox("Dynamic objects", &mUseDynamicObjects);
 
 		ImGui::Separator();
 
@@ -680,7 +712,7 @@ void DXRSExampleGIScene::InitGbuffer(ID3D12Device* device, DXRS::DescriptorHeapM
 	cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 	cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-	mGbufferCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"GBuffer CB");
+	mGbufferCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"GBuffer CB");
 }
 void DXRSExampleGIScene::RenderGbuffer(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
@@ -795,7 +827,7 @@ void DXRSExampleGIScene::InitShadowMapping(ID3D12Device* device, DXRS::Descripto
 	cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 	cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-	mShadowMappingCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Shadow Mapping CB");
+	mShadowMappingCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"Shadow Mapping CB");
 }
 void DXRSExampleGIScene::RenderShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
@@ -1026,10 +1058,10 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-		mRSMCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"RSM Pass CB");
+		mRSMCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"RSM Pass CB");
 
 		cbDesc.mElementSize = sizeof(RSMCBDataRandomValues);
-		mRSMCB2 = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"RSM Pass CB 2");
+		mRSMCB2 = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"RSM Pass CB 2");
 
 		RSMCBDataRandomValues rsmPassData2 = {};
 		for (int i = 0; i < RSM_SAMPLES_COUNT; i++)
@@ -1151,7 +1183,7 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-		mRSMDownsampleCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"RSM Downsample CB");
+		mRSMDownsampleCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"RSM Downsample CB");
 	}
 
 	//downsampling for LPV - CS
@@ -1512,7 +1544,7 @@ void DXRSExampleGIScene::InitLightPropagationVolume(ID3D12Device* device, DXRS::
 		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-		mLPVCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"LPV Injection Pass CB");
+		mLPVCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"LPV Injection Pass CB");
 
 		LPVCBData data = {};
 
@@ -1841,7 +1873,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		cbDesc.mElementSize = sizeof(VCTVoxelizationCBData);
 		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-		mVCTVoxelizationCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT Voxelization Pass CB");
+		mVCTVoxelizationCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"VCT Voxelization Pass CB");
 
 		VCTVoxelizationCBData data = {};
 		float scale = 1.0f;
@@ -1955,7 +1987,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-		mVCTAnisoMipmappingCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT aniso mip mapping CB");
+		mVCTAnisoMipmappingCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"VCT aniso mip mapping CB");
 	}
 
 	// aniso mipmapping main
@@ -2008,12 +2040,12 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT aniso mip mapping main mip 0 CB"));
-		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT aniso mip mapping main mip 1 CB"));
-		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT aniso mip mapping main mip 2 CB"));
-		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT aniso mip mapping main mip 3 CB"));
-		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT aniso mip mapping main mip 4 CB"));
-		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT aniso mip mapping main mip 5 CB"));
+		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"VCT aniso mip mapping main mip 0 CB"));
+		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"VCT aniso mip mapping main mip 1 CB"));
+		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"VCT aniso mip mapping main mip 2 CB"));
+		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"VCT aniso mip mapping main mip 3 CB"));
+		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"VCT aniso mip mapping main mip 4 CB"));
+		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"VCT aniso mip mapping main mip 5 CB"));
 	}
 
 	// main 
@@ -2023,7 +2055,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 		cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-		mVCTMainCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"VCT main CB");
+		mVCTMainCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"VCT main CB");
 		
 		DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
@@ -2604,13 +2636,13 @@ void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeap
 	cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 	cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-	mLightingCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Lighting Pass CB");
+	mLightingCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"Lighting Pass CB");
 
 	cbDesc.mElementSize = sizeof(LightsInfoCBData);
-	mLightsInfoCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Lights Info CB");
+	mLightsInfoCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"Lights Info CB");
 
 	cbDesc.mElementSize = sizeof(IlluminationFlagsCBData);
-	mIlluminationFlagsCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Illumination Flags CB");
+	mIlluminationFlagsCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"Illumination Flags CB");
 }
 void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {

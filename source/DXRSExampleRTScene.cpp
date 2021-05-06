@@ -89,7 +89,7 @@ void DXRSExampleRTScene::Init(HWND window, int width, int height)
     cbDescDXR.mElementSize = sizeof(CameraBuffer);
     cbDescDXR.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
     cbDescDXR.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-    mCameraBuffer = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDescDXR, L"DXR CB");
+    mCameraBuffer = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDescDXR, L"DXR CB");
 
     // create a null descriptor for unbound textures
     mNullDescriptor = descriptorManager->CreateCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -239,7 +239,7 @@ void DXRSExampleRTScene::Init(HWND window, int width, int height)
         cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
         cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-        mGbufferCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"GBuffer CB");
+        mGbufferCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"GBuffer CB");
     }
 
     // create resources lighting pass
@@ -314,10 +314,10 @@ void DXRSExampleRTScene::Init(HWND window, int width, int height)
         cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
         cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-        mLightingCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Lighting Pass CB");
+        mLightingCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"Lighting Pass CB");
 
         cbDesc.mElementSize = sizeof(LightsInfoCBData);
-        mLightsInfoCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandList(), cbDesc, L"Lights Info CB");
+        mLightsInfoCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"Lights Info CB");
     }
 
     // create resources composite pass
@@ -371,7 +371,7 @@ void DXRSExampleRTScene::Init(HWND window, int width, int height)
 
 void DXRSExampleRTScene::Clear()
 {
-    auto commandList = mSandboxFramework->GetCommandList();
+    auto commandList = mSandboxFramework->GetCommandListGraphics();
 
     auto rtvDescriptor = mSandboxFramework->GetRenderTargetView();
     auto dsvDescriptor = mSandboxFramework->GetDepthStencilView();
@@ -441,7 +441,7 @@ void DXRSExampleRTScene::CreateRaytracingPSO()
 void DXRSExampleRTScene::CreateRaytracingAccelerationStructures()
 {
     ID3D12Device5* device = mSandboxFramework->GetDXRDevice();
-    ID3D12GraphicsCommandList4* commandList = (ID3D12GraphicsCommandList4*)mSandboxFramework->GetCommandList();
+    ID3D12GraphicsCommandList4* commandList = (ID3D12GraphicsCommandList4*)mSandboxFramework->GetCommandListGraphics();
 
     //Create BLAS
     {
@@ -770,7 +770,7 @@ void DXRSExampleRTScene::Render()
     mSandboxFramework->Prepare();
     Clear();
 
-    auto commandList = mSandboxFramework->GetCommandList();
+    auto commandList = mSandboxFramework->GetCommandListGraphics();
     auto device = mSandboxFramework->GetD3DDevice();
     auto descriptorHeapManager = mSandboxFramework->GetDescriptorHeapManager();
 
@@ -882,7 +882,7 @@ void DXRSExampleRTScene::Render()
     
     //DXR pass
     {
-        ID3D12GraphicsCommandList4* commandListDXR = (ID3D12GraphicsCommandList4*)mSandboxFramework->GetCommandList();
+        ID3D12GraphicsCommandList4* commandListDXR = (ID3D12GraphicsCommandList4*)mSandboxFramework->GetCommandListGraphics();
         ID3D12DescriptorHeap* heaps[] = { mRaytracingDescriptorHeap.Get() };
         commandListDXR->SetDescriptorHeaps(_countof(heaps), heaps);
 
@@ -981,7 +981,7 @@ void DXRSExampleRTScene::Render()
 
     // Show the new frame.
     mSandboxFramework->Present();
-    mGraphicsMemory->Commit(mSandboxFramework->GetCommandQueue());
+    mGraphicsMemory->Commit(mSandboxFramework->GetCommandQueueGraphics());
 }
 
 // *** UPDATES *** //

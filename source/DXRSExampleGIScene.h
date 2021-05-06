@@ -344,4 +344,8 @@ private:
 	D3D12_RASTERIZER_DESC mRasterizerState;
 	D3D12_RASTERIZER_DESC mRasterizerStateShadow;
 	D3D12_SAMPLER_DESC mBilinearSampler;
+
+	bool mUseDynamicObjects = false;
+
+	bool mUseAsyncCompute = true;
 };
