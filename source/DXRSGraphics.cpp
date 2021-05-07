@@ -428,13 +428,15 @@ bool DXRSGraphics::WindowSizeChanged(int width, int height)
     return true;
 }
 
-void DXRSGraphics::Prepare(D3D12_RESOURCE_STATES beforeState)
+void DXRSGraphics::Prepare(D3D12_RESOURCE_STATES beforeState, bool skipComputeQReset)
 {
     ThrowIfFailed(mCommandAllocatorsGraphics[mBackBufferIndex]->Reset());
     ThrowIfFailed(mCommandListGraphics->Reset(mCommandAllocatorsGraphics[mBackBufferIndex].Get(), nullptr));
 
-	ThrowIfFailed(mCommandAllocatorsCompute[mBackBufferIndex]->Reset());
-	ThrowIfFailed(mCommandListCompute->Reset(mCommandAllocatorsCompute[mBackBufferIndex].Get(), nullptr));
+    if (!skipComputeQReset) {
+        ThrowIfFailed(mCommandAllocatorsCompute[mBackBufferIndex]->Reset());
+        ThrowIfFailed(mCommandListCompute->Reset(mCommandAllocatorsCompute[mBackBufferIndex].Get(), nullptr));
+    }
 
     if (beforeState != D3D12_RESOURCE_STATE_RENDER_TARGET)
     {
@@ -481,19 +483,25 @@ void DXRSGraphics::Present(D3D12_RESOURCE_STATES beforeState)
 
 void DXRSGraphics::WaitForComputeToFinish()
 {
-    assert(mCommandQueueGraphics && mFenceCompute && mFenceEventCompute.IsValid());
+    assert(mCommandQueueGraphics && mFenceCompute/* && mFenceEventCompute.IsValid()*/);
     mCommandQueueGraphics->Wait(mFenceCompute.Get(), mFenceValuesCompute[mBackBufferIndex]);
+}
+
+void DXRSGraphics::WaitForGraphicsToFinish()
+{
+	assert(mCommandQueueCompute && mFenceGraphics/* && mFenceEventCompute.IsValid()*/);
+    mCommandQueueCompute->Wait(mFenceGraphics.Get(), mFenceValuesGraphics[mBackBufferIndex] - 1);
 }
 
 void DXRSGraphics::PresentCompute()
 {
-	ID3D12CommandList* ppCommandLists[] = { mCommandListCompute.Get() };
+    mCommandListCompute->Close();
 
+	ID3D12CommandList* ppCommandLists[] = { mCommandListCompute.Get() };
 	mCommandQueueCompute->ExecuteCommandLists(1, ppCommandLists);
 
 	UINT64 fenceValue = mFenceValuesCompute[mBackBufferIndex];
-    mCommandQueueGraphics->Signal(mFenceCompute.Get(), fenceValue);
-	WaitForSingleObject(mFenceEventCompute.Get(), INFINITE);
+    mCommandQueueCompute->Signal(mFenceCompute.Get(), fenceValue);
     mFenceValuesCompute[mBackBufferIndex]++;
 }
 

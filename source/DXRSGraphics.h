@@ -42,10 +42,11 @@ public:
     void CreateFullscreenQuadBuffers();
     void SetWindow(HWND window, int width, int height);
     bool WindowSizeChanged(int width, int height);
-    void Prepare(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_PRESENT);
+    void Prepare(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_PRESENT, bool skipComputeQReset = true);
     void Present(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_RENDER_TARGET);
     void PresentCompute();
     void WaitForComputeToFinish();
+    void WaitForGraphicsToFinish();
     void WaitForGpu();
 
     ID3D12Device*               GetD3DDevice() const { return mDevice.Get(); }

@@ -248,7 +248,7 @@ void DXRSExampleGIScene::Render()
 		return;
 
 	// Prepare the command list to render a new frame.
-	mSandboxFramework->Prepare();
+	mSandboxFramework->Prepare(D3D12_RESOURCE_STATE_PRESENT, (mUseAsyncCompute) ? mIsFirstFrame : true);
 
 	Clear();
 
@@ -285,30 +285,38 @@ void DXRSExampleGIScene::Render()
 
 	if (mUseAsyncCompute)
 	{
-		ID3D12CommandList* ppCommandLists[] = { commandListGraphics };
+		if (!mIsFirstFrame) {
+			RenderVoxelConeTracing(device, commandListGraphics, gpuDescriptorHeap, true, false);
 
-		//execute graphics commands and out a wait for compute to finish
-		commandListGraphics->Close();
-		mSandboxFramework->GetCommandQueueGraphics()->ExecuteCommandLists(1, ppCommandLists);
+			ID3D12CommandList* ppCommandLists[] = { commandListGraphics };
 
-		mSandboxFramework->WaitForComputeToFinish();
-	}
+			//execute graphics commands and out a wait for compute to finish
+			commandListGraphics->Close();
+			mSandboxFramework->GetCommandQueueGraphics()->ExecuteCommandLists(1, ppCommandLists);
 
-	if (mUseAsyncCompute)
-	{
-		RenderReflectiveShadowMapping(device, commandListCompute, gpuDescriptorHeap);
-		//RenderLightPropagationVolume(device, commandListCompute, gpuDescriptorHeap);
-		//RenderVoxelConeTracing(device, commandListCompute, gpuDescriptorHeap);
+			mSandboxFramework->WaitForComputeToFinish();//wait for compute to finish current frame
 
-		mSandboxFramework->PresentCompute();//signal graphics queue to continue execution
-
-		commandListGraphics->Reset(mSandboxFramework->GetCommandAllocatorGraphics(), nullptr);
+			commandListGraphics->Reset(mSandboxFramework->GetCommandAllocatorGraphics(), nullptr);
+			commandListGraphics->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+		}
 	}
 	else {
 		RenderReflectiveShadowMapping(device, commandListGraphics, gpuDescriptorHeap);
 		RenderLightPropagationVolume(device, commandListGraphics, gpuDescriptorHeap);
-		RenderVoxelConeTracing(device, commandListGraphics, gpuDescriptorHeap);
+		RenderVoxelConeTracing(device, commandListGraphics, gpuDescriptorHeap, false, false);
 	}
+
+	if (mUseAsyncCompute && !mIsFirstFrame)
+	{
+		commandListCompute->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+		mSandboxFramework->WaitForGraphicsToFinish();//wait for graphics to finish last frame
+
+		//RenderReflectiveShadowMapping(device, commandListCompute, gpuDescriptorHeap);
+		//RenderLightPropagationVolume(device, commandListCompute, gpuDescriptorHeap);
+		RenderVoxelConeTracing(device, commandListCompute, gpuDescriptorHeap, true, true);
+		mSandboxFramework->PresentCompute();//signal graphics queue to continue execution
+	}
+
 
 	RenderLighting(device, commandListGraphics, gpuDescriptorHeap);
 	RenderComposite(device, commandListGraphics, gpuDescriptorHeap);
@@ -318,7 +326,7 @@ void DXRSExampleGIScene::Render()
 	{
 		ID3D12DescriptorHeap* ppHeaps[] = { mUIDescriptorHeap.Get() };
 		commandListGraphics->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-
+	
 		ImGui::Render();
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandListGraphics);
 	}
@@ -327,6 +335,9 @@ void DXRSExampleGIScene::Render()
 	// Show the new frame.
 	mSandboxFramework->Present();
 	mGraphicsMemory->Commit(mSandboxFramework->GetCommandQueueGraphics());
+
+	if (mIsFirstFrame)
+		mIsFirstFrame = false;
 }
 
 void DXRSExampleGIScene::Update(DXRSTimer const& timer)
@@ -1954,6 +1965,14 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		mVCTAnisoMipmappinPrepare3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare Y- 3D", size));
 		mVCTAnisoMipmappinPrepare3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare Z+ 3D", size));
 		mVCTAnisoMipmappinPrepare3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare Z- 3D", size));
+		if (mUseAsyncCompute) {
+			mVCTAnisoMipmappinPrepare3DRTs[0]->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[1]->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[2]->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[3]->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[4]->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[5]->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		}
 
 		mVCTAnisoMipmappingPrepareRS.Reset(3, 0);
 		mVCTAnisoMipmappingPrepareRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
@@ -2008,6 +2027,14 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		mVCTAnisoMipmappinMain3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main Y- 3D", size, VCT_MIPS));
 		mVCTAnisoMipmappinMain3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main Z+ 3D", size, VCT_MIPS));
 		mVCTAnisoMipmappinMain3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main Z- 3D", size, VCT_MIPS));
+		if (mUseAsyncCompute) {
+			mVCTAnisoMipmappinMain3DRTs[0]->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinMain3DRTs[1]->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinMain3DRTs[2]->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinMain3DRTs[3]->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinMain3DRTs[4]->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinMain3DRTs[5]->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		}
 
 		mVCTAnisoMipmappingMainRS.Reset(2, 0);
 		mVCTAnisoMipmappingMainRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
@@ -2046,6 +2073,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"VCT aniso mip mapping main mip 3 CB"));
 		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"VCT aniso mip mapping main mip 4 CB"));
 		mVCTAnisoMipmappingMainCB.push_back(new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"VCT aniso mip mapping main mip 5 CB"));
+
 	}
 
 	// main 
@@ -2061,7 +2089,9 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 		mVCTMainRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH * mVCTRTRatio, MAX_SCREEN_HEIGHT * mVCTRTRatio, format, flags, L"VCT Final Output");
-
+		if (mUseAsyncCompute)
+			mVCTMainRT->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		
 		//create root signature
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
 			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -2159,6 +2189,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		//RTs
 		mVCTMainUpsampleAndBlurRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
 			DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"VCT Main RT Upsampled & Blurred");
+		mVCTMainUpsampleAndBlurRT->SetCurrentState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		//create root signature
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -2195,7 +2226,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		mVCTMainUpsampleAndBlurPSO.Finalize(device);
 	}
 }
-void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
+void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, bool useAsyncCompute, bool computeOnly)
 {
 	CD3DX12_VIEWPORT viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mSandboxFramework->GetOutputSize().right, mSandboxFramework->GetOutputSize().bottom);
 	CD3DX12_RECT rect = CD3DX12_RECT(0.0f, 0.0f, mSandboxFramework->GetOutputSize().right, mSandboxFramework->GetOutputSize().bottom);
@@ -2225,65 +2256,17 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 		return;
 	}
 
-	PIXBeginEvent(commandList, 0, "VCT Voxelization");
-	{
-		CD3DX12_VIEWPORT vctViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, VCT_SCENE_VOLUME_SIZE, VCT_SCENE_VOLUME_SIZE);
-		CD3DX12_RECT vctRect = CD3DX12_RECT(0.0f, 0.0f, VCT_SCENE_VOLUME_SIZE, VCT_SCENE_VOLUME_SIZE);
-		commandList->RSSetViewports(1, &vctViewport);
-		commandList->RSSetScissorRects(1, &vctRect);
-		commandList->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
-
-		commandList->SetPipelineState(mVCTVoxelizationPSO.GetPipelineStateObject());
-		commandList->SetGraphicsRootSignature(mVCTVoxelizationRS.GetSignature());
-
-		mSandboxFramework->ResourceBarriersBegin(mBarriers);
-		mVCTVoxelization3DRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
-
-		DXRS::DescriptorHandle cbvHandle;
-		DXRS::DescriptorHandle uavHandle;
-		DXRS::DescriptorHandle srvHandle;
-
-		for (auto& model : mObjects) {
-			RenderObject(model, [this, gpuDescriptorHeap, commandList, &cbvHandle, &uavHandle, &srvHandle, device](U_PTR<DXRSModel>& anObject) {
-				cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
-				gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
-				gpuDescriptorHeap->AddToHandle(device, cbvHandle, anObject->GetCB()->GetCBV());
-
-				srvHandle = gpuDescriptorHeap->GetHandleBlock(1);
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mShadowDepth->GetSRV());
-
-				uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTVoxelization3DRT->GetUAV());
-
-				commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
-				commandList->SetGraphicsRootDescriptorTable(1, srvHandle.GetGPUHandle());
-				commandList->SetGraphicsRootDescriptorTable(2, uavHandle.GetGPUHandle());
-
-				anObject->Render(commandList);
-			});
-		}
-
-		//reset back
-		commandList->RSSetViewports(1, &viewport);
-		commandList->RSSetScissorRects(1, &rect);
-	}
-	PIXEndEvent(commandList);
-
-	if (mVCTRenderDebug) {
-		PIXBeginEvent(commandList, 0, "VCT Voxelization Debug");
+	if (!useAsyncCompute || (useAsyncCompute && !computeOnly)) {
+		PIXBeginEvent(commandList, 0, "VCT Voxelization");
 		{
-			commandList->SetPipelineState(mVCTVoxelizationDebugPSO.GetPipelineStateObject());
-			commandList->SetGraphicsRootSignature(mVCTVoxelizationDebugRS.GetSignature());
+			CD3DX12_VIEWPORT vctViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, VCT_SCENE_VOLUME_SIZE, VCT_SCENE_VOLUME_SIZE);
+			CD3DX12_RECT vctRect = CD3DX12_RECT(0.0f, 0.0f, VCT_SCENE_VOLUME_SIZE, VCT_SCENE_VOLUME_SIZE);
+			commandList->RSSetViewports(1, &vctViewport);
+			commandList->RSSetScissorRects(1, &vctRect);
+			commandList->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
 
-			D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesFinal[] =
-			{
-				 mVCTVoxelizationDebugRT->GetRTV().GetCPUHandle()
-			};	
-
-			commandList->OMSetRenderTargets(_countof(rtvHandlesFinal), rtvHandlesFinal, FALSE, &mSandboxFramework->GetDepthStencilView());
-			commandList->ClearRenderTargetView(rtvHandlesFinal[0], clearColorBlack, 0, nullptr);
-			commandList->ClearDepthStencilView(mSandboxFramework->GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+			commandList->SetPipelineState(mVCTVoxelizationPSO.GetPipelineStateObject());
+			commandList->SetGraphicsRootSignature(mVCTVoxelizationRS.GetSignature());
 
 			mSandboxFramework->ResourceBarriersBegin(mBarriers);
 			mVCTVoxelization3DRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -2291,244 +2274,297 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 
 			DXRS::DescriptorHandle cbvHandle;
 			DXRS::DescriptorHandle uavHandle;
+			DXRS::DescriptorHandle srvHandle;
 
-			cbvHandle = gpuDescriptorHeap->GetHandleBlock(1);
-			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
+			for (auto& model : mObjects) {
+				RenderObject(model, [this, gpuDescriptorHeap, commandList, &cbvHandle, &uavHandle, &srvHandle, device](U_PTR<DXRSModel>& anObject) {
+					cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
+					gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
+					gpuDescriptorHeap->AddToHandle(device, cbvHandle, anObject->GetCB()->GetCBV());
 
-			uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTVoxelization3DRT->GetUAV());
+					srvHandle = gpuDescriptorHeap->GetHandleBlock(1);
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mShadowDepth->GetSRV());
 
-			commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
-			commandList->SetGraphicsRootDescriptorTable(1, uavHandle.GetGPUHandle());
+					uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTVoxelization3DRT->GetUAV());
 
-			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-			commandList->DrawInstanced(VCT_SCENE_VOLUME_SIZE * VCT_SCENE_VOLUME_SIZE * VCT_SCENE_VOLUME_SIZE, 1, 0, 0);
+					commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
+					commandList->SetGraphicsRootDescriptorTable(1, srvHandle.GetGPUHandle());
+					commandList->SetGraphicsRootDescriptorTable(2, uavHandle.GetGPUHandle());
+
+					anObject->Render(commandList);
+				});
+			}
+
+			//reset back
+			commandList->RSSetViewports(1, &viewport);
+			commandList->RSSetScissorRects(1, &rect);
 		}
 		PIXEndEvent(commandList);
-	}
 
-	PIXBeginEvent(commandList, 0, "VCT Mipmapping prepare CS");
-	{
-		commandList->SetPipelineState(mVCTAnisoMipmappingPreparePSO.GetPipelineStateObject());
-		commandList->SetComputeRootSignature(mVCTAnisoMipmappingPrepareRS.GetSignature());
-
-		mSandboxFramework->ResourceBarriersBegin(mBarriers);
-		mVCTAnisoMipmappinPrepare3DRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinPrepare3DRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinPrepare3DRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinPrepare3DRTs[3]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinPrepare3DRTs[4]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinPrepare3DRTs[5]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
-
-		VCTAnisoMipmappingCBData cbData = {};
-		cbData.MipDimension = VCT_SCENE_VOLUME_SIZE >> 1;
-		cbData.MipLevel = 0;
-		memcpy(mVCTAnisoMipmappingCB->Map(), &cbData, sizeof(cbData));
-		DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(1);
-		gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTAnisoMipmappingCB->GetCBV());
-
-		DXRS::DescriptorHandle srvHandle = gpuDescriptorHeap->GetHandleBlock(1);
-		gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTVoxelization3DRT->GetSRV());
-
-		DXRS::DescriptorHandle uavHandle = gpuDescriptorHeap->GetHandleBlock(6);
-		gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[0]->GetUAV());
-		gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[1]->GetUAV());
-		gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[2]->GetUAV());
-		gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[3]->GetUAV());
-		gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[4]->GetUAV());
-		gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[5]->GetUAV());
-
-		commandList->SetComputeRootDescriptorTable(0, cbvHandle.GetGPUHandle());
-		commandList->SetComputeRootDescriptorTable(1, srvHandle.GetGPUHandle());
-		commandList->SetComputeRootDescriptorTable(2, uavHandle.GetGPUHandle());
-
-		commandList->Dispatch(DivideByMultiple(static_cast<UINT>(cbData.MipDimension), 8u), DivideByMultiple(static_cast<UINT>(cbData.MipDimension), 8u), DivideByMultiple(static_cast<UINT>(cbData.MipDimension), 8u));
-	}
-	PIXEndEvent(commandList);
-
-	PIXBeginEvent(commandList, 0, "VCT Mipmapping main CS");
-	{
-		commandList->SetPipelineState(mVCTAnisoMipmappingMainPSO.GetPipelineStateObject());
-		commandList->SetComputeRootSignature(mVCTAnisoMipmappingMainRS.GetSignature());
-
-		mSandboxFramework->ResourceBarriersBegin(mBarriers);
-		mVCTAnisoMipmappinPrepare3DRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinPrepare3DRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinPrepare3DRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinPrepare3DRTs[3]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinPrepare3DRTs[4]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinPrepare3DRTs[5]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-		mVCTAnisoMipmappinMain3DRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinMain3DRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinMain3DRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinMain3DRTs[3]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinMain3DRTs[4]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mVCTAnisoMipmappinMain3DRTs[5]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
-
-		int mipDimension = VCT_SCENE_VOLUME_SIZE >> 1;
-		for (int mip = 0; mip < VCT_MIPS; mip++)
-		{
-			DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(1);
-			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTAnisoMipmappingMainCB[mip]->GetCBV());
-
-			DXRS::DescriptorHandle uavHandle = gpuDescriptorHeap->GetHandleBlock(12);
-			if (mip == 0) {
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[0]->GetUAV());
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[1]->GetUAV());
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[2]->GetUAV());
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[3]->GetUAV());
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[4]->GetUAV());
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[5]->GetUAV());
-			}
-			else {
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetUAV(mip - 1));
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetUAV(mip - 1));
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetUAV(mip - 1));
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetUAV(mip - 1));
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetUAV(mip - 1));
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetUAV(mip - 1));
-			}
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetUAV(mip));
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetUAV(mip));
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetUAV(mip));
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetUAV(mip));
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetUAV(mip));
-			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetUAV(mip));
-
-			VCTAnisoMipmappingCBData cbData = {};
-			cbData.MipDimension = mipDimension;
-			cbData.MipLevel = mip;
-			memcpy(mVCTAnisoMipmappingMainCB[mip]->Map(), &cbData, sizeof(cbData));
-			commandList->SetComputeRootDescriptorTable(0, cbvHandle.GetGPUHandle());
-			commandList->SetComputeRootDescriptorTable(1, uavHandle.GetGPUHandle());
-
-			commandList->Dispatch(DivideByMultiple(static_cast<UINT>(cbData.MipDimension), 8u), DivideByMultiple(static_cast<UINT>(cbData.MipDimension), 8u), DivideByMultiple(static_cast<UINT>(cbData.MipDimension), 8u));
-			mipDimension >>= 1;
-		}
-	}
-	PIXEndEvent(commandList);
-
-	if (mUseVCT) {
-
-		if (!mVCTUseMainCompute) {
-			PIXBeginEvent(commandList, 0, "VCT Main PS");
+		if (mVCTRenderDebug) {
+			PIXBeginEvent(commandList, 0, "VCT Voxelization Debug");
 			{
-				CD3DX12_VIEWPORT vctResViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mVCTMainRT->GetWidth(), mVCTMainRT->GetHeight());
-				CD3DX12_RECT vctRect = CD3DX12_RECT(0.0f, 0.0f, mVCTMainRT->GetWidth(), mVCTMainRT->GetHeight());
-				commandList->RSSetViewports(1, &vctResViewport);
-				commandList->RSSetScissorRects(1, &vctRect);
-
-				commandList->SetPipelineState(mVCTMainPSO.GetPipelineStateObject());
-				commandList->SetGraphicsRootSignature(mVCTMainRS.GetSignature());
-
-				mSandboxFramework->ResourceBarriersBegin(mBarriers);
-				mVCTMainRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-				mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+				commandList->SetPipelineState(mVCTVoxelizationDebugPSO.GetPipelineStateObject());
+				commandList->SetGraphicsRootSignature(mVCTVoxelizationDebugRS.GetSignature());
 
 				D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesFinal[] =
 				{
-					 mVCTMainRT->GetRTV().GetCPUHandle()
+					 mVCTVoxelizationDebugRT->GetRTV().GetCPUHandle()
 				};
 
-				commandList->OMSetRenderTargets(_countof(rtvHandlesFinal), rtvHandlesFinal, FALSE, nullptr);
+				commandList->OMSetRenderTargets(_countof(rtvHandlesFinal), rtvHandlesFinal, FALSE, &mSandboxFramework->GetDepthStencilView());
 				commandList->ClearRenderTargetView(rtvHandlesFinal[0], clearColorBlack, 0, nullptr);
+				commandList->ClearDepthStencilView(mSandboxFramework->GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-				DXRS::DescriptorHandle srvHandle = gpuDescriptorHeap->GetHandleBlock(10);
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[0]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[1]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[2]->GetSRV());
+				mSandboxFramework->ResourceBarriersBegin(mBarriers);
+				mVCTVoxelization3DRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
 
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTVoxelization3DRT->GetSRV());
+				DXRS::DescriptorHandle cbvHandle;
+				DXRS::DescriptorHandle uavHandle;
 
-				DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
+				cbvHandle = gpuDescriptorHeap->GetHandleBlock(1);
 				gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
-				gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTMainCB->GetCBV());
+
+				uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTVoxelization3DRT->GetUAV());
 
 				commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
-				commandList->SetGraphicsRootDescriptorTable(1, srvHandle.GetGPUHandle());
+				commandList->SetGraphicsRootDescriptorTable(1, uavHandle.GetGPUHandle());
 
-				commandList->IASetVertexBuffers(0, 1, &mSandboxFramework->GetFullscreenQuadBufferView());
-				commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-				commandList->DrawInstanced(4, 1, 0, 0);
-
-				//reset back
-				commandList->RSSetViewports(1, &viewport);
-				commandList->RSSetScissorRects(1, &rect);
+				commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+				commandList->DrawInstanced(VCT_SCENE_VOLUME_SIZE * VCT_SCENE_VOLUME_SIZE * VCT_SCENE_VOLUME_SIZE, 1, 0, 0);
 			}
 			PIXEndEvent(commandList);
 		}
-		else {
-			PIXBeginEvent(commandList, 0, "VCT Main CS");
+	
+	}
+
+	if (!useAsyncCompute || (useAsyncCompute && computeOnly)) {
+		PIXBeginEvent(commandList, 0, "VCT Mipmapping prepare CS");
+		{
+			commandList->SetPipelineState(mVCTAnisoMipmappingPreparePSO.GetPipelineStateObject());
+			commandList->SetComputeRootSignature(mVCTAnisoMipmappingPrepareRS.GetSignature());
+		
+			mSandboxFramework->ResourceBarriersBegin(mBarriers);
+			mVCTAnisoMipmappinPrepare3DRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[3]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[4]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[5]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+		
+			VCTAnisoMipmappingCBData cbData = {};
+			cbData.MipDimension = VCT_SCENE_VOLUME_SIZE >> 1;
+			cbData.MipLevel = 0;
+			memcpy(mVCTAnisoMipmappingCB->Map(), &cbData, sizeof(cbData));
+			DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTAnisoMipmappingCB->GetCBV());
+		
+			DXRS::DescriptorHandle srvHandle = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTVoxelization3DRT->GetSRV());
+		
+			DXRS::DescriptorHandle uavHandle = gpuDescriptorHeap->GetHandleBlock(6);
+			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[0]->GetUAV());
+			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[1]->GetUAV());
+			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[2]->GetUAV());
+			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[3]->GetUAV());
+			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[4]->GetUAV());
+			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[5]->GetUAV());
+		
+			commandList->SetComputeRootDescriptorTable(0, cbvHandle.GetGPUHandle());
+			commandList->SetComputeRootDescriptorTable(1, srvHandle.GetGPUHandle());
+			commandList->SetComputeRootDescriptorTable(2, uavHandle.GetGPUHandle());
+		
+			commandList->Dispatch(DivideByMultiple(static_cast<UINT>(cbData.MipDimension), 8u), DivideByMultiple(static_cast<UINT>(cbData.MipDimension), 8u), DivideByMultiple(static_cast<UINT>(cbData.MipDimension), 8u));
+		}
+		PIXEndEvent(commandList);
+
+		PIXBeginEvent(commandList, 0, "VCT Mipmapping main CS");
+		{
+			commandList->SetPipelineState(mVCTAnisoMipmappingMainPSO.GetPipelineStateObject());
+			commandList->SetComputeRootSignature(mVCTAnisoMipmappingMainRS.GetSignature());
+
+			mSandboxFramework->ResourceBarriersBegin(mBarriers);
+			mVCTAnisoMipmappinPrepare3DRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[3]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[4]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinPrepare3DRTs[5]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+			mVCTAnisoMipmappinMain3DRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinMain3DRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinMain3DRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinMain3DRTs[3]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinMain3DRTs[4]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mVCTAnisoMipmappinMain3DRTs[5]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+			int mipDimension = VCT_SCENE_VOLUME_SIZE >> 1;
+			for (int mip = 0; mip < VCT_MIPS; mip++)
 			{
-				commandList->SetPipelineState(mVCTMainPSO_Compute.GetPipelineStateObject());
-				commandList->SetComputeRootSignature(mVCTMainRS_Compute.GetSignature());
+				DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(1);
+				gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTAnisoMipmappingMainCB[mip]->GetCBV());
 
-				mSandboxFramework->ResourceBarriersBegin(mBarriers);
-				mVCTMainRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-				mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+				DXRS::DescriptorHandle uavHandle = gpuDescriptorHeap->GetHandleBlock(12);
+				if (mip == 0) {
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[0]->GetUAV());
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[1]->GetUAV());
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[2]->GetUAV());
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[3]->GetUAV());
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[4]->GetUAV());
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[5]->GetUAV());
+				}
+				else {
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetUAV(mip - 1));
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetUAV(mip - 1));
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetUAV(mip - 1));
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetUAV(mip - 1));
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetUAV(mip - 1));
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetUAV(mip - 1));
+				}
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetUAV(mip));
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetUAV(mip));
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetUAV(mip));
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetUAV(mip));
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetUAV(mip));
+				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetUAV(mip));
 
-				DXRS::DescriptorHandle uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
-				gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTMainRT->GetUAV());
-
-				DXRS::DescriptorHandle srvHandle = gpuDescriptorHeap->GetHandleBlock(10);
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[0]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[1]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[2]->GetSRV());
-
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTVoxelization3DRT->GetSRV());
-
-				DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
-				gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
-				gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTMainCB->GetCBV());
-
+				VCTAnisoMipmappingCBData cbData = {};
+				cbData.MipDimension = mipDimension;
+				cbData.MipLevel = mip;
+				memcpy(mVCTAnisoMipmappingMainCB[mip]->Map(), &cbData, sizeof(cbData));
 				commandList->SetComputeRootDescriptorTable(0, cbvHandle.GetGPUHandle());
-				commandList->SetComputeRootDescriptorTable(1, srvHandle.GetGPUHandle());
-				commandList->SetComputeRootDescriptorTable(2, uavHandle.GetGPUHandle());
+				commandList->SetComputeRootDescriptorTable(1, uavHandle.GetGPUHandle());
 
-				commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mVCTMainRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mVCTMainRT->GetHeight()), 8u), 1u);
+				commandList->Dispatch(DivideByMultiple(static_cast<UINT>(cbData.MipDimension), 8u), DivideByMultiple(static_cast<UINT>(cbData.MipDimension), 8u), DivideByMultiple(static_cast<UINT>(cbData.MipDimension), 8u));
+				mipDimension >>= 1;
 			}
-			PIXEndEvent(commandList);
 		}
+		PIXEndEvent(commandList);
 
-		// upsample and blur
-		if (mVCTMainRTUseUpsampleAndBlur) {
-			PIXBeginEvent(commandList, 0, "VCT Main RT upsample & blur CS");
-			{
-				commandList->SetPipelineState(mVCTMainUpsampleAndBlurPSO.GetPipelineStateObject());
-				commandList->SetComputeRootSignature(mVCTMainUpsampleAndBlurRS.GetSignature());
+		if (mUseVCT) {
 
-				mSandboxFramework->ResourceBarriersBegin(mBarriers);
-				mVCTMainUpsampleAndBlurRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-				mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+			if (!mVCTUseMainCompute && !useAsyncCompute) {
+				PIXBeginEvent(commandList, 0, "VCT Main PS");
+				{
+					CD3DX12_VIEWPORT vctResViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mVCTMainRT->GetWidth(), mVCTMainRT->GetHeight());
+					CD3DX12_RECT vctRect = CD3DX12_RECT(0.0f, 0.0f, mVCTMainRT->GetWidth(), mVCTMainRT->GetHeight());
+					commandList->RSSetViewports(1, &vctResViewport);
+					commandList->RSSetScissorRects(1, &vctRect);
 
-				DXRS::DescriptorHandle srvHandleBlur = gpuDescriptorHeap->GetHandleBlock(1);
-				gpuDescriptorHeap->AddToHandle(device, srvHandleBlur, mVCTMainRT->GetSRV());
+					commandList->SetPipelineState(mVCTMainPSO.GetPipelineStateObject());
+					commandList->SetGraphicsRootSignature(mVCTMainRS.GetSignature());
 
-				DXRS::DescriptorHandle uavHandleBlur = gpuDescriptorHeap->GetHandleBlock(1);
-				gpuDescriptorHeap->AddToHandle(device, uavHandleBlur, mVCTMainUpsampleAndBlurRT->GetUAV());
+					mSandboxFramework->ResourceBarriersBegin(mBarriers);
+					mVCTMainRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+					mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
 
-				commandList->SetComputeRootDescriptorTable(0, srvHandleBlur.GetGPUHandle());
-				commandList->SetComputeRootDescriptorTable(1, uavHandleBlur.GetGPUHandle());
+					D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesFinal[] =
+					{
+						 mVCTMainRT->GetRTV().GetCPUHandle()
+					};
 
-				commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mVCTMainUpsampleAndBlurRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mVCTMainUpsampleAndBlurRT->GetHeight()), 8u), 1u);
+					commandList->OMSetRenderTargets(_countof(rtvHandlesFinal), rtvHandlesFinal, FALSE, nullptr);
+					commandList->ClearRenderTargetView(rtvHandlesFinal[0], clearColorBlack, 0, nullptr);
+
+					DXRS::DescriptorHandle srvHandle = gpuDescriptorHeap->GetHandleBlock(10);
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[0]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[1]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[2]->GetSRV());
+
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTVoxelization3DRT->GetSRV());
+
+					DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
+					gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
+					gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTMainCB->GetCBV());
+
+					commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
+					commandList->SetGraphicsRootDescriptorTable(1, srvHandle.GetGPUHandle());
+
+					commandList->IASetVertexBuffers(0, 1, &mSandboxFramework->GetFullscreenQuadBufferView());
+					commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+					commandList->DrawInstanced(4, 1, 0, 0);
+
+					//reset back
+					commandList->RSSetViewports(1, &viewport);
+					commandList->RSSetScissorRects(1, &rect);
+				}
+				PIXEndEvent(commandList);
 			}
-			PIXEndEvent(commandList);
+			else {
+				PIXBeginEvent(commandList, 0, "VCT Main CS");
+				{
+					commandList->SetPipelineState(mVCTMainPSO_Compute.GetPipelineStateObject());
+					commandList->SetComputeRootSignature(mVCTMainRS_Compute.GetSignature());
+
+					mSandboxFramework->ResourceBarriersBegin(mBarriers);
+					mVCTMainRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+					mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+					DXRS::DescriptorHandle uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
+					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTMainRT->GetUAV());
+
+					DXRS::DescriptorHandle srvHandle = gpuDescriptorHeap->GetHandleBlock(10);
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[0]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[1]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mGbufferRTs[2]->GetSRV());
+
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[0]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[1]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[2]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetSRV());
+					gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTVoxelization3DRT->GetSRV());
+
+					DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
+					gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
+					gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTMainCB->GetCBV());
+
+					commandList->SetComputeRootDescriptorTable(0, cbvHandle.GetGPUHandle());
+					commandList->SetComputeRootDescriptorTable(1, srvHandle.GetGPUHandle());
+					commandList->SetComputeRootDescriptorTable(2, uavHandle.GetGPUHandle());
+
+					commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mVCTMainRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mVCTMainRT->GetHeight()), 8u), 1u);
+				}
+				PIXEndEvent(commandList);
+			}
+
+			// upsample and blur
+			if (mVCTMainRTUseUpsampleAndBlur) {
+				PIXBeginEvent(commandList, 0, "VCT Main RT upsample & blur CS");
+				{
+					commandList->SetPipelineState(mVCTMainUpsampleAndBlurPSO.GetPipelineStateObject());
+					commandList->SetComputeRootSignature(mVCTMainUpsampleAndBlurRS.GetSignature());
+
+					mSandboxFramework->ResourceBarriersBegin(mBarriers);
+					mVCTMainUpsampleAndBlurRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+					mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+					DXRS::DescriptorHandle srvHandleBlur = gpuDescriptorHeap->GetHandleBlock(1);
+					gpuDescriptorHeap->AddToHandle(device, srvHandleBlur, mVCTMainRT->GetSRV());
+
+					DXRS::DescriptorHandle uavHandleBlur = gpuDescriptorHeap->GetHandleBlock(1);
+					gpuDescriptorHeap->AddToHandle(device, uavHandleBlur, mVCTMainUpsampleAndBlurRT->GetUAV());
+
+					commandList->SetComputeRootDescriptorTable(0, srvHandleBlur.GetGPUHandle());
+					commandList->SetComputeRootDescriptorTable(1, uavHandleBlur.GetGPUHandle());
+
+					commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mVCTMainUpsampleAndBlurRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mVCTMainUpsampleAndBlurRT->GetHeight()), 8u), 1u);
+				}
+				PIXEndEvent(commandList);
+			}
 		}
 	}
 }

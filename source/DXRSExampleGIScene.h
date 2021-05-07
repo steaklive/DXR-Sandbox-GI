@@ -50,7 +50,7 @@ private:
 	void RenderShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderReflectiveShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderLightPropagationVolume(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
-	void RenderVoxelConeTracing(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
+	void RenderVoxelConeTracing(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, bool useAsyncCompute, bool computeOnly);
 	void RenderLighting(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderComposite(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderObject(U_PTR<DXRSModel>& aModel, std::function<void(U_PTR<DXRSModel>&)> aCallback);
@@ -264,7 +264,7 @@ private:
 	bool mUseShadows = true;
 	bool mUseRSM = false;
 	bool mUseLPV = false;
-	bool mUseVCT = false;
+	bool mUseVCT = true;
 	bool mShowOnlyAO = false;
 
 	// Shadows
@@ -334,7 +334,7 @@ private:
 	float mVCTVoxelSampleOffset = 0.0f;
 	float mVCTRTRatio = 0.5f; // from MAX_SCREEN_WIDTH/HEIGHT
 	bool mVCTUseMainCompute = false;
-	bool mVCTMainRTUseUpsampleAndBlur = false;
+	bool mVCTMainRTUseUpsampleAndBlur = true;
 
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRW;
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRead;
@@ -347,5 +347,6 @@ private:
 
 	bool mUseDynamicObjects = false;
 
-	bool mUseAsyncCompute = true;
+	bool mUseAsyncCompute = false;
+	bool mIsFirstFrame = true;
 };

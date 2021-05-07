@@ -35,7 +35,6 @@ void CSMain(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : 
     float4 values[8];
     
     int3 sourcePos = DTid * 2;
-    
     [unroll]
     for (int i = 0; i < 8; i++)
         values[i] = voxelTexture.Load(int4(sourcePos + anisoOffsets[i], 0));
