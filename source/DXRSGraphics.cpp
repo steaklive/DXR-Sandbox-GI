@@ -30,7 +30,6 @@ DXRSGraphics::~DXRSGraphics()
 {
     WaitForGpu();
     delete mDescriptorHeapManager;
-    delete mPostAsyncDescriptorHeapManager;
 }
 
 // Configures the Direct3D device, and stores handles to it and the device context.
@@ -131,7 +130,6 @@ void DXRSGraphics::CreateResources()
 
         // Create descriptor heaps for render target views and depth stencil views.
         mDescriptorHeapManager = new DXRS::DescriptorHeapManager(mDevice.Get());
-        mPostAsyncDescriptorHeapManager = new DXRS::DescriptorHeapManager(mDevice.Get());
 
         D3D12_DESCRIPTOR_HEAP_DESC rtvDescriptorHeapDesc = {};
         rtvDescriptorHeapDesc.NumDescriptors = mBackBufferCount;
@@ -153,13 +151,10 @@ void DXRSGraphics::CreateResources()
         for (UINT n = 0; n < mBackBufferCount; n++)
         {
             ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mCommandAllocatorsGraphics[n].ReleaseAndGetAddressOf())));
-            ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mCommandAllocatorsGraphicsPreAsync[n].ReleaseAndGetAddressOf())));
         }
 
         // Create a command list for recording graphics commands.
         ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocatorsGraphics[0].Get(), nullptr, IID_PPV_ARGS(mCommandListGraphics.ReleaseAndGetAddressOf())));
-        ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocatorsGraphicsPreAsync[0].Get(), nullptr, IID_PPV_ARGS(mCommandListGraphicsPreAsync.ReleaseAndGetAddressOf())));
-		ThrowIfFailed(mCommandListGraphicsPreAsync->Close());
     }
     // Create async compute data
     {

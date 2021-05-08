@@ -65,7 +65,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	SetProjectionMatrix();
 
 	auto descriptorManager = mSandboxFramework->GetDescriptorHeapManager();
-	auto postasyncdescriptorManager = mSandboxFramework->GetPostAsyncDescriptorHeapManager();
 
 	#pragma region ImGui
 
