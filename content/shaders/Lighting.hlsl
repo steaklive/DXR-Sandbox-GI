@@ -71,9 +71,10 @@ PSInput VSMain(VSInput input)
 Texture2D<float4> albedoBuffer : register(t0);
 Texture2D<float4> normalBuffer : register(t1);
 Texture2D<float4> worldPosBuffer : register(t2);
-Texture2D<float4> rsmBuffer : register(t3);
-Texture2D<float> depthBuffer : register(t4);
-Texture2D<float> shadowBuffer : register(t5);
+Texture2D<float> depthBuffer : register(t3);
+Texture2D<float> shadowBuffer : register(t4);
+
+Texture2D<float4> rsmBuffer : register(t5);
 
 Texture3D<float4> redSH : register(t6);
 Texture3D<float4> greenSH : register(t7);

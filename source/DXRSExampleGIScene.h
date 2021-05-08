@@ -24,7 +24,7 @@ public:
 	~DXRSExampleGIScene();
 
 	void Init(HWND window, int width, int height);
-	void Clear();
+	void Clear(ID3D12GraphicsCommandList* cmdList);
 	void Run();
 	void OnWindowSizeChanged(int width, int height);
 
@@ -46,9 +46,11 @@ private:
 	void InitComposite(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
 
 	void Render();
+	void RenderAsync();
+
 	void RenderGbuffer(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
-	void RenderReflectiveShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
+	void RenderReflectiveShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, bool useAsyncCompute, bool computeOnly);
 	void RenderLightPropagationVolume(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderVoxelConeTracing(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, bool useAsyncCompute, bool computeOnly);
 	void RenderLighting(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
@@ -215,6 +217,7 @@ private:
 
 	// UI
 	ComPtr<ID3D12DescriptorHeap> mUIDescriptorHeap;
+	ComPtr<ID3D12DescriptorHeap> mPostAsyncDescriptorHeap;
 	DXRS::GPUDescriptorHeap* mMainDescriptorHeap;
 
 	// Lighting
@@ -264,7 +267,7 @@ private:
 	bool mUseShadows = true;
 	bool mUseRSM = false;
 	bool mUseLPV = false;
-	bool mUseVCT = true;
+	bool mUseVCT = false;
 	bool mShowOnlyAO = false;
 
 	// Shadows
@@ -308,22 +311,18 @@ private:
 	float mRSMIntensity = 0.146f;
 	float mRSMRMax = 0.015f;
 	float mRSMRTRatio = 0.33333f; // from MAX_SCREEN_WIDTH/HEIGHT
-	bool mRSMEnabled = true;
 	bool mRSMUseUpsampleAndBlur = true;
-	bool mRSMComputeVersion = false;
+	bool mRSMComputeVersion = true;
 	UINT mRSMDownsampleScaleSize = 4;
 	bool mRSMDownsampleForLPV = false;
 	bool mRSMDownsampleUseCS = false;
 
-	bool mLPVEnabled = true;
 	int mLPVPropagationSteps = 50;
 	float mLPVCutoff = 0.2f;
 	float mLPVPower = 1.8f;
 	float mLPVAttenuation = 1.0f;
 	XMMATRIX mWorldToLPV;
 
-	bool mIsFirstFrameVCT = true;
-	bool mVCTEnabled = true;
 	bool mVCTRenderDebug = false;
 	float mWorldVoxelScale = VCT_SCENE_VOLUME_SIZE * 0.5f;
 	float mVCTIndirectDiffuseStrength = 1.0f;
@@ -333,7 +332,7 @@ private:
 	float mVCTSamplingFactor = 0.5f;
 	float mVCTVoxelSampleOffset = 0.0f;
 	float mVCTRTRatio = 0.5f; // from MAX_SCREEN_WIDTH/HEIGHT
-	bool mVCTUseMainCompute = false;
+	bool mVCTUseMainCompute = true;
 	bool mVCTMainRTUseUpsampleAndBlur = true;
 
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRW;
@@ -347,6 +346,6 @@ private:
 
 	bool mUseDynamicObjects = false;
 
-	bool mUseAsyncCompute = false;
+	bool mUseAsyncCompute = true;
 	bool mIsFirstFrame = true;
 };

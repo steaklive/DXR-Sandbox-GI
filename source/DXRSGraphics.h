@@ -43,11 +43,12 @@ public:
     void SetWindow(HWND window, int width, int height);
     bool WindowSizeChanged(int width, int height);
     void Prepare(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_PRESENT, bool skipComputeQReset = true);
-    void Present(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_RENDER_TARGET);
+    void Present(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_RENDER_TARGET, bool needExecuteCmdList = true);
     void PresentCompute();
     void WaitForComputeToFinish();
     void WaitForGraphicsToFinish();
     void WaitForGpu();
+    void TransitionMainRT(D3D12_RESOURCE_STATES beforeState);
 
     ID3D12Device*               GetD3DDevice() const { return mDevice.Get(); }
     ID3D12Device5*              GetDXRDevice() const { return (ID3D12Device5*)(mDevice.Get());}
@@ -57,7 +58,9 @@ public:
     
     ID3D12CommandQueue*         GetCommandQueueGraphics() const { return mCommandQueueGraphics.Get(); }
     ID3D12CommandAllocator*     GetCommandAllocatorGraphics() const { return mCommandAllocatorsGraphics[mBackBufferIndex].Get(); }
+    ID3D12CommandAllocator*     GetCommandAllocatorGraphicsPreAsync() const { return mCommandAllocatorsGraphicsPreAsync[mBackBufferIndex].Get(); }
     ID3D12GraphicsCommandList*  GetCommandListGraphics() const { return mCommandListGraphics.Get(); }
+    ID3D12GraphicsCommandList*  GetCommandListGraphicsPreAsync() const { return mCommandListGraphicsPreAsync.Get(); }
 
 	ID3D12CommandQueue*         GetCommandQueueCompute() const { return mCommandQueueCompute.Get(); }
 	ID3D12CommandAllocator*     GetCommandAllocatorCompute() const { return mCommandAllocatorsCompute[mBackBufferIndex].Get(); }
@@ -86,6 +89,7 @@ public:
     }
 
     DXRS::DescriptorHeapManager* GetDescriptorHeapManager() { return mDescriptorHeapManager; }
+    DXRS::DescriptorHeapManager* GetPostAsyncDescriptorHeapManager() { return mPostAsyncDescriptorHeapManager; }
     IDxcBlob* CompileShaderLibrary(LPCWSTR fileName);
 
     static const size_t                 MAX_BACK_BUFFER_COUNT = 3;
@@ -107,10 +111,13 @@ private:
     ComPtr<ID3D12Device>                mDevice;
 
     DXRS::DescriptorHeapManager*        mDescriptorHeapManager;
+    DXRS::DescriptorHeapManager*        mPostAsyncDescriptorHeapManager;
 
     ComPtr<ID3D12CommandQueue>          mCommandQueueGraphics;
     ComPtr<ID3D12GraphicsCommandList>   mCommandListGraphics;
+    ComPtr<ID3D12GraphicsCommandList>   mCommandListGraphicsPreAsync;
     ComPtr<ID3D12CommandAllocator>      mCommandAllocatorsGraphics[MAX_BACK_BUFFER_COUNT];
+    ComPtr<ID3D12CommandAllocator>      mCommandAllocatorsGraphicsPreAsync[MAX_BACK_BUFFER_COUNT];
 
 	ComPtr<ID3D12CommandQueue>          mCommandQueueCompute;
 	ComPtr<ID3D12GraphicsCommandList>   mCommandListCompute;

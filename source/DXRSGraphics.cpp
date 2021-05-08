@@ -30,6 +30,7 @@ DXRSGraphics::~DXRSGraphics()
 {
     WaitForGpu();
     delete mDescriptorHeapManager;
+    delete mPostAsyncDescriptorHeapManager;
 }
 
 // Configures the Direct3D device, and stores handles to it and the device context.
@@ -130,6 +131,7 @@ void DXRSGraphics::CreateResources()
 
         // Create descriptor heaps for render target views and depth stencil views.
         mDescriptorHeapManager = new DXRS::DescriptorHeapManager(mDevice.Get());
+        mPostAsyncDescriptorHeapManager = new DXRS::DescriptorHeapManager(mDevice.Get());
 
         D3D12_DESCRIPTOR_HEAP_DESC rtvDescriptorHeapDesc = {};
         rtvDescriptorHeapDesc.NumDescriptors = mBackBufferCount;
@@ -151,10 +153,13 @@ void DXRSGraphics::CreateResources()
         for (UINT n = 0; n < mBackBufferCount; n++)
         {
             ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mCommandAllocatorsGraphics[n].ReleaseAndGetAddressOf())));
+            ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mCommandAllocatorsGraphicsPreAsync[n].ReleaseAndGetAddressOf())));
         }
 
         // Create a command list for recording graphics commands.
         ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocatorsGraphics[0].Get(), nullptr, IID_PPV_ARGS(mCommandListGraphics.ReleaseAndGetAddressOf())));
+        ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocatorsGraphicsPreAsync[0].Get(), nullptr, IID_PPV_ARGS(mCommandListGraphicsPreAsync.ReleaseAndGetAddressOf())));
+		ThrowIfFailed(mCommandListGraphicsPreAsync->Close());
     }
     // Create async compute data
     {
@@ -335,7 +340,7 @@ void DXRSGraphics::CreateWindowResources()
         ThrowIfFailed(mSwapChain->GetBuffer(n, IID_PPV_ARGS(mRenderTargets[n].GetAddressOf())));
 
         wchar_t name[25] = {};
-        swprintf_s(name, L"Render target %u", n);
+        swprintf_s(name, L"Main Render target %u", n);
         mRenderTargets[n]->SetName(name);
 
         D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
@@ -437,26 +442,30 @@ void DXRSGraphics::Prepare(D3D12_RESOURCE_STATES beforeState, bool skipComputeQR
         ThrowIfFailed(mCommandAllocatorsCompute[mBackBufferIndex]->Reset());
         ThrowIfFailed(mCommandListCompute->Reset(mCommandAllocatorsCompute[mBackBufferIndex].Get(), nullptr));
     }
-
-    if (beforeState != D3D12_RESOURCE_STATE_RENDER_TARGET)
-    {
-        // Transition the render target into the correct state to allow for drawing into it.
-        D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(mRenderTargets[mBackBufferIndex].Get(), beforeState, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        mCommandListGraphics->ResourceBarrier(1, &barrier);
-    }
 }
 
-void DXRSGraphics::Present(D3D12_RESOURCE_STATES beforeState)
+void DXRSGraphics::TransitionMainRT(D3D12_RESOURCE_STATES beforeState)
 {
-    if (beforeState != D3D12_RESOURCE_STATE_PRESENT)
-    {
-        D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(mRenderTargets[mBackBufferIndex].Get(), beforeState, D3D12_RESOURCE_STATE_PRESENT);
-        mCommandListGraphics->ResourceBarrier(1, &barrier);
-    }
+	if (beforeState != D3D12_RESOURCE_STATE_RENDER_TARGET)
+	{
+		// Transition the render target into the correct state to allow for drawing into it.
+		D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(mRenderTargets[mBackBufferIndex].Get(), beforeState, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		mCommandListGraphics->ResourceBarrier(1, &barrier);
+	}
+}
+void DXRSGraphics::Present(D3D12_RESOURCE_STATES beforeState, bool needExecuteCmdList)
+{
+    if (needExecuteCmdList) {
 
-    // Send the command list off to the GPU for processing.
-    ThrowIfFailed(mCommandListGraphics->Close());
-    mCommandQueueGraphics->ExecuteCommandLists(1, CommandListCast(mCommandListGraphics.GetAddressOf()));
+        if (beforeState != D3D12_RESOURCE_STATE_PRESENT)
+        {
+            D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(mRenderTargets[mBackBufferIndex].Get(), beforeState, D3D12_RESOURCE_STATE_PRESENT);
+            mCommandListGraphics->ResourceBarrier(1, &barrier);
+        }
+
+        ThrowIfFailed(mCommandListGraphics->Close());
+        mCommandQueueGraphics->ExecuteCommandLists(1, CommandListCast(mCommandListGraphics.GetAddressOf()));
+    }
 
     HRESULT hr;
     hr = mSwapChain->Present(1, 0);
@@ -484,7 +493,15 @@ void DXRSGraphics::Present(D3D12_RESOURCE_STATES beforeState)
 void DXRSGraphics::WaitForComputeToFinish()
 {
     assert(mCommandQueueGraphics && mFenceCompute/* && mFenceEventCompute.IsValid()*/);
-    mCommandQueueGraphics->Wait(mFenceCompute.Get(), mFenceValuesCompute[mBackBufferIndex]);
+    mCommandQueueGraphics->Wait(mFenceCompute.Get(), mFenceValuesCompute[mBackBufferIndex] - 1);
+
+	// wait until it is ready.
+	if (mFenceCompute->GetCompletedValue() < mFenceValuesCompute[mBackBufferIndex] - 1)
+	{
+		ThrowIfFailed(mFenceCompute->SetEventOnCompletion(mFenceValuesCompute[mBackBufferIndex] - 1, mFenceEventCompute.Get()));
+		WaitForSingleObjectEx(mFenceEventCompute.Get(), INFINITE, FALSE);
+	}
+
 }
 
 void DXRSGraphics::WaitForGraphicsToFinish()
