@@ -5,7 +5,7 @@
 class DXRSRenderTarget
 {
 public:
-	DXRSRenderTarget(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManger, int width, int height, DXGI_FORMAT aFormat, D3D12_RESOURCE_FLAGS flags, LPCWSTR name, int depth = -1, int mips = 1);
+	DXRSRenderTarget(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManger, int width, int height, DXGI_FORMAT aFormat, D3D12_RESOURCE_FLAGS flags, LPCWSTR name, int depth = -1, int mips = 1, D3D12_RESOURCE_STATES defaultState = D3D12_RESOURCE_STATE_RENDER_TARGET);
 	~DXRSRenderTarget();
 
 	ID3D12Resource* GetResource() { return mRenderTarget.Get(); }
@@ -14,7 +14,7 @@ public:
 	int GetHeight() { return mHeight; }
 	int GetDepth() { return mDepth; }
 	void TransitionTo(std::vector<CD3DX12_RESOURCE_BARRIER>& barriers, ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES stateAfter);
-	void SetCurrentState(D3D12_RESOURCE_STATES state) { mCurrentResourceState = state; }
+	D3D12_RESOURCE_STATES GetCurrentState() { return mCurrentResourceState; }
 
 	DXRS::DescriptorHandle& GetRTV(int mip = 0)
 	{

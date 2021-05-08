@@ -1,6 +1,6 @@
 #include "DXRSRenderTarget.h"
 
-DXRSRenderTarget::DXRSRenderTarget(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager, int width, int height, DXGI_FORMAT aFormat, D3D12_RESOURCE_FLAGS flags, LPCWSTR name, int depth, int mips)
+DXRSRenderTarget::DXRSRenderTarget(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager, int width, int height, DXGI_FORMAT aFormat, D3D12_RESOURCE_FLAGS flags, LPCWSTR name, int depth, int mips, D3D12_RESOURCE_STATES defaultState)
 {
 	mWidth = width;
 	mHeight = height;
@@ -29,7 +29,7 @@ DXRSRenderTarget::DXRSRenderTarget(ID3D12Device* device, DXRS::DescriptorHeapMan
 	optimizedClearValue.Color[2] = clearColor.z;
 	optimizedClearValue.Color[3] = clearColor.w;
 
-	mCurrentResourceState = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	mCurrentResourceState = defaultState;
 
 	ThrowIfFailed(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
