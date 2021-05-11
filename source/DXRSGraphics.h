@@ -46,9 +46,11 @@ public:
     void Present(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_RENDER_TARGET, bool needExecuteCmdList = true);
     void PresentCompute();
     void WaitForComputeToFinish();
+    void WaitForGraphicsFence2ToFinish(ID3D12CommandQueue* aQueue, bool previousFrame = false);
+    void SignalGraphicsFence2();
     void WaitForGraphicsToFinish();
     void WaitForGpu();
-    void TransitionMainRT(D3D12_RESOURCE_STATES beforeState);
+    void TransitionMainRT(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES beforeState);
 
     ID3D12Device*               GetD3DDevice() const { return mDevice.Get(); }
     ID3D12Device5*              GetDXRDevice() const { return (ID3D12Device5*)(mDevice.Get());}
@@ -58,7 +60,9 @@ public:
     
     ID3D12CommandQueue*         GetCommandQueueGraphics() const { return mCommandQueueGraphics.Get(); }
     ID3D12CommandAllocator*     GetCommandAllocatorGraphics() const { return mCommandAllocatorsGraphics[mBackBufferIndex].Get(); }
+    ID3D12CommandAllocator*     GetCommandAllocatorGraphics2() const { return mCommandAllocatorsGraphics2[mBackBufferIndex].Get(); }
     ID3D12GraphicsCommandList*  GetCommandListGraphics() const { return mCommandListGraphics.Get(); }
+    ID3D12GraphicsCommandList*  GetCommandListGraphics2() const { return mCommandListGraphics2.Get(); }
 
 	ID3D12CommandQueue*         GetCommandQueueCompute() const { return mCommandQueueCompute.Get(); }
 	ID3D12CommandAllocator*     GetCommandAllocatorCompute() const { return mCommandAllocatorsCompute[mBackBufferIndex].Get(); }
@@ -112,6 +116,8 @@ private:
     ComPtr<ID3D12CommandQueue>          mCommandQueueGraphics;
     ComPtr<ID3D12GraphicsCommandList>   mCommandListGraphics;
     ComPtr<ID3D12CommandAllocator>      mCommandAllocatorsGraphics[MAX_BACK_BUFFER_COUNT];
+	ComPtr<ID3D12GraphicsCommandList>   mCommandListGraphics2;
+	ComPtr<ID3D12CommandAllocator>      mCommandAllocatorsGraphics2[MAX_BACK_BUFFER_COUNT];
 
 	ComPtr<ID3D12CommandQueue>          mCommandQueueCompute;
 	ComPtr<ID3D12GraphicsCommandList>   mCommandListCompute;
@@ -121,8 +127,12 @@ private:
     UINT64                              mFenceValuesGraphics[MAX_BACK_BUFFER_COUNT];
     Wrappers::Event                     mFenceEventGraphics;
 
+	ComPtr<ID3D12Fence>                 mFenceGraphics2;
+	UINT64                              mFenceValuesGraphics2;
+	Wrappers::Event                     mFenceEventGraphics2;
+
 	ComPtr<ID3D12Fence>                 mFenceCompute;
-	UINT64                              mFenceValuesCompute[MAX_BACK_BUFFER_COUNT];
+	UINT64                              mFenceValuesCompute;
 	Wrappers::Event                     mFenceEventCompute;
 
     ComPtr<ID3D12Resource>              mRenderTargets[MAX_BACK_BUFFER_COUNT];

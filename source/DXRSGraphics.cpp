@@ -151,10 +151,14 @@ void DXRSGraphics::CreateResources()
         for (UINT n = 0; n < mBackBufferCount; n++)
         {
             ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mCommandAllocatorsGraphics[n].ReleaseAndGetAddressOf())));
+            ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mCommandAllocatorsGraphics2[n].ReleaseAndGetAddressOf())));
         }
 
         // Create a command list for recording graphics commands.
         ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocatorsGraphics[0].Get(), nullptr, IID_PPV_ARGS(mCommandListGraphics.ReleaseAndGetAddressOf())));
+        ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocatorsGraphics2[0].Get(), nullptr, IID_PPV_ARGS(mCommandListGraphics2.ReleaseAndGetAddressOf())));
+		ThrowIfFailed(mCommandListGraphics2->Close());
+
     }
     // Create async compute data
     {
@@ -171,13 +175,14 @@ void DXRSGraphics::CreateResources()
 		ThrowIfFailed(mCommandListCompute->Close());
 
 		// Create a fence for async compute.
-		ThrowIfFailed(mDevice->CreateFence(mFenceValuesCompute[mBackBufferIndex], D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(mFenceCompute.ReleaseAndGetAddressOf())));
-		mFenceValuesCompute[mBackBufferIndex]++;
+		ThrowIfFailed(mDevice->CreateFence(mFenceValuesCompute, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(mFenceCompute.ReleaseAndGetAddressOf())));
+        mFenceValuesCompute++;
 		mFenceEventCompute.Attach(CreateEventEx(nullptr, nullptr, 0, EVENT_MODIFY_STATE | SYNCHRONIZE));
 		if (!mFenceEventCompute.IsValid())
 		{
 			throw std::exception("CreateEvent");
 		}
+        mFenceCompute->SetName(L"Compute fence");
     }
 
 }
@@ -197,6 +202,17 @@ void DXRSGraphics::FinalizeResources()
     {
         throw std::exception("CreateEvent");
     }
+    mFenceGraphics->SetName(L"Graphics fence #1 (main)");
+
+	// Create a fence 2 for tracking GPU execution progress.
+	ThrowIfFailed(mDevice->CreateFence(mFenceValuesGraphics2, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(mFenceGraphics2.ReleaseAndGetAddressOf())));
+    mFenceValuesGraphics2++;
+	mFenceEventGraphics2.Attach(CreateEventEx(nullptr, nullptr, 0, EVENT_MODIFY_STATE | SYNCHRONIZE));
+	if (!mFenceEventGraphics2.IsValid())
+	{
+		throw std::exception("CreateEvent");
+	}
+    mFenceGraphics2->SetName(L"Graphics fence #2");
 
 }
 
@@ -436,16 +452,19 @@ void DXRSGraphics::Prepare(D3D12_RESOURCE_STATES beforeState, bool skipComputeQR
     if (!skipComputeQReset) {
         ThrowIfFailed(mCommandAllocatorsCompute[mBackBufferIndex]->Reset());
         ThrowIfFailed(mCommandListCompute->Reset(mCommandAllocatorsCompute[mBackBufferIndex].Get(), nullptr));
+
+		ThrowIfFailed(mCommandAllocatorsGraphics2[mBackBufferIndex]->Reset());
+		ThrowIfFailed(mCommandListGraphics2->Reset(mCommandAllocatorsGraphics2[mBackBufferIndex].Get(), nullptr));
     }
 }
 
-void DXRSGraphics::TransitionMainRT(D3D12_RESOURCE_STATES beforeState)
+void DXRSGraphics::TransitionMainRT(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES beforeState)
 {
 	if (beforeState != D3D12_RESOURCE_STATE_RENDER_TARGET)
 	{
 		// Transition the render target into the correct state to allow for drawing into it.
 		D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(mRenderTargets[mBackBufferIndex].Get(), beforeState, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		mCommandListGraphics->ResourceBarrier(1, &barrier);
+        cmdList->ResourceBarrier(1, &barrier);
 	}
 }
 void DXRSGraphics::Present(D3D12_RESOURCE_STATES beforeState, bool needExecuteCmdList)
@@ -488,15 +507,32 @@ void DXRSGraphics::Present(D3D12_RESOURCE_STATES beforeState, bool needExecuteCm
 void DXRSGraphics::WaitForComputeToFinish()
 {
     assert(mCommandQueueGraphics && mFenceCompute/* && mFenceEventCompute.IsValid()*/);
-    mCommandQueueGraphics->Wait(mFenceCompute.Get(), mFenceValuesCompute[mBackBufferIndex] - 1);
+
+	UINT64 fenceValue = mFenceValuesCompute - 1;
+    mCommandQueueGraphics->Wait(mFenceCompute.Get(), fenceValue);
+
+    UINT64 completedValue = mFenceCompute->GetCompletedValue();
 
 	// wait until it is ready.
-	if (mFenceCompute->GetCompletedValue() < mFenceValuesCompute[mBackBufferIndex] - 1)
+	if (completedValue < fenceValue)
 	{
-		ThrowIfFailed(mFenceCompute->SetEventOnCompletion(mFenceValuesCompute[mBackBufferIndex] - 1, mFenceEventCompute.Get()));
+		ThrowIfFailed(mFenceCompute->SetEventOnCompletion(fenceValue, mFenceEventCompute.Get()));
 		WaitForSingleObjectEx(mFenceEventCompute.Get(), INFINITE, FALSE);
 	}
 
+}
+
+void DXRSGraphics::WaitForGraphicsFence2ToFinish(ID3D12CommandQueue* aQueue, bool previousFrame)
+{
+	assert(aQueue && mFenceGraphics2);
+    aQueue->Wait(mFenceGraphics2.Get(), (previousFrame) ? (mFenceValuesGraphics2 - 1) : mFenceValuesGraphics2);
+}
+
+void DXRSGraphics::SignalGraphicsFence2()
+{
+	UINT64 fenceValue = mFenceValuesGraphics2;
+	mCommandQueueGraphics->Signal(mFenceGraphics2.Get(), fenceValue);
+	mFenceValuesGraphics2++;
 }
 
 void DXRSGraphics::WaitForGraphicsToFinish()
@@ -512,9 +548,9 @@ void DXRSGraphics::PresentCompute()
 	ID3D12CommandList* ppCommandLists[] = { mCommandListCompute.Get() };
 	mCommandQueueCompute->ExecuteCommandLists(1, ppCommandLists);
 
-	UINT64 fenceValue = mFenceValuesCompute[mBackBufferIndex];
+	UINT64 fenceValue = mFenceValuesCompute;
     mCommandQueueCompute->Signal(mFenceCompute.Get(), fenceValue);
-    mFenceValuesCompute[mBackBufferIndex]++;
+    mFenceValuesCompute++;
 }
 
 void DXRSGraphics::WaitForGpu() 

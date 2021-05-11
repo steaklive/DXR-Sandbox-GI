@@ -19,6 +19,11 @@
 
 class DXRSExampleGIScene
 {
+	enum RenderQueue {
+		GRAPHICS_QUEUE,
+		COMPUTE_QUEUE
+	};
+
 public:
 	DXRSExampleGIScene();
 	~DXRSExampleGIScene();
@@ -45,14 +50,14 @@ private:
 	void InitLighting(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
 	void InitComposite(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
 
-	void Render();
+	void RenderSync();
 	void RenderAsync();
 
 	void RenderGbuffer(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
-	void RenderReflectiveShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, bool useAsyncCompute, bool computeOnly);
-	void RenderLightPropagationVolume(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
-	void RenderVoxelConeTracing(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, bool useAsyncCompute, bool computeOnly);
+	void RenderReflectiveShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, RenderQueue aQueue = GRAPHICS_QUEUE, bool useAsyncCompute = false);
+	void RenderLightPropagationVolume(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, RenderQueue aQueue = GRAPHICS_QUEUE, bool useAsyncCompute = false);
+	void RenderVoxelConeTracing(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, RenderQueue aQueue = GRAPHICS_QUEUE, bool useAsyncCompute = false);
 	void RenderLighting(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderComposite(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderObject(U_PTR<DXRSModel>& aModel, std::function<void(U_PTR<DXRSModel>&)> aCallback);
@@ -80,6 +85,7 @@ private:
 	// Gbuffer
 	RootSignature                                        mGbufferRS;
 	std::vector<DXRSRenderTarget*>                       mGbufferRTs;
+	std::vector<DXRSRenderTarget*>                       mGbufferRTs_CopiesForAsync;
 	GraphicsPSO                                          mGbufferPSO;
 	DXRSBuffer* mGbufferCB;
 	DXRSDepthBuffer* mDepthStencil;
@@ -102,9 +108,14 @@ private:
 	RootSignature                                        mRSMDownsampleRS;
 	RootSignature                                        mRSMDownsampleRS_Compute;
 	DXRSRenderTarget*			                         mRSMRT;
+	DXRSRenderTarget*			                         mRSMRT_CopyForAsync;
+	DXRSRenderTarget*			                         mRSMRT_CopyForGraphics;
 	std::vector<DXRSRenderTarget*>                       mRSMBuffersRTs;
+	std::vector<DXRSRenderTarget*>                       mRSMBuffersRTs_CopiesForAsync;
 	std::vector<DXRSRenderTarget*>                       mRSMDownsampledBuffersRTs;
 	DXRSRenderTarget*			                         mRSMUpsampleAndBlurRT;
+	DXRSRenderTarget*			                         mRSMUpsampleAndBlurRT_CopyForAsync;
+	DXRSRenderTarget*			                         mRSMUpsampleAndBlurRT_CopyForGraphics;
 	GraphicsPSO                                          mRSMPSO;
 	ComputePSO                                           mRSMPSO_Compute;
 	GraphicsPSO											 mRSMBuffersPSO;
@@ -265,7 +276,7 @@ private:
 
 	bool mUseDirectLight = true;
 	bool mUseShadows = true;
-	bool mUseRSM = false;
+	bool mUseRSM = true;
 	bool mUseLPV = false;
 	bool mUseVCT = false;
 	bool mShowOnlyAO = false;
@@ -347,5 +358,4 @@ private:
 	bool mUseDynamicObjects = false;
 
 	bool mUseAsyncCompute = true;
-	bool mIsFirstFrame = true;
 };
