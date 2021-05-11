@@ -796,15 +796,12 @@ void DXRSExampleGIScene::InitGbuffer(ID3D12Device* device, DXRS::DescriptorHeapM
 	D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
 	mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Albedo"));
-	mGbufferRTs_CopiesForAsync.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Albedo C"));
 
 	rtFormat = DXGI_FORMAT_R16G16B16A16_SNORM;
 	mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Normals"));
-	mGbufferRTs_CopiesForAsync.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Normals C"));
 
 	rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"World Positions"));
-	mGbufferRTs_CopiesForAsync.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"World Positions C"));
 
 	// root signature
 	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -1099,10 +1096,6 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 		//RTs
 		mRSMRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH * mRSMRTRatio, MAX_SCREEN_HEIGHT * mRSMRTRatio,
 			DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Indirect Illumination");
-		mRSMRT_CopyForAsync = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH * mRSMRTRatio, MAX_SCREEN_HEIGHT * mRSMRTRatio,
-			DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Indirect Illumination CC");
-		mRSMRT_CopyForGraphics = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH * mRSMRTRatio, MAX_SCREEN_HEIGHT * mRSMRTRatio,
-			DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Indirect Illumination CG");
 
 		//create root signature
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -1239,10 +1232,6 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 		//RTs
 		mRSMUpsampleAndBlurRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
 			DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Main RT Upsampled & Blurred", -1, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mRSMUpsampleAndBlurRT_CopyForAsync = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
-			DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Main RT Upsampled & Blurred CC", -1, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		mRSMUpsampleAndBlurRT_CopyForGraphics = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
-			DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"RSM Main RT Upsampled & Blurred CG", -1, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		//create root signature
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =

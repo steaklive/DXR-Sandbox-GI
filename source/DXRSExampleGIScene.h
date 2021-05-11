@@ -85,7 +85,6 @@ private:
 	// Gbuffer
 	RootSignature                                        mGbufferRS;
 	std::vector<DXRSRenderTarget*>                       mGbufferRTs;
-	std::vector<DXRSRenderTarget*>                       mGbufferRTs_CopiesForAsync;
 	GraphicsPSO                                          mGbufferPSO;
 	DXRSBuffer* mGbufferCB;
 	DXRSDepthBuffer* mDepthStencil;
@@ -108,14 +107,10 @@ private:
 	RootSignature                                        mRSMDownsampleRS;
 	RootSignature                                        mRSMDownsampleRS_Compute;
 	DXRSRenderTarget*			                         mRSMRT;
-	DXRSRenderTarget*			                         mRSMRT_CopyForAsync;
-	DXRSRenderTarget*			                         mRSMRT_CopyForGraphics;
 	std::vector<DXRSRenderTarget*>                       mRSMBuffersRTs;
 	std::vector<DXRSRenderTarget*>                       mRSMBuffersRTs_CopiesForAsync;
 	std::vector<DXRSRenderTarget*>                       mRSMDownsampledBuffersRTs;
 	DXRSRenderTarget*			                         mRSMUpsampleAndBlurRT;
-	DXRSRenderTarget*			                         mRSMUpsampleAndBlurRT_CopyForAsync;
-	DXRSRenderTarget*			                         mRSMUpsampleAndBlurRT_CopyForGraphics;
 	GraphicsPSO                                          mRSMPSO;
 	ComputePSO                                           mRSMPSO_Compute;
 	GraphicsPSO											 mRSMBuffersPSO;
