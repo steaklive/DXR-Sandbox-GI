@@ -16,6 +16,7 @@ Simple C++/DX12 framework for my bachelor thesis on real-time global illuminatio
 Reflective Shadow Mapping:
 - main pass in compute
 - efficient upsample & blur of main pass' output in compute
+- async compute of main, upsample & blur passes
 
 Light Propagation Volumes:
 - flux downsample in compute
@@ -25,6 +26,7 @@ Voxel Cone Tracing:
 - main pass in compute
 - anisotropic mipmapping passes in compute
 - efficient upsample & blur of main pass' output in compute
+- async compute of main, mipmapping, upsample & blur passes
 
 # Additional dependencies
 - Assimp
