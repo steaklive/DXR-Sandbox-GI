@@ -284,11 +284,13 @@ void DXRSExampleGIScene::RenderAsync()
 
 			RenderReflectiveShadowMapping(device, commandListCompute, gpuDescriptorHeap, COMPUTE_QUEUE, true);
 			//RenderLightPropagationVolume(device, commandListCompute, gpuDescriptorHeap); // nothing to do for compute queue in LPV...
-			//RenderVoxelConeTracing(device, commandListCompute, gpuDescriptorHeap, COMPUTE_QUEUE, true);
+			RenderVoxelConeTracing(device, commandListCompute, gpuDescriptorHeap, COMPUTE_QUEUE, true);
 
 			mSandboxFramework->ResourceBarriersBegin(mBarriers);
 			mRSMRT->TransitionTo(mBarriers, commandListCompute, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			mRSMUpsampleAndBlurRT->TransitionTo(mBarriers, commandListCompute, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			mVCTMainRT->TransitionTo(mBarriers, commandListCompute, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			mVCTMainUpsampleAndBlurRT->TransitionTo(mBarriers, commandListCompute, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListCompute);
 
 			mSandboxFramework->WaitForGraphicsFence2ToFinish(mSandboxFramework->GetCommandQueueCompute());
@@ -311,6 +313,7 @@ void DXRSExampleGIScene::RenderAsync()
 				auto stateRSMbuffer0 = mRSMBuffersRTs[0]->GetCurrentState();
 				auto stateRSMbuffer1 = mRSMBuffersRTs[1]->GetCurrentState();
 				auto stateRSMbuffer2 = mRSMBuffersRTs[2]->GetCurrentState();
+				auto stateVCT3D = mVCTVoxelization3DRT->GetCurrentState();
 
 				mSandboxFramework->ResourceBarriersBegin(mBarriers);
 				mRSMBuffersRTs[0]->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_COPY_SOURCE);
@@ -319,19 +322,24 @@ void DXRSExampleGIScene::RenderAsync()
 				mRSMBuffersRTs_CopiesForAsync[0]->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_COPY_DEST);
 				mRSMBuffersRTs_CopiesForAsync[1]->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_COPY_DEST);
 				mRSMBuffersRTs_CopiesForAsync[2]->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_COPY_DEST);
+				mVCTVoxelization3DRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_COPY_SOURCE);
+				mVCTVoxelization3DRT_CopyForAsync->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_COPY_DEST);
 				mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListGraphics);
 
 				commandListGraphics->CopyResource(mRSMBuffersRTs_CopiesForAsync[0]->GetResource(), mRSMBuffersRTs[0]->GetResource());
 				commandListGraphics->CopyResource(mRSMBuffersRTs_CopiesForAsync[1]->GetResource(), mRSMBuffersRTs[1]->GetResource());
 				commandListGraphics->CopyResource(mRSMBuffersRTs_CopiesForAsync[2]->GetResource(), mRSMBuffersRTs[2]->GetResource());
+				commandListGraphics->CopyResource(mVCTVoxelization3DRT_CopyForAsync->GetResource(), mVCTVoxelization3DRT->GetResource());
 
 				mSandboxFramework->ResourceBarriersBegin(mBarriers);
 				mRSMBuffersRTs[0]->TransitionTo(mBarriers, commandListGraphics, stateRSMbuffer0);
 				mRSMBuffersRTs[1]->TransitionTo(mBarriers, commandListGraphics, stateRSMbuffer1);
 				mRSMBuffersRTs[2]->TransitionTo(mBarriers, commandListGraphics, stateRSMbuffer2);
+				mVCTVoxelization3DRT->TransitionTo(mBarriers, commandListGraphics, stateVCT3D);
 				mRSMBuffersRTs_CopiesForAsync[0]->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 				mRSMBuffersRTs_CopiesForAsync[1]->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 				mRSMBuffersRTs_CopiesForAsync[2]->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				mVCTVoxelization3DRT_CopyForAsync->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 				mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListGraphics);
 			}
 			PIXEndEvent(commandListGraphics);
@@ -373,7 +381,7 @@ void DXRSExampleGIScene::RenderAsync()
 
 			RenderReflectiveShadowMapping(device, commandListGraphics2, gpuDescriptorHeap, GRAPHICS_QUEUE, true); //only rsm textures generation which cant go to compute
 			RenderLightPropagationVolume(device, commandListGraphics2, gpuDescriptorHeap);
-			RenderVoxelConeTracing(device, commandListGraphics2, gpuDescriptorHeap);//only voxelization there which cant go to compute
+			RenderVoxelConeTracing(device, commandListGraphics2, gpuDescriptorHeap, GRAPHICS_QUEUE, true);//only voxelization there which cant go to compute
 
 			mSandboxFramework->WaitForGraphicsFence2ToFinish(mSandboxFramework->GetCommandQueueGraphics(), true);
 
@@ -391,6 +399,8 @@ void DXRSExampleGIScene::RenderAsync()
 		mSandboxFramework->ResourceBarriersBegin(mBarriers);
 		mRSMRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		mRSMUpsampleAndBlurRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		mVCTMainRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		mVCTMainUpsampleAndBlurRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		mGbufferRTs[1]->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		mGbufferRTs[2]->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListGraphics);
@@ -418,6 +428,8 @@ void DXRSExampleGIScene::RenderAsync()
 		mSandboxFramework->ResourceBarriersBegin(mBarriers);
 		mRSMRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_COMMON);
 		mRSMUpsampleAndBlurRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_COMMON);
+		mVCTMainRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_COMMON);
+		mVCTMainUpsampleAndBlurRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_COMMON);
 		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListGraphics);
 
 		mSandboxFramework->WaitForComputeToFinish(); //wait for compute queue to finish the current frame
@@ -1474,15 +1486,6 @@ void DXRSExampleGIScene::RenderReflectiveShadowMapping(ID3D12Device* device, ID3
 						mRSMDownsampledBuffersRTs[2]->GetRTV().GetCPUHandle()
 					};
 
-					//transition buffers to rendertarget outputs
-					if (mRSMDownsampledBuffersRTs[0]->GetCurrentState() == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
-						mSandboxFramework->ResourceBarriersBegin(mBarriers);
-						mRSMDownsampledBuffersRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-						mRSMDownsampledBuffersRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-						mRSMDownsampledBuffersRTs[2]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-						mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
-					}
-
 					mSandboxFramework->ResourceBarriersBegin(mBarriers);
 					mRSMDownsampledBuffersRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 					mRSMDownsampledBuffersRTs[1]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -1515,7 +1518,7 @@ void DXRSExampleGIScene::RenderReflectiveShadowMapping(ID3D12Device* device, ID3
 				}
 				PIXEndEvent(commandList);
 			}
-			else if ((!useAsyncCompute || (useAsyncCompute && aQueue == COMPUTE_QUEUE)) && mRSMDownsampleUseCS) {
+			else if ((!useAsyncCompute || (useAsyncCompute && aQueue == GRAPHICS_QUEUE)) && mRSMDownsampleUseCS) {
 				PIXBeginEvent(commandList, 0, "RSM downsample CS for LPV");
 				{
 					commandList->SetPipelineState(mRSMDownsamplePSO_Compute.GetPipelineStateObject());
@@ -1965,6 +1968,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 		mVCTVoxelization3DRT = new DXRSRenderTarget(device, descriptorManager, VCT_SCENE_VOLUME_SIZE, VCT_SCENE_VOLUME_SIZE, format, flags, L"Voxelization Scene Data 3D", VCT_SCENE_VOLUME_SIZE);
+		mVCTVoxelization3DRT_CopyForAsync = new DXRSRenderTarget(device, descriptorManager, VCT_SCENE_VOLUME_SIZE, VCT_SCENE_VOLUME_SIZE, format, flags, L"Voxelization Scene Data 3D Copy", VCT_SCENE_VOLUME_SIZE);
 
 		//create root signature
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -2502,7 +2506,7 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 			gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTAnisoMipmappingCB->GetCBV());
 		
 			DXRS::DescriptorHandle srvHandle = gpuDescriptorHeap->GetHandleBlock(1);
-			gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTVoxelization3DRT->GetSRV());
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, useAsyncCompute ? mVCTVoxelization3DRT_CopyForAsync->GetSRV() : mVCTVoxelization3DRT->GetSRV());
 		
 			DXRS::DescriptorHandle uavHandle = gpuDescriptorHeap->GetHandleBlock(6);
 			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTAnisoMipmappinPrepare3DRTs[0]->GetUAV());
@@ -2662,7 +2666,7 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[3]->GetSRV());
 				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[4]->GetSRV());
 				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTAnisoMipmappinMain3DRTs[5]->GetSRV());
-				gpuDescriptorHeap->AddToHandle(device, srvHandle, mVCTVoxelization3DRT->GetSRV());
+				gpuDescriptorHeap->AddToHandle(device, srvHandle, useAsyncCompute ? mVCTVoxelization3DRT_CopyForAsync->GetSRV() : mVCTVoxelization3DRT->GetSRV());
 
 				DXRS::DescriptorHandle cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
 				gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());

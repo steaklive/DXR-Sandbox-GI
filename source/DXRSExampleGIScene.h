@@ -181,6 +181,7 @@ private:
 	ComputePSO											 mVCTAnisoMipmappingMainPSO;
 	ComputePSO											 mVCTMainUpsampleAndBlurPSO;
 	DXRSRenderTarget*									 mVCTVoxelization3DRT;
+	DXRSRenderTarget*									 mVCTVoxelization3DRT_CopyForAsync;
 	RootSignature                                        mVCTVoxelizationDebugRS;
 	GraphicsPSO											 mVCTVoxelizationDebugPSO;
 	DXRSRenderTarget*									 mVCTVoxelizationDebugRT;
@@ -271,7 +272,7 @@ private:
 
 	bool mUseDirectLight = true;
 	bool mUseShadows = true;
-	bool mUseRSM = true;
+	bool mUseRSM = false;
 	bool mUseLPV = false;
 	bool mUseVCT = false;
 	bool mShowOnlyAO = false;
