@@ -19,6 +19,7 @@ Reflective Shadow Mapping:
 
 Light Propagation Volumes:
 - flux downsample in compute
+- DX12 bundle for propagation passes
 
 Voxel Cone Tracing:
 - main pass in compute
