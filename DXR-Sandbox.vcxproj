@@ -176,6 +176,7 @@
     <ClInclude Include="source\Common.h" />
     <ClInclude Include="source\DescriptorHeap.h" />
     <ClInclude Include="source\DXRSBuffer.h" />
+    <ClInclude Include="source\DXRSCamera.h" />
     <ClInclude Include="source\DXRSDepthBuffer.h" />
     <ClInclude Include="source\DXRSExampleGIScene.h" />
     <ClInclude Include="source\DXRSGraphics.h" />
@@ -209,6 +210,7 @@
     <ClCompile Include="external\ImGUI\imgui_widgets.cpp" />
     <ClCompile Include="source\DescriptorHeap.cpp" />
     <ClCompile Include="source\DXRSBuffer.cpp" />
+    <ClCompile Include="source\DXRSCamera.cpp" />
     <ClCompile Include="source\DXRSDepthBuffer.cpp" />
     <ClCompile Include="source\DXRSExampleGIScene.cpp" />
     <ClCompile Include="source\DXRSGraphics.cpp" />

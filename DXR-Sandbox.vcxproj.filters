@@ -120,6 +120,9 @@
     <ClInclude Include="source\DXRSExampleRTScene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="source\DXRSCamera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DXR-Sandbox.rc">
@@ -193,6 +196,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="source\DXRSExampleGIScene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\DXRSCamera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

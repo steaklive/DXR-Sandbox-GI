@@ -6,6 +6,7 @@
 #include "DXRSRenderTarget.h"
 #include "DXRSDepthBuffer.h"
 #include "DXRSBuffer.h"
+#include "DXRSCamera.h"
 
 #include "RootSignature.h"
 #include "PipelineStateObject.h"
@@ -39,7 +40,7 @@ private:
 	void UpdateBuffers(DXRSTimer const& timer);
 	void UpdateLights(DXRSTimer const& timer);
 	void UpdateControls();
-	void UpdateCamera();
+	void UpdateCamera(DXRSTimer const& timer);
 	void UpdateImGui();
 	
 	void InitGbuffer(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
@@ -62,7 +63,6 @@ private:
 	void RenderComposite(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderObject(U_PTR<DXRSModel>& aModel, std::function<void(U_PTR<DXRSModel>&)> aCallback);
 
-	void SetProjectionMatrix();
 	void ThrowFailedErrorBlob(ID3DBlob* blob);
 
 	DXRSGraphics* mSandboxFramework;
@@ -70,6 +70,7 @@ private:
 	U_PTR<GamePad>                                       mGamePad;
 	U_PTR<Keyboard>                                      mKeyboard;
 	U_PTR<Mouse>                                         mMouse;
+	U_PTR<DXRSCamera>                                    mCamera;
 	DirectX::GamePad::ButtonStateTracker                 mGamePadButtons;
 	DirectX::Keyboard::KeyboardStateTracker              mKeyboardButtons;
 
@@ -310,7 +311,7 @@ private:
 	float mCameraTheta = -1.5f * XM_PI;
 	float mCameraPhi = XM_PI / 3;
 	float mCameraRadius = 45.0f;
-	Vector3 mCameraEye{ 0.0f, 0.0f, 0.0f };
+	XMFLOAT3 mCameraEye{ 0.0f, 0.0f, 0.0f };
 	XMMATRIX mCameraView;
 	XMMATRIX mCameraProjection;
 	XMFLOAT2 mLastMousePosition;
@@ -354,4 +355,6 @@ private:
 	bool mUseDynamicObjects = false;
 
 	bool mUseAsyncCompute = true;
+
+	float mFOV = 60.0f;
 };

@@ -39,7 +39,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	mKeyboard = std::make_unique<DirectX::Keyboard>();
 	mMouse = std::make_unique<DirectX::Mouse>();
 	mMouse->SetWindow(window);
-
 	mSandboxFramework->SetWindow(window, width, height);
 
 	mSandboxFramework->CreateResources();
@@ -62,7 +61,11 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	mGraphicsMemory = std::make_unique<GraphicsMemory>(device);
 
 	mSandboxFramework->CreateWindowResources();
-	SetProjectionMatrix();
+
+	auto size = mSandboxFramework->GetOutputSize();
+	float aspectRatio = float(size.right) / float(size.bottom);
+	mCamera = std::make_unique<DXRSCamera>(mFOV * XM_PI / 180.0f, aspectRatio, 0.01f, 500.0f);
+	mCamera->Initialize();
 
 	auto descriptorManager = mSandboxFramework->GetDescriptorHeapManager();
 
@@ -501,8 +504,8 @@ void DXRSExampleGIScene::RenderSync()
 
 void DXRSExampleGIScene::Update(DXRSTimer const& timer)
 {
-	UpdateControls();
-	UpdateCamera();
+	//UpdateControls();
+	UpdateCamera(timer);
 	UpdateLights(timer);
 	UpdateBuffers(timer);
 	UpdateImGui();
@@ -621,6 +624,7 @@ void DXRSExampleGIScene::UpdateImGui()
 	{
 		ImGui::Begin("DirectX GI Sandbox");
 		ImGui::TextColored(ImVec4(0.95f, 0.5f, 0.0f, 1), "FPS: (%.1f FPS), %.3f ms/frame", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
+		ImGui::Text("Camera pos: %f, %f, %f", mCameraEye.x, mCameraEye.y, mCameraEye.z);
 		ImGui::SliderFloat4("Light Color", mDirectionalLightColor, 0.0f, 1.0f);
 		ImGui::SliderFloat4("Light Direction", mDirectionalLightDir, -1.0f, 1.0f);
 		ImGui::SliderFloat("Light Intensity", &mDirectionalLightIntensity, 0.0f, 5.0f);
@@ -725,46 +729,13 @@ void DXRSExampleGIScene::UpdateControls()
 	mouse;
 }
 
-void DXRSExampleGIScene::UpdateCamera()
+void DXRSExampleGIScene::UpdateCamera(DXRSTimer const& timer)
 {
-	float x = mCameraRadius * sinf(mCameraPhi) * cosf(mCameraTheta);
-	float y = mCameraRadius * cosf(mCameraPhi);
-	float z = mCameraRadius * sinf(mCameraPhi) * sinf(mCameraTheta);
+	mCamera->Update(timer, mMouse, mKeyboard);
 
-	mCameraEye.x = x;
-	mCameraEye.y = y;
-	mCameraEye.z = z;
-
-	Vector3 at(0.0f, 0.0f, 0.0f);
-
-	mCameraView = Matrix::CreateLookAt(mCameraEye, at, Vector3::UnitY);
-
-	CameraBuffer buffer;
-	float width = mSandboxFramework->GetOutputSize().right;
-	float height = mSandboxFramework->GetOutputSize().bottom;
-
-	buffer.view = mCameraView;
-	buffer.projection = mCameraProjection;
-	buffer.viewI = XMMatrixInverse(nullptr, mCameraView);
-	buffer.projectionI = XMMatrixInverse(nullptr, mCameraProjection);
-	buffer.camToWorld = XMMatrixTranspose(XMMatrixInverse(nullptr, mCameraProjection * mCameraView));
-	buffer.camPosition = XMFLOAT4(mCameraEye.x, mCameraEye.y, mCameraEye.z, 1.0f);
-	buffer.resolution = XMFLOAT2(width, height);
-
-	// Copy the contents
-	memcpy(mCameraBuffer->Map(), &buffer, sizeof(CameraBuffer));
-}
-
-void DXRSExampleGIScene::SetProjectionMatrix()
-{
-	auto size = mSandboxFramework->GetOutputSize();
-	float aspectRatio = float(size.right) / float(size.bottom);
-	float fovAngleY = 60.0f * XM_PI / 180.0f;
-
-	if (aspectRatio < 1.0f)
-		fovAngleY *= 2.0f;
-
-	mCameraProjection = Matrix::CreatePerspectiveFieldOfView(fovAngleY, aspectRatio, 0.01f, 500.0f);
+	mCameraView = mCamera->ViewMatrix();
+	mCameraProjection = mCamera->ProjectionMatrix();
+	mCameraEye = mCamera->Position();
 }
 
 void DXRSExampleGIScene::OnWindowSizeChanged(int width, int height)
@@ -772,7 +743,8 @@ void DXRSExampleGIScene::OnWindowSizeChanged(int width, int height)
 	if (!mSandboxFramework->WindowSizeChanged(width, height))
 		return;
 
-	SetProjectionMatrix();
+	auto size = mSandboxFramework->GetOutputSize();
+	mCamera->SetAspectRatio(float(size.right) / float(size.bottom));
 }
 
 void DXRSExampleGIScene::ThrowFailedErrorBlob(ID3DBlob* blob)
