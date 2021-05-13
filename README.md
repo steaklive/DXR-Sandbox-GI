@@ -11,20 +11,21 @@ Simple C++/DX12 framework for my bachelor thesis on real-time global illuminatio
 - GI w/ Reflective Shadow Mapping (indirect diffuse)
 - GI w/ Light Propagation Volume (indirect diffuse)
 - GI w/ Voxel Cone Tracing (indirect diffuse + specular + AO)
+- Asynchronous compute
 
 # Optimizations
 Reflective Shadow Mapping:
-- main pass in compute
-- efficient upsample & blur of main pass' output in compute
+- main pass in compute (+async)
+- efficient upsample & blur of main pass' output in compute (+async)
 
 Light Propagation Volumes:
 - flux downsample in compute
 - DX12 bundle for propagation passes
 
 Voxel Cone Tracing:
-- main pass in compute
-- anisotropic mipmapping passes in compute
-- efficient upsample & blur of main pass' output in compute
+- main pass in compute (+async)
+- anisotropic mipmapping passes in compute (+async)
+- efficient upsample & blur of main pass' output in compute (+async)
 
 # Additional dependencies
 - Assimp
