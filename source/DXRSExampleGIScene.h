@@ -39,7 +39,6 @@ private:
 	void UpdateTransforms(DXRSTimer const& timer);
 	void UpdateBuffers(DXRSTimer const& timer);
 	void UpdateLights(DXRSTimer const& timer);
-	void UpdateControls();
 	void UpdateCamera(DXRSTimer const& timer);
 	void UpdateImGui();
 	
@@ -307,10 +306,6 @@ private:
 		XMFLOAT2 resolution;
 	};
 
-	DXRSBuffer* mCameraBuffer;
-	float mCameraTheta = -1.5f * XM_PI;
-	float mCameraPhi = XM_PI / 3;
-	float mCameraRadius = 45.0f;
 	XMFLOAT3 mCameraEye{ 0.0f, 0.0f, 0.0f };
 	XMMATRIX mCameraView;
 	XMMATRIX mCameraProjection;
@@ -357,4 +352,17 @@ private:
 	bool mUseAsyncCompute = true;
 
 	float mFOV = 60.0f;
+	bool mLockCamera = false;
+
+	XMVECTOR mLockedCameraTargets[3] = {
+		{0.0f, 0.0f, 0.0f},
+		{0.0f, 10.0f, 0.0f},
+		{3.0f, 3.0f, 0.0f}
+	};
+
+	XMVECTOR mLockedCameraPositions[3] = {
+		{0.0f, 20.0f, 0.0f},
+		{-10.0f, 24.0f, 0.0f},
+		{15.0f, 33.0f, -6.0f}
+	};
 };

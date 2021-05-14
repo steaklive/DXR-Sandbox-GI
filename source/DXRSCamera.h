@@ -21,6 +21,7 @@ public:
 	void SetNearPlaneDistance(float value);
 	void SetFarPlaneDistance(float value);
 	void Reset();
+	void SetViewMatrix(XMMATRIX m);
 	void UpdateViewMatrix();
 	void UpdateProjectionMatrix();
 	void ApplyRotation(CXMMATRIX transform);
@@ -36,6 +37,8 @@ public:
 	XMFLOAT4X4 ViewMatrix4X4() const;
 	XMMATRIX ProjectionMatrix() const;
 	XMFLOAT4X4 ProjectionMatrix4X4() const;
+
+	void SetLock(bool value) { mLockView = value; }
 private:
 	float mMouseSensitivity = 30.0f;
 	float mRotationRate = XMConvertToRadians(1.0f);
@@ -56,4 +59,6 @@ private:
 
 	XMFLOAT4X4 mViewMatrix;
 	XMFLOAT4X4 mProjectionMatrix;
+
+	bool mLockView = false;
 };

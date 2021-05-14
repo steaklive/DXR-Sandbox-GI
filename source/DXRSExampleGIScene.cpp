@@ -28,7 +28,6 @@ DXRSExampleGIScene::~DXRSExampleGIScene()
 	delete mLightsInfoCB;
 	delete mShadowMappingCB;
 	delete mGbufferCB;
-	delete mCameraBuffer;
 	delete mRSMCB;
 	delete mRSMCB2;
 }
@@ -66,6 +65,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	float aspectRatio = float(size.right) / float(size.bottom);
 	mCamera = std::make_unique<DXRSCamera>(mFOV * XM_PI / 180.0f, aspectRatio, 0.01f, 500.0f);
 	mCamera->Initialize();
+	mCamera->SetPosition(0.0f, 7.0f, 33.0f);
 
 	auto descriptorManager = mSandboxFramework->GetDescriptorHeapManager();
 
@@ -95,13 +95,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 
 #pragma endregion
 	ThrowIfFailed(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mPostAsyncDescriptorHeap)));
-
-	// init camera CB
-	DXRSBuffer::Description cbDescDXR;
-	cbDescDXR.mElementSize = sizeof(CameraBuffer);
-	cbDescDXR.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
-	cbDescDXR.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-	mCameraBuffer = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDescDXR, L"DXR CB");
 
 	// create a null descriptor for unbound textures
 	mNullDescriptor = descriptorManager->CreateCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -504,7 +497,6 @@ void DXRSExampleGIScene::RenderSync()
 
 void DXRSExampleGIScene::Update(DXRSTimer const& timer)
 {
-	//UpdateControls();
 	UpdateCamera(timer);
 	UpdateLights(timer);
 	UpdateBuffers(timer);
@@ -625,6 +617,21 @@ void DXRSExampleGIScene::UpdateImGui()
 		ImGui::Begin("DirectX GI Sandbox");
 		ImGui::TextColored(ImVec4(0.95f, 0.5f, 0.0f, 1), "FPS: (%.1f FPS), %.3f ms/frame", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
 		ImGui::Text("Camera pos: %f, %f, %f", mCameraEye.x, mCameraEye.y, mCameraEye.z);
+		ImGui::Checkbox("Lock camera", &mLockCamera);
+		mCamera->SetLock(mLockCamera);
+		if (mLockCamera) {
+			mCamera->SetLock(true);
+			for (int i = 0; i < 3; i++)
+			{
+				std::string name = "Mode " + std::to_string(i);
+				XMVECTOR upDirection = XMLoadFloat3(&mCamera->Up());
+				if (ImGui::Button(name.c_str()))
+					mCamera->SetViewMatrix(XMMatrixLookAtRH(mLockedCameraPositions[i], mLockedCameraTargets[i], upDirection));
+				if (i < 2)
+					ImGui::SameLine();
+			}
+		}
+
 		ImGui::SliderFloat4("Light Color", mDirectionalLightColor, 0.0f, 1.0f);
 		ImGui::SliderFloat4("Light Direction", mDirectionalLightDir, -1.0f, 1.0f);
 		ImGui::SliderFloat("Light Intensity", &mDirectionalLightIntensity, 0.0f, 5.0f);
@@ -691,7 +698,7 @@ void DXRSExampleGIScene::UpdateImGui()
 			}
 		}
 		ImGui::Separator();
-		ImGui::SliderFloat("Orbit camera radius", &mCameraRadius, 5.0f, 175.0f);
+
 		ImGui::Checkbox("DX12 Asynchronous Compute", &mUseAsyncCompute);
 
 		ImGui::End();
@@ -709,24 +716,6 @@ void DXRSExampleGIScene::UpdateLights(DXRSTimer const& timer)
 	lightData.LightIntensity = mDirectionalLightIntensity;
 
 	memcpy(mLightsInfoCB->Map(), &lightData, sizeof(lightData));
-}
-
-void DXRSExampleGIScene::UpdateControls()
-{
-	auto mouse = mMouse->GetState();
-	if (mouse.rightButton)
-	{
-		float dx = XMConvertToRadians(0.25f * static_cast<float>(mouse.x - mLastMousePosition.x));
-		float dy = -XMConvertToRadians(0.25f * static_cast<float>(mouse.y - mLastMousePosition.y));
-
-		mCameraTheta += dx;
-		mCameraPhi += dy;
-
-		mCameraPhi = std::clamp(mCameraPhi, 0.1f, 3.14f - 0.1f);
-	}
-	mLastMousePosition.x = mouse.x;
-	mLastMousePosition.y = mouse.y;
-	mouse;
 }
 
 void DXRSExampleGIScene::UpdateCamera(DXRSTimer const& timer)

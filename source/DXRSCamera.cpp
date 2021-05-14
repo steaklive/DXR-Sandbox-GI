@@ -101,7 +101,8 @@ void DXRSCamera::Update(DXRSTimer const& timer, U_PTR<Mouse>& aMouse, U_PTR<Keyb
 
 	XMStoreFloat3(&mPosition, position);
 
-	UpdateViewMatrix();
+	if(!mLockView)
+		UpdateViewMatrix();
 }
 
 void DXRSCamera::SetPosition(FLOAT x, FLOAT y, FLOAT z)
@@ -157,6 +158,11 @@ void DXRSCamera::UpdateViewMatrix()
 
 	XMMATRIX viewMatrix = XMMatrixLookToRH(eyePosition, direction, upDirection);
 	XMStoreFloat4x4(&mViewMatrix, viewMatrix);
+}
+
+void DXRSCamera::SetViewMatrix(XMMATRIX m)
+{
+	XMStoreFloat4x4(&mViewMatrix, m);
 }
 
 void DXRSCamera::UpdateProjectionMatrix()
