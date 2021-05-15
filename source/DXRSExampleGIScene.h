@@ -267,7 +267,7 @@ private:
 	// Directional light
 	float mDirectionalLightColor[4]{ 0.9, 0.9, 0.9, 1.0 };
 	float mDirectionalLightDir[4]{ 0.191, 1.0f, 0.574f, 1.0 };
-	float mDirectionalLightIntensity = 1.0f;
+	float mDirectionalLightIntensity = 3.0f;
 	bool mDynamicDirectionalLight = false;
 	float mDynamicDirectionalLightSpeed = 1.0f;
 
@@ -356,14 +356,14 @@ private:
 	bool mLockCamera = false;
 
 	XMVECTOR mLockedCameraPositions[LOCKED_CAMERA_VIEWS] = {
-		{0.0f, 72.0f, -25.0f},
+		{2.88f, 16.8f, -0.6f},
 		{-23.3f, 10.7f, 25.6f},
 		{0.0f, 7.0f, 33.0f}
 	};
 
 	XMMATRIX mLockedCameraRotMatrices[LOCKED_CAMERA_VIEWS] = {
-		XMMatrixRotationX(-XMConvertToRadians(90.0f)),
-		XMMatrixRotationX(-XMConvertToRadians(10.0f)) * XMMatrixRotationY(-XMConvertToRadians(30.0f)) ,
+		XMMatrixRotationX(-XMConvertToRadians(20.0f))* XMMatrixRotationY(-XMConvertToRadians(40.0f)),
+		XMMatrixRotationX(-XMConvertToRadians(10.0f)) * XMMatrixRotationY(-XMConvertToRadians(30.0f)),
 		XMMatrixIdentity()
 	};
 };

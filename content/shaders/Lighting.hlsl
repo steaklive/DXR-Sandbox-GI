@@ -83,7 +83,7 @@ Texture3D<float4> blueSH : register(t8);
 Texture2D<float4> vctBuffer : register(t9);
 
 float CalculateShadow(float3 ShadowCoord)
-{
+{   
     const float Dilation = 2.0;
     float d1 = Dilation * ShadowTexelSize.x * 0.125;
     float d2 = Dilation * ShadowTexelSize.x * 0.875;
@@ -105,6 +105,93 @@ float CalculateShadow(float3 ShadowCoord)
     return result * result;
 }
 
+// ===============================================================================================
+// http://graphicrants.blogspot.com.au/2013/08/specular-brdf-reference.html
+// ===============================================================================================
+
+float DistributionGGX(float3 N, float3 H, float roughness)
+{
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float NdotH = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH * NdotH;
+
+    float nom = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+
+    return nom / max(denom, 0.001); // prevent divide by zero for roughness=0.0 and NdotH=1.0
+}
+
+float GeometrySchlickGGX(float NdotV, float roughness)
+{
+    float r = (roughness + 1.0);
+    float k = (r * r) / 8.0;
+
+    float nom = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+
+    return nom / denom;
+}
+// ----------------------------------------------------------------------------
+float GeometrySmith(float3 N, float3 V, float3 L, float roughness)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2 = GeometrySchlickGGX(NdotV, roughness);
+    float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+
+    return ggx1 * ggx2;
+}
+
+// ================================================================================================
+// Fresnel with Schlick's approximation:
+// http://blog.selfshadow.com/publications/s2013-shading-course/rad/s2013_pbs_rad_notes.pdf
+// http://graphicrants.blogspot.fr/2013/08/specular-brdf-reference.html
+// ================================================================================================
+float3 Schlick_Fresnel(float3 f0, float cosTheta)
+{
+    return f0 + (1.0f - f0) * pow((1.0f - cosTheta), 5.0f);
+}
+float3 Schlick_Fresnel_Roughness(float cosTheta, float3 F0, float roughness)
+{
+    return F0 + (max(float3(1.0f - roughness, 1.0f - roughness, 1.0f - roughness), F0) - F0) * pow(1.0f - cosTheta, 5.0f);
+}
+
+// ================================================================================================
+// Cook-Torrence BRDF
+float3 DirectSpecularBRDF(float3 normalWS, float3 lightDir, float3 viewDir, float roughness, float3 F0)
+{
+    float3 halfVec = normalize(viewDir + lightDir);
+    // Cook-Torrance BRDF
+    float NDF = DistributionGGX(normalWS, halfVec, roughness);
+    float G = GeometrySmith(normalWS, viewDir, lightDir, roughness);
+    float3 F = Schlick_Fresnel(F0, max(dot(halfVec, viewDir), 0.0));
+           
+    float3 nominator = NDF * G * F;
+    float denominator = 4 * max(dot(normalWS, viewDir), 0.0) * max(dot(normalWS, lightDir), 0.0);
+    float3 specular = nominator / max(denominator, 0.001); // prevent divide by zero for NdotV=0.0 or NdotL=0.0
+       
+    return specular;
+}
+
+float3 DirectDiffuseBRDF(float3 diffuseAlbedo, float3 lightDir, float3 viewDir, float3 F0, float metallic)
+{
+    float3 halfVec = normalize(viewDir + lightDir);
+   
+    float3 F = Schlick_Fresnel(F0, max(dot(halfVec, viewDir), 0.0));
+    float3 kS = F;
+    // for energy conservation, the diffuse and specular light can't
+    // be above 1.0 (unless the surface emits light); to preserve this
+    // relationship the diffuse component (kD) should equal 1.0 - kS.
+    float3 kD = float3(1.0f, 1.0f, 1.0f) - kS;
+    // multiply kD by the inverse metalness such that only non-metals 
+    // have diffuse lighting, or a linear blend if partly metal (pure metals
+    // have no diffuse light).
+    kD *= (float3(1.0f, 1.0f, 1.0f) - metallic);
+    
+    return (diffuseAlbedo * kD) / PI;
+}
 PSOutput PSMain(PSInput input)
 {
 	PSOutput output = (PSOutput)0;
@@ -159,7 +246,7 @@ PSOutput PSMain(PSInput input)
         float4 vct = vctBuffer.Sample(BilinearSampler, inPos * float2(1.0f / gWidth, 1.0f / gHeight));
         
         indirectLighting += vct.rgb;
-        ao = vct.a;
+        ao = 1.0f - vct.a;
     }  
     
     float shadow = 1.0f;
@@ -179,12 +266,19 @@ PSOutput PSMain(PSInput input)
         float3 lightColor = LightColor.xyz;
         float lightIntensity = LightIntensity;
         float NdotL = saturate(dot(normal.xyz, lightDir));
-    
-        directLighting = (lightIntensity * NdotL) * lightColor * albedo.rgb;
+            
+        float roughness = albedo.a;
+        float metalness = (roughness > 0.0f) ? 0.7f : 0.0f;
+        float3 F0 = float3(0.04, 0.04, 0.04);
+        F0 = lerp(F0, albedo.rgb, metalness);
+        
+        float3 direct = DirectDiffuseBRDF(albedo.rgb, lightDir, viewDir, F0, metalness) + DirectSpecularBRDF(normal.xyz, lightDir, viewDir, 1.0f - roughness, F0);
+        
+        directLighting = max(direct, 0.0f) * NdotL * lightIntensity * lightColor;
     }
     
     output.diffuse.rgb = ao * indirectLighting + directLighting * shadow;
-    
+
     if (showOnlyAO)
         output.diffuse.rgb = float3(ao, ao, ao);
     
