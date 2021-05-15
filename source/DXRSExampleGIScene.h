@@ -17,6 +17,7 @@
 #define LPV_DIM 32
 #define VCT_SCENE_VOLUME_SIZE 256
 #define VCT_MIPS 6
+#define LOCKED_CAMERA_VIEWS 3
 
 class DXRSExampleGIScene
 {
@@ -354,15 +355,15 @@ private:
 	float mFOV = 60.0f;
 	bool mLockCamera = false;
 
-	XMVECTOR mLockedCameraTargets[3] = {
-		{0.0f, 0.0f, 0.0f},
-		{0.0f, 10.0f, 0.0f},
-		{3.0f, 3.0f, 0.0f}
+	XMVECTOR mLockedCameraPositions[LOCKED_CAMERA_VIEWS] = {
+		{0.0f, 72.0f, -25.0f},
+		{-23.3f, 10.7f, 25.6f},
+		{0.0f, 7.0f, 33.0f}
 	};
 
-	XMVECTOR mLockedCameraPositions[3] = {
-		{0.0f, 20.0f, 0.0f},
-		{-10.0f, 24.0f, 0.0f},
-		{15.0f, 33.0f, -6.0f}
+	XMMATRIX mLockedCameraRotMatrices[LOCKED_CAMERA_VIEWS] = {
+		XMMatrixRotationX(-XMConvertToRadians(90.0f)),
+		XMMatrixRotationX(-XMConvertToRadians(10.0f)) * XMMatrixRotationY(-XMConvertToRadians(30.0f)) ,
+		XMMatrixIdentity()
 	};
 };

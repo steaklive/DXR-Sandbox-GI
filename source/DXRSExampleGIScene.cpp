@@ -620,14 +620,16 @@ void DXRSExampleGIScene::UpdateImGui()
 		ImGui::Checkbox("Lock camera", &mLockCamera);
 		mCamera->SetLock(mLockCamera);
 		if (mLockCamera) {
-			mCamera->SetLock(true);
-			for (int i = 0; i < 3; i++)
+			for (int i = 0; i < LOCKED_CAMERA_VIEWS; i++)
 			{
 				std::string name = "Mode " + std::to_string(i);
-				XMVECTOR upDirection = XMLoadFloat3(&mCamera->Up());
-				if (ImGui::Button(name.c_str()))
-					mCamera->SetViewMatrix(XMMatrixLookAtRH(mLockedCameraPositions[i], mLockedCameraTargets[i], upDirection));
-				if (i < 2)
+				if (ImGui::Button(name.c_str())) {
+					mCamera->Reset();
+					mCamera->SetPosition(mLockedCameraPositions[i]);
+					mCamera->ApplyRotation(mLockedCameraRotMatrices[i]);
+					mCamera->UpdateViewMatrix();
+				}
+				if (i < LOCKED_CAMERA_VIEWS - 1)
 					ImGui::SameLine();
 			}
 		}

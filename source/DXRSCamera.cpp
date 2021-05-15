@@ -30,6 +30,9 @@ void DXRSCamera::Initialize()
 
 void DXRSCamera::Update(DXRSTimer const& timer, U_PTR<Mouse>& aMouse, U_PTR<Keyboard>& aKeyboard)
 {
+	if (mLockView)
+		return;
+
 	auto keyboard = aKeyboard->GetState();
 
 	XMFLOAT3 movementAmount = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -101,8 +104,7 @@ void DXRSCamera::Update(DXRSTimer const& timer, U_PTR<Mouse>& aMouse, U_PTR<Keyb
 
 	XMStoreFloat3(&mPosition, position);
 
-	if(!mLockView)
-		UpdateViewMatrix();
+	UpdateViewMatrix();
 }
 
 void DXRSCamera::SetPosition(FLOAT x, FLOAT y, FLOAT z)
