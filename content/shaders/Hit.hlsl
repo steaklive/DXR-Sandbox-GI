@@ -9,13 +9,33 @@ struct Vertex
 };
 
 //RaytracingAccelerationStructure SceneBVH : register(t0);
+RWTexture2D<float4> gOutput : register(u0);
 
 Texture2D<float4> GBufferNormals : register(t1);
+Texture2D<float4> GbufferDepth : register(t2);
 Texture2D<float4> GBufferAlbedo : register(t3);
 
 // Mesh info (naive approach, proper way is to combine all meshes from the scene with textures, etc)
 ByteAddressBuffer MeshIndices : register(t4, space0);
 StructuredBuffer<Vertex> MeshVertices : register(t5, space0);
+
+cbuffer DXRConstantBuffer : register(b0)
+{
+    float4x4 ViewMatrix;
+    float4x4 ProjectionMatrix;
+    float4x4 InvViewMatrix;
+    float4x4 InvProjectionMatrix;
+    float4 CamPosition;
+    float2 ScreenResolution;
+}
+
+cbuffer LightsConstantBuffer : register(b1)
+{
+    float4 LightDirection;
+    float4 LightColor;
+    float LightIntensity;
+    float3 pad1;
+};
 
 cbuffer MeshInfo : register(b2)
 {
@@ -61,31 +81,8 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     
     float3 outputColor = (lightIntensity * NdotL) * lightColor * albedoColor;
 
-    outputColor = gOutput[DispatchRaysIndex().xy].rgb + reflectivity * outputColor;
+    outputColor *= reflectivity;
     
     gOutput[DispatchRaysIndex().xy] = float4(outputColor, 1.0);
 
-}
-
-[shader("closesthit")]
-void ShadowClosestHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attributes)
-{
-    // Get the base index of the triangle's first 32 bit index.
-    uint indexSizeInBytes = 4;
-    uint indicesPerTriangle = 3;
-    uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
-    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
-
-    // Load up three 32 bit indices for the triangle.
-    const uint3 indices = Load3x32BitIndices(MeshIndices, baseIndex);
-    
-    float3 triangleNormal = MeshVertices[indices[0]].normal;
-    float4 normal = float4(triangleNormal, 1.0f);
-    float3 lightDir = LightDirection.xyz;
-    float NdotL = saturate(dot(normal.xyz, lightDir));
-    
-    float shadowFactor = 1.0f - ShadowIntensity;
-    
-    if (!payload.isHit && !NdotL)
-        gOutput[DispatchRaysIndex().xy] *= float4(shadowFactor, shadowFactor, shadowFactor, 1.0f);
 }

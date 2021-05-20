@@ -82,6 +82,8 @@ Texture3D<float4> blueSH : register(t8);
 
 Texture2D<float4> vctBuffer : register(t9);
 
+Texture2D<float4> dxrReflectionsBuffer : register(t10);
+
 float CalculateShadow(float3 ShadowCoord)
 {   
     const float Dilation = 2.0;
@@ -207,6 +209,8 @@ PSOutput PSMain(PSInput input)
     
     float ao = 1.0f;
     
+    float3 reflectionsDXR = dxrReflectionsBuffer[inPos].rgb;
+    
     // RSM
     if (useRSM)
     {
@@ -277,7 +281,7 @@ PSOutput PSMain(PSInput input)
         directLighting = max(direct, 0.0f) * NdotL * lightIntensity * lightColor;
     }
     
-    output.diffuse.rgb = ao * indirectLighting + directLighting * shadow;
+    output.diffuse.rgb = ao * indirectLighting + (directLighting + lerp(reflectionsDXR, directLighting, 0.9f)) * shadow;
 
     if (showOnlyAO)
         output.diffuse.rgb = float3(ao, ao, ao);
