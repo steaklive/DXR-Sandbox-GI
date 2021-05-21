@@ -1,6 +1,5 @@
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\vc142.pdb
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\vc142.idb
-c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\rootsignature.obj
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\raytracingpipelinegenerator.obj
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\pipelinestateobject.obj
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\dxrsrendertarget.obj
@@ -12,6 +11,7 @@ c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\dxrsmo
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\dxrsgraphics.obj
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\dxrsexamplegiscene.obj
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\dxrsdepthbuffer.obj
+c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\dxrscamera.obj
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\dxrsbuffer.obj
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\descriptorheap.obj
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\imgui_widgets.obj
@@ -21,7 +21,7 @@ c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\imgui_
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\imgui_demo.obj
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\imgui.obj
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\shaderbindingtablegenerator.obj
-c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\dxrscamera.obj
+c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\rootsignature.obj
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\dxr-sandbox-gi.lib
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\dxr-sandbox-gi.exp
 c:\users\zhenya\documents\graphicsprogramming\dxr-sandboxgi\bin\x64\debug\dxr-sandbox-gi.exe

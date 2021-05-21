@@ -81,7 +81,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     
     float3 outputColor = (lightIntensity * NdotL) * lightColor * albedoColor;
 
-    outputColor *= reflectivity;
+    outputColor = gOutput[DispatchRaysIndex().xy] + reflectivity * outputColor;
     
     gOutput[DispatchRaysIndex().xy] = float4(outputColor, 1.0);
 

@@ -3191,30 +3191,30 @@ void DXRSExampleGIScene::CreateRaytracingShaderTable()
 {
 	auto device = mSandboxFramework->GetD3DDevice();
 
-	// The SBT helper class collects calls to Add*Program.  If called several
-	// times, the helper must be emptied before re-adding shaders.
+	// The SBT helper class collects calls to Add*Program.  If called several times, the helper must be emptied before re-adding shaders.
 	mRaytracingShaderBindingTableHelper.Reset();
 
 	// The pointer to the beginning of the heap is the only parameter required by shaders without root parameters
-	D3D12_GPU_DESCRIPTOR_HANDLE srvUavHeapHandle = mRaytracingDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	D3D12_GPU_DESCRIPTOR_HANDLE heapHandle = mRaytracingDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
 	// The helper treats both root parameter pointers and heap pointers as void*,
 	// while DX12 uses the
 	// D3D12_GPU_DESCRIPTOR_HANDLE to define heap pointers. The pointer in this
 	// struct is a UINT64, which then has to be reinterpreted as a pointer.
-	auto heapPointer = reinterpret_cast<UINT64*>(srvUavHeapHandle.ptr);
+	auto heapPointer = reinterpret_cast<UINT64*>(heapHandle.ptr);
 
 	mRaytracingShaderBindingTableHelper.AddRayGenerationProgram(L"RayGen", { heapPointer });
-	//mRaytracingShaderBindingTableHelper.AddRayGenerationProgram(L"ShadowRayGen", { heapPointer });
 	mRaytracingShaderBindingTableHelper.AddMissProgram(L"Miss", { heapPointer });
-	//mRaytracingShaderBindingTableHelper.AddMissProgram(L"ShadowMiss", { heapPointer });
-	mRaytracingShaderBindingTableHelper.AddHitGroup(L"HitGroup", { heapPointer/*, (void*)(mPlaneModel->Meshes()[0]->GetVertexBuffer())*/ });
-	//mRaytracingShaderBindingTableHelper.AddHitGroup(L"HitGroup", { heapPointer, (void*)(mDragonModel->Meshes()[0]->GetVertexBuffer()) }); 
-	//mRaytracingShaderBindingTableHelper.AddHitGroup(L"ShadowHitGroup", { heapPointer/*, (void*)(mPlaneModel->Meshes()[0]->GetVertexBuffer())*/ });
-	//mRaytracingShaderBindingTableHelper.AddHitGroup(L"ShadowHitGroup", { heapPointer, (void*)(mDragonModel->Meshes()[0]->GetVertexBuffer()) });
 
-	// Compute the size of the SBT given the number of shaders and their
-	// parameters
+	UINT64 offset = 0;
+	const int numDescriptorsPerMesh = 8;
+	for (auto& model : mObjects) {
+		auto heap = reinterpret_cast<UINT64*>(heapHandle.ptr + offset);
+		mRaytracingShaderBindingTableHelper.AddHitGroup(L"HitGroup", { heap	});
+		offset += numDescriptorsPerMesh * device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	}
+
+	// Compute the size of the SBT given the number of shaders and theirparameters
 	uint32_t sbtSize = mRaytracingShaderBindingTableHelper.ComputeSBTSize();
 
 	D3D12_RESOURCE_DESC bufDesc = {};
@@ -3242,7 +3242,7 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 
 	//TODO add multimesh support
 
-	// Create a SRV/UAV/CBV descriptor heap. We need 5 + 3 * (num objects) entries
+	// Create a SRV/UAV/CBV descriptor heap.
 	// 1 - UAV for the RT output
 	// 1 - SRV for the TLAS
 	// 1 - SRV for normals
@@ -3252,53 +3252,58 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 	// 1 - SRV for mesh vertices
 	// 1 - CBV for mesh info
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-	desc.NumDescriptors = 5 + 3 * mObjects.size();
+	const int numDescriptorsPerMesh = 8;
+	desc.NumDescriptors = numDescriptorsPerMesh * mObjects.size();
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mRaytracingDescriptorHeap)));
 
-	// Get a handle to the heap memory on the CPU side, to be able to write the
-	// descriptors directly
-	D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = mRaytracingDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle = mRaytracingDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
-	// UAV
-	device->CopyDescriptorsSimple(1, srvHandle, mDXRReflectionsRT->GetUAV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-	// Add for TLAS SRV
-	srvHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.RaytracingAccelerationStructure.Location = mTLASBuffer->GetResource()->GetGPUVirtualAddress();
-	// Write the acceleration structure view in the heap
-	device->CreateShaderResourceView(nullptr, &srvDesc, srvHandle);
-
-	// Add for normals texture SRV
-	srvHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	device->CopyDescriptorsSimple(1, srvHandle, mGbufferRTs[1]->GetSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-	// Add for depth texture SRV
-	srvHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	device->CopyDescriptorsSimple(1, srvHandle, mDepthStencil->GetSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-	// Add for albedo texture SRV
-	srvHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	device->CopyDescriptorsSimple(1, srvHandle, mGbufferRTs[0]->GetSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
+	int i = 0;
+	//TODO remove first 5 descriptors to root constant views, keep only model/mesh specific
 	for (auto& model : mObjects)
 	{
+		// UAV
+		if (i > 0) 
+			cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, mDXRReflectionsRT->GetUAV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		// Add for TLAS SRV
+		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.RaytracingAccelerationStructure.Location = mTLASBuffer->GetResource()->GetGPUVirtualAddress();
+		// Write the acceleration structure view in the heap
+		device->CreateShaderResourceView(nullptr, &srvDesc, cpuDescriptorHandle);
+
+		// Add for normals texture SRV
+		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, mGbufferRTs[1]->GetSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		// Add for depth texture SRV
+		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, mDepthStencil->GetSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		// Add for albedo texture SRV
+		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, mGbufferRTs[0]->GetSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 		// Add for indices buffer SRV
-		srvHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		device->CopyDescriptorsSimple(1, srvHandle, model->Meshes()[0]->GetIndexBufferSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, model->Meshes()[0]->GetIndexBufferSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		// Add for vertex buffer SRV
-		srvHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		device->CopyDescriptorsSimple(1, srvHandle, model->Meshes()[0]->GetVertexBufferSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, model->Meshes()[0]->GetVertexBufferSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		// Add for mesh info buffer CBV
-		srvHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		device->CopyDescriptorsSimple(1, srvHandle, model->Meshes()[0]->GetMeshInfoBuffer()->GetCBV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, model->Meshes()[0]->GetMeshInfoBuffer()->GetCBV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		
+		i++;
 	}
 
 }
@@ -3332,6 +3337,13 @@ void DXRSExampleGIScene::RenderReflectionsDXR(ID3D12Device* device, ID3D12Graphi
 		commandListDXR->SetComputeRootSignature(mGlobalRaytracingRootSignature.Get());
 		commandListDXR->SetComputeRootConstantBufferView(0, mDXRBuffer->GetResource()->GetGPUVirtualAddress());
 		commandListDXR->SetComputeRootConstantBufferView(1, mLightsInfoCB->GetResource()->GetGPUVirtualAddress());
+
+		//TODO
+		//commandListDXR->SetComputeRootShaderResourceView(0, mTLASBuffer->GetResource()->GetGPUVirtualAddress());
+		//commandListDXR->SetComputeRootShaderResourceView(1, mGbufferRTs[1]->GetResource()->GetGPUVirtualAddress());
+		//commandListDXR->SetComputeRootShaderResourceView(2, mDepthStencil->GetResource()->GetGPUVirtualAddress());
+		//commandListDXR->SetComputeRootShaderResourceView(3, mGbufferRTs[0]->GetResource()->GetGPUVirtualAddress());
+		//commandListDXR->SetComputeRootUnorderedAccessView(0, mDXRReflectionsRT->GetResource()->GetGPUVirtualAddress());
 
 		mSandboxFramework->ResourceBarriersBegin(mBarriers);
 		mDXRReflectionsRT->TransitionTo(mBarriers, commandListDXR, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);

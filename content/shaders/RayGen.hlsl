@@ -25,7 +25,7 @@ RWTexture2D<float4> gOutput : register(u0);
 RaytracingAccelerationStructure SceneBVH : register(t0);
 
 Texture2D<float4> GBufferNormals : register(t1);
-Texture2D<float> GBufferDepth : register(t2);
+Texture2D<float4> GBufferDepth : register(t2);
 Texture2D<float4> GBufferAlbedo : register(t3);
 
 
@@ -44,17 +44,13 @@ void RayGen() {
     float2 readGBufferAt = xy;
 
     // Read depth and normal
-    float sceneDepth = GBufferDepth.Load(int3(readGBufferAt, 0));
-    float4 normalData = GBufferNormals.Load(int3(readGBufferAt, 0));
+    float sceneDepth = GBufferDepth.Load(int3(readGBufferAt, 0)).r;
+    float3 normalData = normalize(GBufferNormals.Load(int3(readGBufferAt, 0)).rgb);
     float reflectivity = GBufferAlbedo.Load(int3(readGBufferAt, 0)).w;
     if (reflectivity == 0.0)
         return;
     
     float3 normal = normalData.xyz;
-    
-    // Unproject into the world position using depth
-    //float4 unprojected = mul(camToWorld, float4(screenPos, sceneDepth, 1));
-    //float3 world = unprojected.xyz / unprojected.w;
     
     float3 world = ReconstructWorldPosFromDepth(screenPos, sceneDepth, InvProjectionMatrix, InvViewMatrix);
     float3 primaryRayDirection = normalize(CamPosition.rgb - world);
