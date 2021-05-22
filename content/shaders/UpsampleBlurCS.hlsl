@@ -2,7 +2,10 @@
 //
 // Modified version of https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/MiniEngine/Core/Shaders/UpsampleAndBlurCS.hlsl
 
-#define UPSAMPLE 1
+cbuffer UpsampleAndBlurCbuffer : register(b0)
+{
+    bool Upsample = true;
+};
 
 Texture2D<float4> Input : register(t0);
 RWTexture2D<float4> Output : register(u0);
@@ -108,18 +111,21 @@ void CSMain(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : 
     // Store 4 unblurred pixels in LDS
     int destIdx = GTid.x + (GTid.y << 4);
     
-#if UPSAMPLE
-    float2 uvUL = (float2(ThreadUL) + 0.5) * float2(1.0f / inputWidth, 1.0f / inputHeight);
-    float2 uvLR = uvUL + float2(1.0f / inputWidth, 1.0f / inputHeight);
-    float2 uvUR = float2(uvLR.x, uvUL.y);
-    float2 uvLL = float2(uvUL.x, uvLR.y);
+    if (Upsample)
+    {
+        float2 uvUL = (float2(ThreadUL) + 0.5) * float2(1.0f / inputWidth, 1.0f / inputHeight);
+        float2 uvLR = uvUL + float2(1.0f / inputWidth, 1.0f / inputHeight);
+        float2 uvUR = float2(uvLR.x, uvUL.y);
+        float2 uvLL = float2(uvUL.x, uvLR.y);
     
-    Store2Pixels(destIdx + 0, Input.SampleLevel(BilinearSampler, uvUL, 0.0f), Input.SampleLevel(BilinearSampler, uvUR, 0.0f));
-    Store2Pixels(destIdx + 8, Input.SampleLevel(BilinearSampler, uvLL, 0.0f), Input.SampleLevel(BilinearSampler, uvLR, 0.0f));
-#else
-    Store2Pixels(destIdx + 0, Input[ThreadUL + uint2(0, 0)], Input[ThreadUL + uint2(1, 0)]);
-    Store2Pixels(destIdx + 8, Input[ThreadUL + uint2(0, 1)], Input[ThreadUL + uint2(1, 1)]);
-#endif
+        Store2Pixels(destIdx + 0, Input.SampleLevel(BilinearSampler, uvUL, 0.0f), Input.SampleLevel(BilinearSampler, uvUR, 0.0f));
+        Store2Pixels(destIdx + 8, Input.SampleLevel(BilinearSampler, uvLL, 0.0f), Input.SampleLevel(BilinearSampler, uvLR, 0.0f));
+    }
+    else
+    {
+        Store2Pixels(destIdx + 0, Input[ThreadUL + uint2(0, 0)], Input[ThreadUL + uint2(1, 0)]);
+        Store2Pixels(destIdx + 8, Input[ThreadUL + uint2(0, 1)], Input[ThreadUL + uint2(1, 1)]);
+    }
     
     GroupMemoryBarrierWithGroupSync();
     

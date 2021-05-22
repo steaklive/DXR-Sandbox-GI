@@ -70,7 +70,6 @@ DXRSModel::~DXRSModel()
 	}
 
 	delete mBufferCB;
-	delete mBLASBuffer;
 }
 
 void DXRSModel::UpdateWorldMatrix(XMMATRIX matrix)

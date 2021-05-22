@@ -9,13 +9,36 @@ struct Vertex
 };
 
 //RaytracingAccelerationStructure SceneBVH : register(t0);
+RWTexture2D<float4> gOutput : register(u0);
 
 Texture2D<float4> GBufferNormals : register(t1);
+Texture2D<float4> GBufferWorldPos : register(t2);
 Texture2D<float4> GBufferAlbedo : register(t3);
 
 // Mesh info (naive approach, proper way is to combine all meshes from the scene with textures, etc)
 ByteAddressBuffer MeshIndices : register(t4, space0);
 StructuredBuffer<Vertex> MeshVertices : register(t5, space0);
+
+Texture2D<float4> ShadowTexture : register(t6);
+
+cbuffer DXRConstantBuffer : register(b0)
+{
+    float4x4 ViewMatrix;
+    float4x4 ProjectionMatrix;
+    float4x4 InvViewMatrix;
+    float4x4 InvProjectionMatrix;
+    float4x4 ShadowViewProjection;
+    float4 CamPosition;
+    float2 ScreenResolution;
+}
+
+cbuffer LightsConstantBuffer : register(b1)
+{
+    float4 LightDirection;
+    float4 LightColor;
+    float LightIntensity;
+    float3 pad1;
+};
 
 cbuffer MeshInfo : register(b2)
 {
@@ -25,6 +48,17 @@ cbuffer MeshInfo : register(b2)
 uint3 Load3x32BitIndices(ByteAddressBuffer buffer, uint offsetBytes)
 {
     return buffer.Load3(offsetBytes);
+}
+
+float CalculateShadow(float3 ShadowCoord)
+{
+    uint width = 0;
+    uint height = 0;
+    ShadowTexture.GetDimensions(width, height);
+    float v = ShadowTexture.Load(int3(ShadowCoord.xy * float2(width, height), 0)).r;
+    v = (v <= ShadowCoord.z) ? 0.0f : ShadowCoord.z; // cant use SampleCmpLevelZero
+    v *= 2.0f;
+    return v * v;
 }
 
 [shader("closesthit")]
@@ -42,7 +76,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     float3 triangleNormal = MeshVertices[indices[0]].normal;
     float4 normal = float4(triangleNormal, 1.0f);
     
-    //float3 worldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+    float4 worldPosition = float4(WorldRayOrigin() + WorldRayDirection() * RayTCurrent(), 1.0f);
 
     float reflectivity = GBufferAlbedo[DispatchRaysIndex().xy].w;
     if (reflectivity == 0.0) //skip the surface if its not reflective
@@ -59,33 +93,15 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     // however, sampling those textures will require extra work as we have to calculate UVs here as well...
     float3 albedoColor = MeshColor.rgb;
     
-    float3 outputColor = (lightIntensity * NdotL) * lightColor * albedoColor;
+    float4 lightSpacePos = mul(ShadowViewProjection, worldPosition);
+    float4 shadowcoord = lightSpacePos / lightSpacePos.w;
+    shadowcoord.rg = shadowcoord.rg * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
+    float shadow = CalculateShadow(shadowcoord.rgb);
+    
+    float3 outputColor = (lightIntensity * NdotL) * lightColor * albedoColor * shadow;
 
-    outputColor = gOutput[DispatchRaysIndex().xy].rgb + reflectivity * outputColor;
+    outputColor = gOutput[DispatchRaysIndex().xy] + reflectivity * outputColor;
     
     gOutput[DispatchRaysIndex().xy] = float4(outputColor, 1.0);
 
-}
-
-[shader("closesthit")]
-void ShadowClosestHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attributes)
-{
-    // Get the base index of the triangle's first 32 bit index.
-    uint indexSizeInBytes = 4;
-    uint indicesPerTriangle = 3;
-    uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
-    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
-
-    // Load up three 32 bit indices for the triangle.
-    const uint3 indices = Load3x32BitIndices(MeshIndices, baseIndex);
-    
-    float3 triangleNormal = MeshVertices[indices[0]].normal;
-    float4 normal = float4(triangleNormal, 1.0f);
-    float3 lightDir = LightDirection.xyz;
-    float NdotL = saturate(dot(normal.xyz, lightDir));
-    
-    float shadowFactor = 1.0f - ShadowIntensity;
-    
-    if (!payload.isHit && !NdotL)
-        gOutput[DispatchRaysIndex().xy] *= float4(shadowFactor, shadowFactor, shadowFactor, 1.0f);
 }

@@ -11,6 +11,9 @@
 #include "RootSignature.h"
 #include "PipelineStateObject.h"
 
+#include "RaytracingPipelineGenerator.h"
+#include "ShaderBindingTableGenerator.h"
+
 #define SHADOWMAP_SIZE 2048
 #define RSM_SIZE 2048
 #define RSM_SAMPLES_COUNT 512
@@ -62,6 +65,14 @@ private:
 	void RenderLighting(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderComposite(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderObject(U_PTR<DXRSModel>& aModel, std::function<void(U_PTR<DXRSModel>&)> aCallback);
+	void RenderReflectionsDXR(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
+
+	void InitReflectionsDXR(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void CreateRaytracingPSO();
+	void CreateRaytracingAccelerationStructures();
+	void CreateRaytracingShaders();
+	void CreateRaytracingShaderTable();
+	void CreateRaytracingResourceHeap();
 
 	void ThrowFailedErrorBlob(ID3DBlob* blob);
 
@@ -261,6 +272,8 @@ private:
 		int useRSM;
 		int useLPV;
 		int useVCT;
+		int useDXR;
+		float dxrReflectionsBlend;
 		int showOnlyAO;
 	};
 
@@ -295,18 +308,6 @@ private:
 		XMFLOAT4 LightDir;
 	};
 
-	// Camera
-	__declspec(align(16)) struct CameraBuffer
-	{
-		XMMATRIX view;
-		XMMATRIX projection;
-		XMMATRIX viewI;
-		XMMATRIX projectionI;
-		XMMATRIX camToWorld;
-		XMFLOAT4 camPosition;
-		XMFLOAT2 resolution;
-	};
-
 	XMFLOAT3 mCameraEye{ 0.0f, 0.0f, 0.0f };
 	XMMATRIX mCameraView;
 	XMMATRIX mCameraProjection;
@@ -339,6 +340,41 @@ private:
 	bool mVCTUseMainCompute = true;
 	bool mVCTMainRTUseUpsampleAndBlur = true;
 
+	// RT 
+	IDxcBlob* mRaygenBlob;
+	IDxcBlob* mClosestHitBlob;
+	IDxcBlob* mMissBlob;
+
+	RootSignature mRaygenRS;
+	RootSignature mClosestHitRS;
+	RootSignature mMissRS;
+
+	ComPtr<ID3D12DescriptorHeap>        mRaytracingDescriptorHeap;
+	ComPtr<ID3D12StateObject>           mRaytracingPSO;
+	ComPtr<ID3D12StateObjectProperties> mRaytracingPSOProperties;
+	ComPtr<ID3D12Resource>              mRaytracingShaderTableBuffer;
+	ShaderBindingTableGenerator         mRaytracingShaderBindingTableHelper;
+	ComPtr<ID3D12RootSignature>         mGlobalRaytracingRootSignature;
+	ComputePSO							mRaytracingBlurPSO;
+	RootSignature						mRaytracingBlurRS;
+	DXRSRenderTarget*					mDXRReflectionsRT;
+	DXRSRenderTarget*					mDXRReflectionsBlurredRT;
+	DXRSRenderTarget*					mDXRReflectionsBlurredRT_Copy;
+	DXRSBuffer*							mTLASBuffer; // top level acceleration structure of the scene
+	DXRSBuffer*							mDXRBuffer;
+
+	// DXR
+	__declspec(align(16)) struct DXRBuffer
+	{
+		XMMATRIX ViewMatrix;
+		XMMATRIX ProjectionMatrix;
+		XMMATRIX InvViewMatrix;
+		XMMATRIX InvProjectionMatrix;
+		XMMATRIX ShadowViewProjection;
+		XMFLOAT4 CamPos;
+		XMFLOAT2 ScreenResolution;
+	};
+
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRW;
 	D3D12_DEPTH_STENCIL_DESC mDepthStateRead;
 	D3D12_DEPTH_STENCIL_DESC mDepthStateDisabled;
@@ -351,6 +387,11 @@ private:
 	bool mUseDynamicObjects = false;
 
 	bool mUseAsyncCompute = true;
+
+	bool mUseDXRReflections = false;
+	bool mDXRBlurReflections = true;
+	int mDXRBlurPasses = 1;
+	float mDXRReflectionsBlend = 0.8f;
 
 	float mFOV = 60.0f;
 	bool mLockCamera = false;
@@ -365,5 +406,12 @@ private:
 		XMMatrixRotationX(-XMConvertToRadians(20.0f))* XMMatrixRotationY(-XMConvertToRadians(40.0f)),
 		XMMatrixRotationX(-XMConvertToRadians(10.0f)) * XMMatrixRotationY(-XMConvertToRadians(30.0f)),
 		XMMatrixIdentity()
+	};
+
+	DXRSBuffer* mGIUpsampleAndBlurBuffer;
+	DXRSBuffer* mDXRBlurBuffer;
+	__declspec(align(16)) struct UpsampleAndBlurBuffer
+	{
+		bool Upsample;
 	};
 };
