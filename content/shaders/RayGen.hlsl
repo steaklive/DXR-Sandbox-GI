@@ -6,6 +6,7 @@ cbuffer DXRConstantBuffer : register(b0)
     float4x4 ProjectionMatrix;
     float4x4 InvViewMatrix;
     float4x4 InvProjectionMatrix;
+    float4x4 ShadowViewProjection;
     float4 CamPosition;
     float2 ScreenResolution;
 }

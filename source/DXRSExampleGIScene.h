@@ -364,6 +364,7 @@ private:
 		XMMATRIX ProjectionMatrix;
 		XMMATRIX InvViewMatrix;
 		XMMATRIX InvProjectionMatrix;
+		XMMATRIX ShadowViewProjection;
 		XMFLOAT4 CamPos;
 		XMFLOAT2 ScreenResolution;
 	};

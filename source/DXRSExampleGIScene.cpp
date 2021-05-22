@@ -621,6 +621,7 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	dxrData.ProjectionMatrix = mCameraProjection;
 	dxrData.InvViewMatrix = XMMatrixInverse(nullptr, mCameraView);
 	dxrData.InvProjectionMatrix = XMMatrixInverse(nullptr, mCameraProjection);
+	dxrData.ShadowViewProjection = mLightViewProjection;
 	dxrData.CamPos = XMFLOAT4(mCameraEye.x, mCameraEye.y, mCameraEye.z, 1.0f);
 	dxrData.ScreenResolution = XMFLOAT2(width, height);
 	memcpy(mDXRBuffer->Map(), &dxrData, sizeof(dxrData));
@@ -2949,6 +2950,7 @@ void DXRSExampleGIScene::CreateRaytracingPSO()
 	CD3DX12_ROOT_PARAMETER1 globalRootSignatureParameters[2];
 	globalRootSignatureParameters[0].InitAsConstantBufferView(0); // dxr buffer
 	globalRootSignatureParameters[1].InitAsConstantBufferView(1); // light buffer
+	//globalRootSignatureParameters[2].InitAsShaderResourceView(6); // shadow map
 	auto globalRootSignatureDesc = CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC(ARRAYSIZE(globalRootSignatureParameters), globalRootSignatureParameters);
 
 	ComPtr<ID3DBlob> pGlobalRootSignatureBlob;
@@ -3171,7 +3173,7 @@ void DXRSExampleGIScene::CreateRaytracingShaders()
 		mClosestHitRS.Reset(1, 0);
 		mClosestHitRS[0].InitAsDescriptorTable(3);
 		mClosestHitRS[0].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, 0);
-		mClosestHitRS[0].SetTableRange(1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, 0);
+		mClosestHitRS[0].SetTableRange(1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 7, 0);
 		mClosestHitRS[0].SetTableRange(2, D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1, 0);
 
 		mClosestHitRS.Finalize(device, L"Closest Hit RS", rootSignatureFlags);
@@ -3207,7 +3209,7 @@ void DXRSExampleGIScene::CreateRaytracingShaderTable()
 	mRaytracingShaderBindingTableHelper.AddMissProgram(L"Miss", { heapPointer });
 
 	UINT64 offset = 0;
-	const int numDescriptorsPerMesh = 8;
+	const int numDescriptorsPerMesh = 9;
 	for (auto& model : mObjects) {
 		auto heap = reinterpret_cast<UINT64*>(heapHandle.ptr + offset);
 		mRaytracingShaderBindingTableHelper.AddHitGroup(L"HitGroup", { heap	});
@@ -3250,9 +3252,10 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 	// 1 - SRV for albedo
 	// 1 - SRV for mesh indices
 	// 1 - SRV for mesh vertices
+	// 1 - SRV for shadow
 	// 1 - CBV for mesh info
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-	const int numDescriptorsPerMesh = 8;
+	const int numDescriptorsPerMesh = 9;
 	desc.NumDescriptors = numDescriptorsPerMesh * mObjects.size();
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -3299,6 +3302,10 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, model->Meshes()[0]->GetVertexBufferSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+		// Add for depth texture SRV
+		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, mShadowDepth->GetSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 		// Add for mesh info buffer CBV
 		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, model->Meshes()[0]->GetMeshInfoBuffer()->GetCBV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -3344,6 +3351,7 @@ void DXRSExampleGIScene::RenderReflectionsDXR(ID3D12Device* device, ID3D12Graphi
 		//commandListDXR->SetComputeRootShaderResourceView(2, mDepthStencil->GetResource()->GetGPUVirtualAddress());
 		//commandListDXR->SetComputeRootShaderResourceView(3, mGbufferRTs[0]->GetResource()->GetGPUVirtualAddress());
 		//commandListDXR->SetComputeRootUnorderedAccessView(0, mDXRReflectionsRT->GetResource()->GetGPUVirtualAddress());
+		//commandListDXR->SetComputeRootShaderResourceView(6, mShadowDepth->GetResource()->GetGPUVirtualAddress());
 
 		mSandboxFramework->ResourceBarriersBegin(mBarriers);
 		mDXRReflectionsRT->TransitionTo(mBarriers, commandListDXR, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);

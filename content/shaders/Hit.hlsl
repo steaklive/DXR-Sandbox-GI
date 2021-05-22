@@ -19,12 +19,15 @@ Texture2D<float4> GBufferAlbedo : register(t3);
 ByteAddressBuffer MeshIndices : register(t4, space0);
 StructuredBuffer<Vertex> MeshVertices : register(t5, space0);
 
+Texture2D<float4> ShadowTexture : register(t6);
+
 cbuffer DXRConstantBuffer : register(b0)
 {
     float4x4 ViewMatrix;
     float4x4 ProjectionMatrix;
     float4x4 InvViewMatrix;
     float4x4 InvProjectionMatrix;
+    float4x4 ShadowViewProjection;
     float4 CamPosition;
     float2 ScreenResolution;
 }
@@ -47,6 +50,17 @@ uint3 Load3x32BitIndices(ByteAddressBuffer buffer, uint offsetBytes)
     return buffer.Load3(offsetBytes);
 }
 
+float CalculateShadow(float3 ShadowCoord)
+{
+    uint width = 0;
+    uint height = 0;
+    ShadowTexture.GetDimensions(width, height);
+    float v = ShadowTexture.Load(int3(ShadowCoord.xy * float2(width, height), 0)).r;
+    v = (v <= ShadowCoord.z) ? 0.0f : ShadowCoord.z; // cant use SampleCmpLevelZero
+    v *= 2.0f;
+    return v * v;
+}
+
 [shader("closesthit")]
 void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attributes)
 {
@@ -62,7 +76,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     float3 triangleNormal = MeshVertices[indices[0]].normal;
     float4 normal = float4(triangleNormal, 1.0f);
     
-    //float3 worldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+    float4 worldPosition = float4(WorldRayOrigin() + WorldRayDirection() * RayTCurrent(), 1.0f);
 
     float reflectivity = GBufferAlbedo[DispatchRaysIndex().xy].w;
     if (reflectivity == 0.0) //skip the surface if its not reflective
@@ -79,7 +93,12 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     // however, sampling those textures will require extra work as we have to calculate UVs here as well...
     float3 albedoColor = MeshColor.rgb;
     
-    float3 outputColor = (lightIntensity * NdotL) * lightColor * albedoColor;
+    float4 lightSpacePos = mul(ShadowViewProjection, worldPosition);
+    float4 shadowcoord = lightSpacePos / lightSpacePos.w;
+    shadowcoord.rg = shadowcoord.rg * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
+    float shadow = CalculateShadow(shadowcoord.rgb);
+    
+    float3 outputColor = (lightIntensity * NdotL) * lightColor * albedoColor * shadow;
 
     outputColor = gOutput[DispatchRaysIndex().xy] + reflectivity * outputColor;
     
