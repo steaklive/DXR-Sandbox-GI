@@ -12,6 +12,7 @@ Simple C++/DX12 framework for my bachelor thesis on real-time global illuminatio
 - GI w/ Light Propagation Volume (indirect diffuse)
 - GI w/ Voxel Cone Tracing (indirect diffuse + specular + AO)
 - Asynchronous compute
+- DXR Reflections + Blur
 
 # Optimizations
 Reflective Shadow Mapping:
