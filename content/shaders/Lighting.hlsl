@@ -206,6 +206,12 @@ PSOutput PSMain(PSInput input)
     float4 albedo = albedoBuffer[inPos];
     float4 worldPos = worldPosBuffer[inPos];
     
+    if (!any(albedo))
+    {
+        output.diffuse = float4(0.9f, 0.9f, 0.9f, 1.0f);
+        return output;
+    }
+    
     float3 indirectLighting = float3(0.0f, 0.0f, 0.0f);
     float3 directLighting = float3(0.0f, 0.0f, 0.0f);
     
@@ -283,7 +289,7 @@ PSOutput PSMain(PSInput input)
         directLighting = max(direct, 0.0f) * NdotL * lightIntensity * lightColor;
     }
     
-    output.diffuse.rgb = ao * indirectLighting + (directLighting + (useDXR ? lerp(reflectionsDXR, directLighting * albedo.a, dxrReflectionsBlend) : 0.0f)) * shadow;
+    output.diffuse.rgb = ao * indirectLighting + (directLighting + (useDXR ? lerp(reflectionsDXR, directLighting * albedo.a, dxrReflectionsBlend) : 0.0f)) * shadow;;
 
     if (showOnlyAO)
         output.diffuse.rgb = float3(ao, ao, ao);
