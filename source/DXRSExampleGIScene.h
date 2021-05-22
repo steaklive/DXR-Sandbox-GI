@@ -65,7 +65,7 @@ private:
 	void RenderLighting(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderComposite(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderObject(U_PTR<DXRSModel>& aModel, std::function<void(U_PTR<DXRSModel>&)> aCallback);
-	void RenderReflectionsDXR(ID3D12Device* device, ID3D12GraphicsCommandList* commandList);
+	void RenderReflectionsDXR(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 
 	void InitReflectionsDXR(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
 	void CreateRaytracingPSO();
@@ -272,6 +272,8 @@ private:
 		int useRSM;
 		int useLPV;
 		int useVCT;
+		int useDXR;
+		float dxrReflectionsBlend;
 		int showOnlyAO;
 	};
 
@@ -353,7 +355,11 @@ private:
 	ComPtr<ID3D12Resource>              mRaytracingShaderTableBuffer;
 	ShaderBindingTableGenerator         mRaytracingShaderBindingTableHelper;
 	ComPtr<ID3D12RootSignature>         mGlobalRaytracingRootSignature;
+	ComputePSO							mRaytracingBlurPSO;
+	RootSignature						mRaytracingBlurRS;
 	DXRSRenderTarget*					mDXRReflectionsRT;
+	DXRSRenderTarget*					mDXRReflectionsBlurredRT;
+	DXRSRenderTarget*					mDXRReflectionsBlurredRT_Copy;
 	DXRSBuffer*							mTLASBuffer; // top level acceleration structure of the scene
 	DXRSBuffer*							mDXRBuffer;
 
@@ -383,6 +389,9 @@ private:
 	bool mUseAsyncCompute = true;
 
 	bool mUseDXRReflections = false;
+	bool mDXRBlurReflections = true;
+	int mDXRBlurPasses = 1;
+	float mDXRReflectionsBlend = 0.8f;
 
 	float mFOV = 60.0f;
 	bool mLockCamera = false;
@@ -397,5 +406,12 @@ private:
 		XMMatrixRotationX(-XMConvertToRadians(20.0f))* XMMatrixRotationY(-XMConvertToRadians(40.0f)),
 		XMMatrixRotationX(-XMConvertToRadians(10.0f)) * XMMatrixRotationY(-XMConvertToRadians(30.0f)),
 		XMMatrixIdentity()
+	};
+
+	DXRSBuffer* mGIUpsampleAndBlurBuffer;
+	DXRSBuffer* mDXRBlurBuffer;
+	__declspec(align(16)) struct UpsampleAndBlurBuffer
+	{
+		bool Upsample;
 	};
 };

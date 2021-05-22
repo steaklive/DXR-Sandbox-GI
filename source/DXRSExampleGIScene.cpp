@@ -47,7 +47,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\dragon.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(1.5f, 0.0f, -7.0f), XMFLOAT4(0.044f, 0.627f, 0, 0.0)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\bunny.fbx"), true, XMMatrixIdentity() * XMMatrixRotationY(-0.3752457f) * XMMatrixTranslation(21.0f, 13.9f, -19.0f), XMFLOAT4(0.8f, 0.71f, 0, 0.0)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\torus.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixRotationX(1.099557f) * XMMatrixTranslation(21.0f, 4.0f, -9.6f), XMFLOAT4(0.329f, 0.26f, 0.8f, 0.8f)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_big.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-17.25f, -1.15f, -24.15f), XMFLOAT4(0.692f, 0.215f, 0.0f, 0.8f)));
+	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_big.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-17.25f, -1.15f, -24.15f), XMFLOAT4(0.692f, 0.215f, 0.0f, 0.6f)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_medium.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-21.0f, -0.95f, -13.20f), XMFLOAT4(0.005, 0.8, 0.426, 0.7f)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_small.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-11.25f, -0.45f, -16.20f), XMFLOAT4(0.01, 0.0, 0.8, 0.75f)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\block.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixTranslation(3.0f, 8.0f, -30.0f), XMFLOAT4(0.9, 0.15, 1.0, 0.0)));
@@ -208,6 +208,20 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	auto descriptorHeapManager = mSandboxFramework->GetDescriptorHeapManager();
 	mMainDescriptorHeap = descriptorHeapManager->GetGPUHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	mMainDescriptorHeap->Reset();
+
+	//create upsample & blur buffer
+	DXRSBuffer::Description cbDesc;
+	cbDesc.mElementSize = sizeof(UpsampleAndBlurBuffer);
+	cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+	cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+	mGIUpsampleAndBlurBuffer = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"GI Upsample & Blur CB");
+	mDXRBlurBuffer = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"DXR Blur CB");
+	
+	UpsampleAndBlurBuffer ubData = {};
+	ubData.Upsample = true;
+	memcpy(mGIUpsampleAndBlurBuffer->Map(), &ubData, sizeof(ubData));
+	ubData.Upsample = false;
+	memcpy(mDXRBlurBuffer->Map(), &ubData, sizeof(ubData));
 
 	InitGbuffer(device, descriptorManager);
 	InitShadowMapping(device, descriptorManager);
@@ -409,10 +423,11 @@ void DXRSExampleGIScene::RenderAsync()
 		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListGraphics);
 
 		if (mUseDXRReflections) {
-			RenderReflectionsDXR(device, commandListGraphics);
-			commandListGraphics->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+			RenderReflectionsDXR(device, commandListGraphics, gpuDescriptorHeap);
+
 			mSandboxFramework->ResourceBarriersBegin(mBarriers);
 			mDXRReflectionsRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			mDXRReflectionsBlurredRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListGraphics);
 		}
 
@@ -492,6 +507,15 @@ void DXRSExampleGIScene::RenderSync()
 	RenderReflectiveShadowMapping(device, commandListGraphics, gpuDescriptorHeap);
 	RenderLightPropagationVolume(device, commandListGraphics, gpuDescriptorHeap);
 	RenderVoxelConeTracing(device, commandListGraphics, gpuDescriptorHeap);
+	if (mUseDXRReflections) {
+		RenderReflectionsDXR(device, commandListGraphics, gpuDescriptorHeap);
+
+		mSandboxFramework->ResourceBarriersBegin(mBarriers);
+		mDXRReflectionsRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		mDXRReflectionsBlurredRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListGraphics);
+	}
+
 	RenderLighting(device, commandListGraphics, gpuDescriptorHeap);
 	RenderComposite(device, commandListGraphics, gpuDescriptorHeap);
 
@@ -575,6 +599,8 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	illumData.useRSM = mUseRSM ? 1 : 0;
 	illumData.useLPV = mUseLPV ? 1 : 0;
 	illumData.useVCT = mUseVCT ? 1 : 0;
+	illumData.useDXR = mUseDXRReflections ? 1 : 0;
+	illumData.dxrReflectionsBlend = mDXRReflectionsBlend;
 	illumData.showOnlyAO = mShowOnlyAO ? 1 : 0;
 	memcpy(mIlluminationFlagsCB->Map(), &illumData, sizeof(illumData));
 
@@ -671,12 +697,13 @@ void DXRSExampleGIScene::UpdateImGui()
 
 		ImGui::Checkbox("Use Direct Light", &mUseDirectLight);
 		ImGui::Checkbox("Use Direct Shadows", &mUseShadows);
-		ImGui::Checkbox("Use RSM (Indirect Light)", &mUseRSM);
-		ImGui::Checkbox("Use LPV (Indirect Light)", &mUseLPV);
-		ImGui::Checkbox("Use VCT (Indirect Light)", &mUseVCT);
+		ImGui::Checkbox("Use Reflective Shadow Mapping", &mUseRSM);
+		ImGui::Checkbox("Use Light Propagation Volume", &mUseLPV);
+		ImGui::Checkbox("Use Voxel Cone Tracing", &mUseVCT);
 		ImGui::Checkbox("Show AO", &mShowOnlyAO);
 
 		ImGui::Separator();
+		
 		if (ImGui::CollapsingHeader("Global Illumination Config"))
 		{
 			if (ImGui::CollapsingHeader("Reflective Shadow Mapping")) {
@@ -724,10 +751,22 @@ void DXRSExampleGIScene::UpdateImGui()
 				ImGui::Checkbox("Render voxels for debug", &mVCTRenderDebug);
 			}
 		}
+		
 		ImGui::Separator();
+		
+		if (ImGui::CollapsingHeader("Extras")) {
+			ImGui::Checkbox("DX12 Asynchronous Compute", &mUseAsyncCompute);
+			ImGui::Checkbox("DXR Reflections", &mUseDXRReflections);
+			if (mUseDXRReflections)
+			{
+				ImGui::SameLine();
+				ImGui::Checkbox("Blur", &mDXRBlurReflections);
+				if (mDXRBlurReflections)
+					ImGui::SliderInt("Blur steps", &mDXRBlurPasses, 1, 100);
 
-		ImGui::Checkbox("DX12 Asynchronous Compute", &mUseAsyncCompute);
-		ImGui::Checkbox("DXR Reflections", &mUseDXRReflections);
+				ImGui::SliderFloat("Blend", &mDXRReflectionsBlend, 0.0f, 1.0f);
+			}
+		}
 
 		ImGui::End();
 	}
@@ -1244,10 +1283,11 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-		mRSMUpsampleAndBlurRS.Reset(2, 1);
+		mRSMUpsampleAndBlurRS.Reset(3, 1);
 		mRSMUpsampleAndBlurRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
 		mRSMUpsampleAndBlurRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mRSMUpsampleAndBlurRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mRSMUpsampleAndBlurRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mRSMUpsampleAndBlurRS.Finalize(device, L"RSM Main RT Upsample & Blur pass RS", rootSignatureFlags);
 
 		ComPtr<ID3DBlob> computeShader;
@@ -1628,8 +1668,12 @@ void DXRSExampleGIScene::RenderReflectiveShadowMapping(ID3D12Device* device, ID3
 				DXRS::DescriptorHandle uavHandleBlurRSM = gpuDescriptorHeap->GetHandleBlock(1);
 				gpuDescriptorHeap->AddToHandle(device, uavHandleBlurRSM, mRSMUpsampleAndBlurRT->GetUAV());
 
+				DXRS::DescriptorHandle cbvHandleBlurRSM = gpuDescriptorHeap->GetHandleBlock(1);
+				gpuDescriptorHeap->AddToHandle(device, cbvHandleBlurRSM, mGIUpsampleAndBlurBuffer->GetCBV());
+
 				commandList->SetComputeRootDescriptorTable(0, srvHandleBlurRSM.GetGPUHandle());
 				commandList->SetComputeRootDescriptorTable(1, uavHandleBlurRSM.GetGPUHandle());
+				commandList->SetComputeRootDescriptorTable(2, cbvHandleBlurRSM.GetGPUHandle());
 
 				commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mRSMUpsampleAndBlurRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mRSMUpsampleAndBlurRT->GetHeight()), 8u), 1u);
 			}
@@ -2329,10 +2373,11 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-		mVCTMainUpsampleAndBlurRS.Reset(2, 1);
+		mVCTMainUpsampleAndBlurRS.Reset(3, 1);
 		mVCTMainUpsampleAndBlurRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
 		mVCTMainUpsampleAndBlurRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mVCTMainUpsampleAndBlurRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mVCTMainUpsampleAndBlurRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mVCTMainUpsampleAndBlurRS.Finalize(device, L"VCT Main RT Upsample & Blur pass RS", rootSignatureFlags);
 
 		ComPtr<ID3DBlob> computeShader;
@@ -2690,8 +2735,12 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 				DXRS::DescriptorHandle uavHandleBlur = gpuDescriptorHeap->GetHandleBlock(1);
 				gpuDescriptorHeap->AddToHandle(device, uavHandleBlur, mVCTMainUpsampleAndBlurRT->GetUAV());
 
+				DXRS::DescriptorHandle cbvHandleBlur = gpuDescriptorHeap->GetHandleBlock(1);
+				gpuDescriptorHeap->AddToHandle(device, cbvHandleBlur, mGIUpsampleAndBlurBuffer->GetCBV());
+
 				commandList->SetComputeRootDescriptorTable(0, srvHandleBlur.GetGPUHandle());
 				commandList->SetComputeRootDescriptorTable(1, uavHandleBlur.GetGPUHandle());
+				commandList->SetComputeRootDescriptorTable(2, cbvHandleBlur.GetGPUHandle());
 
 				commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mVCTMainUpsampleAndBlurRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mVCTMainUpsampleAndBlurRT->GetHeight()), 8u), 1u);
 			}
@@ -2860,7 +2909,7 @@ void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsComm
 		else
 			gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mVCTMainRT->GetSRV());
 		
-		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mDXRReflectionsRT->GetSRV());
+		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, (mDXRBlurReflections) ? mDXRReflectionsBlurredRT->GetSRV() : mDXRReflectionsRT->GetSRV());
 
 		commandList->SetGraphicsRootDescriptorTable(0, cbvHandleLighting.GetGPUHandle());
 		commandList->SetGraphicsRootDescriptorTable(1, srvHandleLighting.GetGPUHandle());
@@ -3328,8 +3377,50 @@ void DXRSExampleGIScene::InitReflectionsDXR(ID3D12Device* device, DXRS::Descript
 
 	CreateRaytracingResourceHeap();
 	CreateRaytracingShaderTable();
+
+	//blur
+	{
+		//RTs
+		mDXRReflectionsBlurredRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Reflections Blurred RT");
+		mDXRReflectionsBlurredRT_Copy = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Reflections Blurred RT C");
+
+		//create root signature
+		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+		mRaytracingBlurRS.Reset(3, 1);
+		mRaytracingBlurRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
+		mRaytracingBlurRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mRaytracingBlurRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mRaytracingBlurRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mRaytracingBlurRS.Finalize(device, L"DXR Raytracing Reflections blur pass RS", rootSignatureFlags);
+
+		ComPtr<ID3DBlob> computeShader;
+
+#if defined(_DEBUG)
+		// Enable better shader debugging with the graphics debugging tools.
+		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+		UINT compileFlags = 0;
+#endif
+		ID3DBlob* errorBlob = nullptr;
+
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\UpsampleBlurCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
+		if (errorBlob)
+		{
+			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+			errorBlob->Release();
+		}
+
+		mRaytracingBlurPSO.SetRootSignature(mRaytracingBlurRS);
+		mRaytracingBlurPSO.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
+		mRaytracingBlurPSO.Finalize(device);
+	}
 }
-void DXRSExampleGIScene::RenderReflectionsDXR(ID3D12Device* device, ID3D12GraphicsCommandList* commandList)
+void DXRSExampleGIScene::RenderReflectionsDXR(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
 	if (mSandboxFramework->GetDeviceFeatureLevel() < D3D_FEATURE_LEVEL_12_1)
 		return;
@@ -3395,4 +3486,51 @@ void DXRSExampleGIScene::RenderReflectionsDXR(ID3D12Device* device, ID3D12Graphi
 		//commandListDXR->ResourceBarrier(1, &transitionDepthBack);
 	}
 	PIXEndEvent(commandList);
+
+	ID3D12DescriptorHeap* ppHeaps[] = { gpuDescriptorHeap->GetHeap() };
+	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+	// upsample and blur
+	if (mDXRBlurReflections) {
+		PIXBeginEvent(commandList, 0, "DXR reflections blur CS");
+		for (int i = 0; i < mDXRBlurPasses; i++)
+		{
+			if (i > 0) {
+				mSandboxFramework->ResourceBarriersBegin(mBarriers);
+				mDXRReflectionsBlurredRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+				mDXRReflectionsBlurredRT_Copy->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_COPY_DEST);
+				mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+				commandList->CopyResource(mDXRReflectionsBlurredRT_Copy->GetResource(), mDXRReflectionsBlurredRT->GetResource());
+
+				mSandboxFramework->ResourceBarriersBegin(mBarriers);
+				mDXRReflectionsBlurredRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				mDXRReflectionsBlurredRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+			}
+
+			commandList->SetPipelineState(mRaytracingBlurPSO.GetPipelineStateObject());
+			commandList->SetComputeRootSignature(mRaytracingBlurRS.GetSignature());
+
+			mSandboxFramework->ResourceBarriersBegin(mBarriers);
+			mDXRReflectionsBlurredRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+			DXRS::DescriptorHandle srvHandleBlur = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, srvHandleBlur, (i == 0) ? mDXRReflectionsRT->GetSRV() : mDXRReflectionsBlurredRT_Copy->GetSRV());
+
+			DXRS::DescriptorHandle uavHandleBlur = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, uavHandleBlur, mDXRReflectionsBlurredRT->GetUAV());
+
+			DXRS::DescriptorHandle cbvHandleBlur = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, cbvHandleBlur, mDXRBlurBuffer->GetCBV());
+
+			commandList->SetComputeRootDescriptorTable(0, srvHandleBlur.GetGPUHandle());
+			commandList->SetComputeRootDescriptorTable(1, uavHandleBlur.GetGPUHandle());
+			commandList->SetComputeRootDescriptorTable(2, cbvHandleBlur.GetGPUHandle());
+
+			commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mDXRReflectionsBlurredRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mDXRReflectionsBlurredRT->GetHeight()), 8u), 1u);
+		}
+		PIXEndEvent(commandList);
+	}
 }

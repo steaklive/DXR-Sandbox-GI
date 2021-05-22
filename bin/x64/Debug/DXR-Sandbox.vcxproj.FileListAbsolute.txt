@@ -1,2 +1,4 @@
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-Sandbox\bin\x64\Debug\DXR-Sandbox.exe
 C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-Sandbox\bin\x64\Debug\DXR-Sandbox.pdb
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\WinPixEventRuntime.dll
+C:\Users\Zhenya\Documents\GraphicsProgramming\DXR-SandboxGI\bin\x64\Debug\DXR-Sandbox-GI.exe

@@ -38,6 +38,8 @@ cbuffer IlluminationFlagsBuffer : register(b3)
     int useRSM;
     int useLPV;
     int useVCT;
+    int useDXR;
+    float dxrReflectionsBlend;
     int showOnlyAO;
 }
 
@@ -281,7 +283,7 @@ PSOutput PSMain(PSInput input)
         directLighting = max(direct, 0.0f) * NdotL * lightIntensity * lightColor;
     }
     
-    output.diffuse.rgb = ao * indirectLighting + (directLighting + lerp(reflectionsDXR, directLighting, 0.9f)) * shadow;
+    output.diffuse.rgb = ao * indirectLighting + (directLighting + (useDXR ? lerp(reflectionsDXR, directLighting * albedo.a, dxrReflectionsBlend) : 0.0f)) * shadow;
 
     if (showOnlyAO)
         output.diffuse.rgb = float3(ao, ao, ao);
