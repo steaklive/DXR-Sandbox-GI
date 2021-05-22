@@ -3288,7 +3288,7 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 
 		// Add for depth texture SRV
 		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, mDepthStencil->GetSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, mGbufferRTs[2]->GetSRV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		// Add for albedo texture SRV
 		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);

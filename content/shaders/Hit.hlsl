@@ -12,7 +12,7 @@ struct Vertex
 RWTexture2D<float4> gOutput : register(u0);
 
 Texture2D<float4> GBufferNormals : register(t1);
-Texture2D<float4> GbufferDepth : register(t2);
+Texture2D<float4> GBufferWorldPos : register(t2);
 Texture2D<float4> GBufferAlbedo : register(t3);
 
 // Mesh info (naive approach, proper way is to combine all meshes from the scene with textures, etc)

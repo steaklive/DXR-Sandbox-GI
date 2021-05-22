@@ -26,7 +26,7 @@ RWTexture2D<float4> gOutput : register(u0);
 RaytracingAccelerationStructure SceneBVH : register(t0);
 
 Texture2D<float4> GBufferNormals : register(t1);
-Texture2D<float4> GBufferDepth : register(t2);
+Texture2D<float4> GBufferWorldPos : register(t2);
 Texture2D<float4> GBufferAlbedo : register(t3);
 
 
@@ -42,22 +42,18 @@ void RayGen() {
     // Invert Y for DirectX-style coordinates
     screenPos.y = -screenPos.y;
 
-    float2 readGBufferAt = xy;
-
     // Read depth and normal
-    float sceneDepth = GBufferDepth.Load(int3(readGBufferAt, 0)).r;
-    float3 normalData = normalize(GBufferNormals.Load(int3(readGBufferAt, 0)).rgb);
-    float reflectivity = GBufferAlbedo.Load(int3(readGBufferAt, 0)).w;
+    float3 normalData = normalize(GBufferNormals.Load(int3(xy, 0)).rgb);
+    float reflectivity = GBufferAlbedo.Load(int3(xy, 0)).w;
+    
     if (reflectivity == 0.0)
         return;
-    
-    float3 normal = normalData.xyz;
-    
-    float3 world = ReconstructWorldPosFromDepth(screenPos, sceneDepth, InvProjectionMatrix, InvViewMatrix);
-    float3 primaryRayDirection = normalize(CamPosition.rgb - world);
+       
+    float3 world = GBufferWorldPos.Load(int3(xy, 0)).rgb;
+    float3 primaryRayDirection = normalize(world - CamPosition.rgb);
     
     // R
-    float3 direction = normalize(-primaryRayDirection - 2 * dot(-primaryRayDirection, normal) * normal);
+    float3 direction = normalize(reflect(primaryRayDirection, normalData.xyz));
     float3 origin = world - primaryRayDirection * 0.1f; // Lift off the surface a bit
 
     RayDesc rayDesc =
