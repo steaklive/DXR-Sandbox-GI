@@ -38,6 +38,7 @@ cbuffer IlluminationFlagsBuffer : register(b3)
     int useRSM;
     int useLPV;
     int useVCT;
+    int useVCTDebug;
     int useDXR;
     float dxrReflectionsBlend;
     int showOnlyAO;
@@ -258,7 +259,8 @@ PSOutput PSMain(PSInput input)
         float4 vct = vctBuffer.Sample(BilinearSampler, inPos * float2(1.0f / gWidth, 1.0f / gHeight));
         
         indirectLighting += vct.rgb;
-        ao = 1.0f - vct.a;
+        if (!useVCTDebug)
+            ao = 1.0f - vct.a;
     }  
     
     float shadow = 1.0f;

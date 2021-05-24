@@ -599,6 +599,7 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	illumData.useRSM = mUseRSM ? 1 : 0;
 	illumData.useLPV = mUseLPV ? 1 : 0;
 	illumData.useVCT = mUseVCT ? 1 : 0;
+	illumData.useVCTDebug = mVCTRenderDebug ? 1 : 0;
 	illumData.useDXR = mUseDXRReflections ? 1 : 0;
 	illumData.dxrReflectionsBlend = mDXRReflectionsBlend;
 	illumData.showOnlyAO = mShowOnlyAO ? 1 : 0;
@@ -3375,8 +3376,11 @@ void DXRSExampleGIScene::InitReflectionsDXR(ID3D12Device* device, DXRS::Descript
 
 	mDXRBuffer = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"DXR Info CB");
 
-	CreateRaytracingResourceHeap();
-	CreateRaytracingShaderTable();
+	if (mSandboxFramework->GetDeviceFeatureLevel() >= D3D_FEATURE_LEVEL_12_1)
+	{
+		CreateRaytracingResourceHeap();
+		CreateRaytracingShaderTable();
+	}
 
 	//blur
 	{

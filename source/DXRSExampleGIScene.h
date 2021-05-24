@@ -272,6 +272,7 @@ private:
 		int useRSM;
 		int useLPV;
 		int useVCT;
+		int useVCTDebug;
 		int useDXR;
 		float dxrReflectionsBlend;
 		int showOnlyAO;
@@ -331,7 +332,7 @@ private:
 	bool mVCTRenderDebug = false;
 	float mWorldVoxelScale = VCT_SCENE_VOLUME_SIZE * 0.5f;
 	float mVCTIndirectDiffuseStrength = 1.0f;
-	float mVCTIndirectSpecularStrength = 1.0f;
+	float mVCTIndirectSpecularStrength = 1.0f; 
 	float mVCTMaxConeTraceDistance = 100.0f;
 	float mVCTAoFalloff = 0.03f;
 	float mVCTSamplingFactor = 0.5f;
