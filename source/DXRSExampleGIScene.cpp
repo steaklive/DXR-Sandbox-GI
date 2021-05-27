@@ -1069,16 +1069,15 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 {
 	//generation
 	{
-		DXGI_FORMAT rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-		mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"RSM World Pos"));
-		mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"RSM Normals"));
-		mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"RSM Flux"));
+		mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, DXGI_FORMAT_R32G32B32A32_FLOAT, flags, L"RSM World Pos"));
+		mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, DXGI_FORMAT_R16G16B16A16_FLOAT, flags, L"RSM Normals"));
+		mRSMBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, DXGI_FORMAT_R8G8B8A8_UNORM, flags, L"RSM Flux"));
 		
-		mRSMBuffersRTs_CopiesForAsync.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"C RSM World Pos"));
-		mRSMBuffersRTs_CopiesForAsync.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"C RSM Normals"));
-		mRSMBuffersRTs_CopiesForAsync.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, rtFormat, flags, L"C RSM Flux"));
+		mRSMBuffersRTs_CopiesForAsync.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, DXGI_FORMAT_R32G32B32A32_FLOAT, flags, L"C RSM World Pos"));
+		mRSMBuffersRTs_CopiesForAsync.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, DXGI_FORMAT_R16G16B16A16_FLOAT, flags, L"C RSM Normals"));
+		mRSMBuffersRTs_CopiesForAsync.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE, RSM_SIZE, DXGI_FORMAT_R8G8B8A8_UNORM, flags, L"C RSM Flux"));
 
 		// root signature
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -1120,8 +1119,8 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 		// Describe and create the graphics pipeline state object (PSO).
 		DXGI_FORMAT formats[3];
 		formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[1] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		formats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 		mRSMBuffersPSO.SetRootSignature(mRSMBuffersRS);
 		mRSMBuffersPSO.SetRasterizerState(mRasterizerState);
@@ -1315,12 +1314,11 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 
 	//downsampling for LPV - PS
 	{
-		DXGI_FORMAT rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
-		mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, rtFormat, flags, L"RSM Downsampled World Pos", -1, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, rtFormat, flags, L"RSM Downsampled Normals", -1, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, rtFormat, flags, L"RSM Downsampled Flux", -1, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+		mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, DXGI_FORMAT_R32G32B32A32_FLOAT, flags, L"RSM Downsampled World Pos", -1, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+		mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, DXGI_FORMAT_R16G16B16A16_FLOAT, flags, L"RSM Downsampled Normals", -1, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+		mRSMDownsampledBuffersRTs.push_back(new DXRSRenderTarget(device, descriptorManager, RSM_SIZE / mRSMDownsampleScaleSize, RSM_SIZE / mRSMDownsampleScaleSize, DXGI_FORMAT_R8G8B8A8_UNORM, flags, L"RSM Downsampled Flux", -1, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
 
 		// root signature
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -1359,11 +1357,10 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 		};
 
-		// Describe and create the graphics pipeline state object (PSO).
 		DXGI_FORMAT formats[3];
 		formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[1] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		formats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 		mRSMDownsamplePSO.SetRootSignature(mRSMDownsampleRS);
 		mRSMDownsamplePSO.SetRasterizerState(mRasterizerState);
@@ -1689,7 +1686,7 @@ void DXRSExampleGIScene::InitLightPropagationVolume(ID3D12Device* device, DXRS::
 {
 	// injection
 	{
-		DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 		//red
@@ -1727,9 +1724,7 @@ void DXRSExampleGIScene::InitLightPropagationVolume(ID3D12Device* device, DXRS::
 		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVInjection.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
 
 		DXGI_FORMAT formats[3];
-		formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[0] = formats[1] = formats[2] = format;
 
 		mLPVInjectionPSO.SetRootSignature(mLPVInjectionRS);
 		mLPVInjectionPSO.SetRasterizerState(mRasterizerState);
@@ -1777,7 +1772,7 @@ void DXRSExampleGIScene::InitLightPropagationVolume(ID3D12Device* device, DXRS::
 			ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, mLPVPropagationBundle2Allocator.Get(), nullptr, IID_PPV_ARGS(&mLPVPropagationBundle2)));
 		}
 
-		DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 		//red
@@ -1814,17 +1809,12 @@ void DXRSExampleGIScene::InitLightPropagationVolume(ID3D12Device* device, DXRS::
 		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\LPVPropagation.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_1", compileFlags, 0, &pixelShader, &errorBlob));
 
 		DXGI_FORMAT formats[6];
-		formats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		formats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		formats[2] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		formats[3] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		formats[4] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		formats[5] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		formats[0] = formats[1] = formats[2] = formats[3] = formats[4] = formats[5] = format;
 
 		mLPVPropagationPSO.SetRootSignature(mLPVPropagationRS);
 		mLPVPropagationPSO.SetRasterizerState(mRasterizerState);
 		mLPVPropagationPSO.SetRenderTargetFormats(_countof(formats), formats, DXGI_FORMAT_D32_FLOAT);
-		mLPVPropagationPSO.SetBlendState(mBlendStateLPVPropagation); //TODO add additive blending - fix 
+		mLPVPropagationPSO.SetBlendState(mBlendStateLPVPropagation);
 		mLPVPropagationPSO.SetDepthStencilState(mDepthStateDisabled);
 		mLPVPropagationPSO.SetInputLayout(0, nullptr);
 		mLPVPropagationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);

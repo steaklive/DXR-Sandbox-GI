@@ -56,33 +56,6 @@ cbuffer VCTMainCB : register(b1)
     float VoxelSampleOffset;
 };
 
-struct VS_IN
-{
-    float4 position : POSITION;
-    float2 uv : TEXCOORD;
-};
-
-struct PS_IN
-{
-    float4 position : SV_POSITION;
-    float2 uv : TEXCOORD;
-};
-
-struct PS_OUT
-{
-    float4 result : SV_Target0;
-};
-
-PS_IN VSMain(VS_IN input)
-{
-    PS_IN result = (PS_IN) 0;
-
-    result.position = float4(input.position.xyz, 1);
-    result.uv = input.uv;
-    
-    return result;
-}
-
 float4 GetAnisotropicSample(float3 uv, float3 weight, float lod, bool posX, bool posY, bool posZ)
 {
     int anisoLevel = max(lod - 1.0f, 0.0f);
@@ -132,7 +105,7 @@ float4 TraceCone(float3 pos, float3 normal, float3 direction, float aperture, ou
     
     float3 weight = direction * direction;
 
-    while (dist < MaxConeTraceDistance && color.a < 0.9f)
+    while (dist < MaxConeTraceDistance && color.a < 1.0f)
     {
         float diameter = 2.0f * aperture * dist;
         float lodLevel = log2(diameter / voxelWorldSize);
@@ -196,7 +169,6 @@ float4 CalculateIndirectDiffuse(float3 worldPos, float3 normal, out float ao, ui
 [numthreads(8, 8, 1)]
 void CSMain(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID)
 {
-    PS_OUT output = (PS_OUT) 0;
     float2 inPos = DTid.xy;
     
     float3 normal = normalize(normalBuffer[inPos * UpsampleRatio].rgb);
