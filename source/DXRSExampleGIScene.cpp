@@ -2445,18 +2445,19 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 			DXRS::DescriptorHandle cbvHandle;
 			DXRS::DescriptorHandle uavHandle;
 			DXRS::DescriptorHandle srvHandle;
+			uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTVoxelization3DRT->GetUAV());
+			
+			commandList->ClearUnorderedAccessViewFloat(uavHandle.GetGPUHandle(), mVCTVoxelization3DRT->GetUAV().GetCPUHandle(), mVCTVoxelization3DRT->GetResource(), clearColorBlack, 0, nullptr);
+
+			srvHandle = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, srvHandle, mShadowDepth->GetSRV());
 
 			for (auto& model : mObjects) {
 				RenderObject(model, [this, gpuDescriptorHeap, commandList, &cbvHandle, &uavHandle, &srvHandle, device](U_PTR<DXRSModel>& anObject) {
 					cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
 					gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
 					gpuDescriptorHeap->AddToHandle(device, cbvHandle, anObject->GetCB()->GetCBV());
-
-					srvHandle = gpuDescriptorHeap->GetHandleBlock(1);
-					gpuDescriptorHeap->AddToHandle(device, srvHandle, mShadowDepth->GetSRV());
-
-					uavHandle = gpuDescriptorHeap->GetHandleBlock(1);
-					gpuDescriptorHeap->AddToHandle(device, uavHandle, mVCTVoxelization3DRT->GetUAV());
 
 					commandList->SetGraphicsRootDescriptorTable(0, cbvHandle.GetGPUHandle());
 					commandList->SetGraphicsRootDescriptorTable(1, srvHandle.GetGPUHandle());

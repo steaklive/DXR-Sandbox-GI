@@ -1,4 +1,4 @@
-//TODO change to array
+//unfortunately, there is no "RWTexture3DArray"
 RWTexture3D<float4> voxelTextureSrcPosX : register(u0);
 RWTexture3D<float4> voxelTextureSrcNegX : register(u1);
 RWTexture3D<float4> voxelTextureSrcPosY : register(u2);
