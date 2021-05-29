@@ -69,7 +69,7 @@ private:
 
 	void InitReflectionsDXR(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
 	void CreateRaytracingPSO();
-	void CreateRaytracingAccelerationStructures();
+	void CreateRaytracingAccelerationStructures(bool toUpdateTLAS = false);
 	void CreateRaytracingShaders();
 	void CreateRaytracingShaderTable();
 	void CreateRaytracingResourceHeap();
@@ -362,7 +362,9 @@ private:
 	DXRSRenderTarget*					mDXRReflectionsBlurredRT;
 	DXRSRenderTarget*					mDXRReflectionsBlurredRT_Copy;
 	DXRSBuffer*							mTLASBuffer; // top level acceleration structure of the scene
-	DXRSBuffer*							mDXRBuffer;
+	DXRSBuffer*							mTLASScratchBuffer; 
+	DXRSBuffer*							mTLASInstanceDescriptionBuffer;
+	DXRSBuffer*							mDXRBuffer; //cbuffer for DXR pass
 
 	// DXR
 	__declspec(align(16)) struct DXRBuffer

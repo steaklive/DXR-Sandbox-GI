@@ -549,6 +549,7 @@ void DXRSExampleGIScene::UpdateTransforms(DXRSTimer const& timer)
 		if (mUseDynamicObjects && model->GetFileName().find("content\\models\\cube.fbx") != std::string::npos)
 		{
 			model->UpdateWorldMatrix(XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixRotationY(-0.907571f) * XMMatrixTranslation(sin(timer.GetTotalSeconds() * mDynamicDirectionalLightSpeed) * 5.0f, 5.0f, -19.0f));
+			//model->UpdateWorldMatrix(XMMatrixTranslation(sin(timer.GetTotalSeconds() * mDynamicDirectionalLightSpeed) * 10.0f, -0.95f, -13.20f));
 		}
 		else 
 			model->UpdateWorldMatrix(model->GetWorldMatrix()); //TODO unnecessary but can be used in the future for custom matrix update
@@ -2415,16 +2416,7 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 
 		commandList->OMSetRenderTargets(_countof(rtvHandlesRSM), rtvHandlesRSM, FALSE, nullptr);
 		commandList->ClearRenderTargetView(rtvHandlesRSM[0], clearColorBlack, 0, nullptr);
-
-		//TODO fix null GPU Handle in UAV
-		//commandList->ClearUnorderedAccessViewFloat(mVCTMainUpsampleAndBlurRT->GetUAV().GetGPUHandle(), mVCTMainUpsampleAndBlurRT->GetUAV().GetCPUHandle(),
-		//	mVCTMainUpsampleAndBlurRT->GetResource(), clearColor, 0, nullptr);
 	};
-
-	//if (!mVCTEnabled) {
-	//	clearVCTMainRT();
-	//	return;
-	//}
 
 	if (!useAsyncCompute || (useAsyncCompute && aQueue == GRAPHICS_QUEUE)) {
 		PIXBeginEvent(commandList, 0, "VCT Voxelization");
@@ -2983,6 +2975,65 @@ void DXRSExampleGIScene::RenderComposite(ID3D12Device* device, ID3D12GraphicsCom
 	PIXEndEvent(commandList);
 }
 
+void DXRSExampleGIScene::InitReflectionsDXR(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
+{
+	mDXRReflectionsRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Reflections RT");
+
+	DXRSBuffer::Description cbDesc;
+	cbDesc.mElementSize = sizeof(DXRBuffer);
+	cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+	cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+
+	mDXRBuffer = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"DXR Info CB");
+
+	if (mSandboxFramework->GetDeviceFeatureLevel() >= D3D_FEATURE_LEVEL_12_1)
+	{
+		CreateRaytracingResourceHeap();
+		CreateRaytracingShaderTable();
+	}
+
+	//blur
+	{
+		//RTs
+		mDXRReflectionsBlurredRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Reflections Blurred RT");
+		mDXRReflectionsBlurredRT_Copy = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Reflections Blurred RT C");
+
+		//create root signature
+		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+		mRaytracingBlurRS.Reset(3, 1);
+		mRaytracingBlurRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
+		mRaytracingBlurRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mRaytracingBlurRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mRaytracingBlurRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+		mRaytracingBlurRS.Finalize(device, L"DXR Raytracing Reflections blur pass RS", rootSignatureFlags);
+
+		ComPtr<ID3DBlob> computeShader;
+
+#if defined(_DEBUG)
+		// Enable better shader debugging with the graphics debugging tools.
+		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+		UINT compileFlags = 0;
+#endif
+		ID3DBlob* errorBlob = nullptr;
+
+		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\UpsampleBlurCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
+		if (errorBlob)
+		{
+			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+			errorBlob->Release();
+		}
+
+		mRaytracingBlurPSO.SetRootSignature(mRaytracingBlurRS);
+		mRaytracingBlurPSO.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
+		mRaytracingBlurPSO.Finalize(device);
+	}
+}
 void DXRSExampleGIScene::CreateRaytracingPSO()
 {
 	ID3D12Device5* device = mSandboxFramework->GetDXRDevice();
@@ -3025,12 +3076,13 @@ void DXRSExampleGIScene::CreateRaytracingPSO()
 	// the shader pointers by name
 	ThrowIfFailed(mRaytracingPSO->QueryInterface(IID_PPV_ARGS(&mRaytracingPSOProperties)));
 }
-void DXRSExampleGIScene::CreateRaytracingAccelerationStructures()
+void DXRSExampleGIScene::CreateRaytracingAccelerationStructures(bool toUpdateTLAS)
 {
 	ID3D12Device5* device = mSandboxFramework->GetDXRDevice();
 	ID3D12GraphicsCommandList4* commandList = (ID3D12GraphicsCommandList4*)mSandboxFramework->GetCommandListGraphics();
 
 	//Create BLAS
+	if (!toUpdateTLAS)
 	{
 		for (auto& model : mObjects)
 		{
@@ -3103,7 +3155,16 @@ void DXRSExampleGIScene::CreateRaytracingAccelerationStructures()
 
 	//Create TLAS
 	{
-		D3D12_RAYTRACING_INSTANCE_DESC* instanceDescriptions = new D3D12_RAYTRACING_INSTANCE_DESC[mObjects.size()]; //plane and dragon
+		if (toUpdateTLAS) {
+			// Wait for the TLAS build to complete reading
+			D3D12_RESOURCE_BARRIER uavBarrier;
+			uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+			uavBarrier.UAV.pResource = mTLASBuffer->GetResource();
+			uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			commandList->ResourceBarrier(1, &uavBarrier);
+		}
+
+		D3D12_RAYTRACING_INSTANCE_DESC* instanceDescriptions = new D3D12_RAYTRACING_INSTANCE_DESC[mObjects.size()];
 		int noofInstances = 0;
 
 		for (auto& model : mObjects)
@@ -3121,69 +3182,73 @@ void DXRSExampleGIScene::CreateRaytracingAccelerationStructures()
 			noofInstances++;
 		}
 
-		DXRSBuffer::Description desc;
-		desc.mSize = noofInstances * sizeof(D3D12_RAYTRACING_INSTANCE_DESC);
-		desc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
-		desc.mResourceFlags = D3D12_RESOURCE_FLAG_NONE;
-		desc.mHeapType = D3D12_HEAP_TYPE_UPLOAD;
-		desc.mDescriptorType = DXRSBuffer::DescriptorType::Raw;
-		DXRSBuffer* instanceDescriptionBuffer = new DXRSBuffer(device, mSandboxFramework->GetDescriptorHeapManager(), commandList, desc, L"Instance Description Buffer");
+		if (!toUpdateTLAS) {
+			DXRSBuffer::Description desc;
+			desc.mSize = noofInstances * sizeof(D3D12_RAYTRACING_INSTANCE_DESC);
+			desc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+			desc.mResourceFlags = D3D12_RESOURCE_FLAG_NONE;
+			desc.mHeapType = D3D12_HEAP_TYPE_UPLOAD;
+			desc.mDescriptorType = DXRSBuffer::DescriptorType::Raw;
+			mTLASInstanceDescriptionBuffer = new DXRSBuffer(device, mSandboxFramework->GetDescriptorHeapManager(), commandList, desc, L"Instance Description Buffer");
+		}
 
 		// Copy the instance data to the buffer
 		D3D12_RAYTRACING_INSTANCE_DESC* data;
-		instanceDescriptionBuffer->GetResource()->Map(0, nullptr, reinterpret_cast<void**>(&data));
+		mTLASInstanceDescriptionBuffer->GetResource()->Map(0, nullptr, reinterpret_cast<void**>(&data));
 		memcpy(data, instanceDescriptions, noofInstances * sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
-		instanceDescriptionBuffer->GetResource()->Unmap(0, nullptr);
+		mTLASInstanceDescriptionBuffer->GetResource()->Unmap(0, nullptr);
 
-		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
 
 		// Get the size requirements for the TLAS buffers
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS ASInputs = {};
 		ASInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 		ASInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-		ASInputs.InstanceDescs = instanceDescriptionBuffer->GetResource()->GetGPUVirtualAddress();
+		ASInputs.InstanceDescs = mTLASInstanceDescriptionBuffer->GetResource()->GetGPUVirtualAddress();
 		ASInputs.NumDescs = noofInstances;
 		ASInputs.Flags = buildFlags;
 
-		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO ASPreBuildInfo = {};
-		device->GetRaytracingAccelerationStructurePrebuildInfo(&ASInputs, &ASPreBuildInfo);
+		if (!toUpdateTLAS) {
+			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO ASPreBuildInfo = {};
+			device->GetRaytracingAccelerationStructurePrebuildInfo(&ASInputs, &ASPreBuildInfo);
 
-		ASPreBuildInfo.ResultDataMaxSizeInBytes = Align(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, ASPreBuildInfo.ResultDataMaxSizeInBytes);
-		ASPreBuildInfo.ScratchDataSizeInBytes = Align(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, ASPreBuildInfo.ScratchDataSizeInBytes);
+			ASPreBuildInfo.ResultDataMaxSizeInBytes = Align(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, ASPreBuildInfo.ResultDataMaxSizeInBytes);
+			ASPreBuildInfo.ScratchDataSizeInBytes = Align(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, ASPreBuildInfo.ScratchDataSizeInBytes);
 
-		// Create TLAS scratch buffer
-		DXRSBuffer::Description tlasDesc;
-		tlasDesc.mAlignment = std::max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
-		tlasDesc.mElementSize = (UINT)ASPreBuildInfo.ScratchDataSizeInBytes;
-		tlasDesc.mState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-		tlasDesc.mResourceFlags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-		tlasDesc.mDescriptorType = DXRSBuffer::DescriptorType::Raw;
+			// Create TLAS scratch buffer
+			DXRSBuffer::Description tlasDesc;
+			tlasDesc.mAlignment = std::max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+			tlasDesc.mElementSize = (UINT)ASPreBuildInfo.ScratchDataSizeInBytes;
+			tlasDesc.mState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			tlasDesc.mResourceFlags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+			tlasDesc.mDescriptorType = DXRSBuffer::DescriptorType::Raw;
 
-		DXRSBuffer* tlasScratchBuffer = new DXRSBuffer(device, mSandboxFramework->GetDescriptorHeapManager(), commandList, tlasDesc, L"TLAS Scratch Buffer");
+			mTLASScratchBuffer = new DXRSBuffer(device, mSandboxFramework->GetDescriptorHeapManager(), commandList, tlasDesc, L"TLAS Scratch Buffer");
 
-		// Create the TLAS buffer
-		tlasDesc.mElementSize = (UINT)ASPreBuildInfo.ResultDataMaxSizeInBytes;
-		tlasDesc.mState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
-		DXRSBuffer* tlasBuffer = new DXRSBuffer(device, mSandboxFramework->GetDescriptorHeapManager(), commandList, tlasDesc, L"TLAS Buffer");
+			tlasDesc.mElementSize = (UINT)ASPreBuildInfo.ResultDataMaxSizeInBytes;
+			tlasDesc.mState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+			mTLASBuffer = new DXRSBuffer(device, mSandboxFramework->GetDescriptorHeapManager(), commandList, tlasDesc, L"TLAS Buffer");
+		}
 
 		// Describe and build the TLAS
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
 		buildDesc.Inputs = ASInputs;
-		buildDesc.ScratchAccelerationStructureData = tlasScratchBuffer->GetResource()->GetGPUVirtualAddress();
-		buildDesc.DestAccelerationStructureData = tlasBuffer->GetResource()->GetGPUVirtualAddress();
+		buildDesc.ScratchAccelerationStructureData = mTLASScratchBuffer->GetResource()->GetGPUVirtualAddress();
+		buildDesc.DestAccelerationStructureData = mTLASBuffer->GetResource()->GetGPUVirtualAddress();
+
+		if (toUpdateTLAS) {
+			buildDesc.Inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+			buildDesc.SourceAccelerationStructureData = mTLASBuffer->GetResource()->GetGPUVirtualAddress();
+		}
 
 		commandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 
 		// Wait for the TLAS build to complete
 		D3D12_RESOURCE_BARRIER uavBarrier;
 		uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-		uavBarrier.UAV.pResource = tlasBuffer->GetResource();
+		uavBarrier.UAV.pResource = mTLASBuffer->GetResource();
 		uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 		commandList->ResourceBarrier(1, &uavBarrier);
-
-		mTLASBuffer = tlasBuffer;
-
-		//delete instanceDescriptionBuffer;
 	}
 
 }
@@ -3355,70 +3420,13 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 	}
 
 }
-
-void DXRSExampleGIScene::InitReflectionsDXR(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
-{
-	mDXRReflectionsRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Reflections RT");
-
-	DXRSBuffer::Description cbDesc;
-	cbDesc.mElementSize = sizeof(DXRBuffer);
-	cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
-	cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
-
-	mDXRBuffer = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"DXR Info CB");
-
-	if (mSandboxFramework->GetDeviceFeatureLevel() >= D3D_FEATURE_LEVEL_12_1)
-	{
-		CreateRaytracingResourceHeap();
-		CreateRaytracingShaderTable();
-	}
-
-	//blur
-	{
-		//RTs
-		mDXRReflectionsBlurredRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Reflections Blurred RT");
-		mDXRReflectionsBlurredRT_Copy = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Reflections Blurred RT C");
-
-		//create root signature
-		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-		mRaytracingBlurRS.Reset(3, 1);
-		mRaytracingBlurRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
-		mRaytracingBlurRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
-		mRaytracingBlurRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
-		mRaytracingBlurRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
-		mRaytracingBlurRS.Finalize(device, L"DXR Raytracing Reflections blur pass RS", rootSignatureFlags);
-
-		ComPtr<ID3DBlob> computeShader;
-
-#if defined(_DEBUG)
-		// Enable better shader debugging with the graphics debugging tools.
-		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-		UINT compileFlags = 0;
-#endif
-		ID3DBlob* errorBlob = nullptr;
-
-		ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\UpsampleBlurCS.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, &errorBlob));
-		if (errorBlob)
-		{
-			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-			errorBlob->Release();
-		}
-
-		mRaytracingBlurPSO.SetRootSignature(mRaytracingBlurRS);
-		mRaytracingBlurPSO.SetComputeShader(computeShader->GetBufferPointer(), computeShader->GetBufferSize());
-		mRaytracingBlurPSO.Finalize(device);
-	}
-}
 void DXRSExampleGIScene::RenderReflectionsDXR(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
 	if (mSandboxFramework->GetDeviceFeatureLevel() < D3D_FEATURE_LEVEL_12_1)
 		return;
+
+	if (mUseDynamicObjects)
+		CreateRaytracingAccelerationStructures(true);
 
 	//DXR pass
 	PIXBeginEvent(commandList, 0, "DXR reflections");
