@@ -389,7 +389,7 @@ private:
 
 	bool mUseDynamicObjects = false;
 
-	bool mUseAsyncCompute = true;
+	bool mUseAsyncCompute = false;
 
 	bool mUseDXRReflections = false;
 	bool mDXRBlurReflections = true;

@@ -1,4 +1,4 @@
-#include "DXRSExampleRTScene.h"
+//#include "DXRSExampleRTScene.h"
 #include "DXRSExampleGIScene.h"
 #include "Common.h"
 
