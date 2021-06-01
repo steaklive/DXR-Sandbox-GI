@@ -57,7 +57,7 @@ float3 CalculateRSM(float3 pos, float3 normal)
         indirectIllumination += res;
     }
     
-    return saturate(indirectIllumination * RSMIntensity);
+    return indirectIllumination;
 }
 
 [numthreads(8, 8, 1)]
@@ -66,5 +66,5 @@ void CSMain(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : 
     float4 normalWS = normalWSBuffer[DTid.xy * UpsampleRatio];
     float4 worldPosWS = worldPosWSBuffer[DTid.xy * UpsampleRatio];
     
-    Output[DTid.xy] = float4(CalculateRSM(worldPosWS.rgb, normalWS.rgb), 1.0f);
+    Output[DTid.xy] = saturate(float4(CalculateRSM(worldPosWS.rgb, normalWS.rgb), 1.0f));
 }

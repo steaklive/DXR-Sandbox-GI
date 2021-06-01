@@ -70,7 +70,7 @@ float3 CalculateRSM(float3 pos, float3 normal)
         indirectIllumination += res;
     }
     
-    return saturate(indirectIllumination * RSMIntensity);
+    return indirectIllumination;
 }
 
 PSInput VSMain(VSInput input)
@@ -89,7 +89,7 @@ PSOutput PSMain(PSInput input)
     
     float4 normalWS = normalWSBuffer[input.position.xy * UpsampleRatio];
     float4 worldPosWS = worldPosWSBuffer[input.position.xy * UpsampleRatio];
-    output.rsm = float4(CalculateRSM(worldPosWS.rgb, normalWS.rgb), 1.0f);
+    output.rsm = saturate(float4(CalculateRSM(worldPosWS.rgb, normalWS.rgb), 1.0f));
     
     return output;
 }

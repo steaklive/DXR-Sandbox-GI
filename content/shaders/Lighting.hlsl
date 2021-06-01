@@ -40,6 +40,9 @@ cbuffer IlluminationFlagsBuffer : register(b3)
     int useVCT;
     int useVCTDebug;
     int useDXR;
+    float rsmGIPower;
+    float lpvGIPower;
+    float vctGIPower;
     float dxrReflectionsBlend;
     int showOnlyAO;
 }
@@ -228,7 +231,7 @@ PSOutput PSMain(PSInput input)
         albedoBuffer.GetDimensions(gWidth, gHeight);
         float3 rsm = rsmBuffer.Sample(BilinearSampler, inPos * float2(1.0f / gWidth, 1.0f / gHeight)).rgb;
         
-        indirectLighting += saturate(rsm * albedo.rgb);
+        indirectLighting += rsm * albedo.rgb * rsmGIPower;
     }
     
     // LPV
@@ -247,7 +250,7 @@ PSOutput PSMain(PSInput input)
     
         lpv = LPVAttenuation * min(lpvIntensity.rgb * LPVPower, float3(LPVCutoff, LPVCutoff, LPVCutoff)) * albedo.rgb;
         
-        indirectLighting += lpv;
+        indirectLighting += lpv * lpvGIPower;
     }
     
     //VCT
@@ -258,7 +261,7 @@ PSOutput PSMain(PSInput input)
         albedoBuffer.GetDimensions(gWidth, gHeight);
         float4 vct = vctBuffer.Sample(BilinearSampler, inPos * float2(1.0f / gWidth, 1.0f / gHeight));
         
-        indirectLighting += vct.rgb;
+        indirectLighting += vct.rgb * vctGIPower;
         if (!useVCTDebug)
             ao = 1.0f - vct.a;
     }  
@@ -292,7 +295,7 @@ PSOutput PSMain(PSInput input)
     }
     
     output.diffuse.rgb = ao * indirectLighting + (directLighting + (useDXR ? lerp(reflectionsDXR, directLighting * albedo.a, dxrReflectionsBlend) : 0.0f)) * shadow;;
-
+    output.diffuse.rgb = saturate(output.diffuse.rgb);
     if (showOnlyAO)
         output.diffuse.rgb = float3(ao, ao, ao);
     

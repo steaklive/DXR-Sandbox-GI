@@ -274,6 +274,9 @@ private:
 		int useVCT;
 		int useVCTDebug;
 		int useDXR;
+		float rsmGIPower;
+		float lpvGIPower;
+		float vctGIPower;
 		float dxrReflectionsBlend;
 		int showOnlyAO;
 	};
@@ -322,12 +325,14 @@ private:
 	UINT mRSMDownsampleScaleSize = 4;
 	bool mRSMDownsampleForLPV = false;
 	bool mRSMDownsampleUseCS = false;
+	float mRSMGIPower = 1.0f;
 
 	int mLPVPropagationSteps = 50;
 	float mLPVCutoff = 0.2f;
 	float mLPVPower = 1.8f;
 	float mLPVAttenuation = 1.0f;
 	XMMATRIX mWorldToLPV;
+	float mLPVGIPower = 1.0f;
 
 	bool mVCTRenderDebug = false;
 	float mWorldVoxelScale = VCT_SCENE_VOLUME_SIZE * 0.5f;
@@ -340,6 +345,7 @@ private:
 	float mVCTRTRatio = 0.5f; // from MAX_SCREEN_WIDTH/HEIGHT
 	bool mVCTUseMainCompute = true;
 	bool mVCTMainRTUseUpsampleAndBlur = true;
+	float mVCTGIPower = 1.0f;
 
 	// RT 
 	IDxcBlob* mRaygenBlob;

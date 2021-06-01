@@ -601,6 +601,9 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	illumData.useLPV = mUseLPV ? 1 : 0;
 	illumData.useVCT = mUseVCT ? 1 : 0;
 	illumData.useVCTDebug = mVCTRenderDebug ? 1 : 0;
+	illumData.rsmGIPower = mRSMGIPower;
+	illumData.lpvGIPower = mLPVGIPower;
+	illumData.vctGIPower = mVCTGIPower;
 	illumData.useDXR = mUseDXRReflections ? 1 : 0;
 	illumData.dxrReflectionsBlend = mDXRReflectionsBlend;
 	illumData.showOnlyAO = mShowOnlyAO ? 1 : 0;
@@ -697,26 +700,27 @@ void DXRSExampleGIScene::UpdateImGui()
 
 		ImGui::Separator();
 
-		ImGui::Checkbox("Use Direct Light", &mUseDirectLight);
-		ImGui::Checkbox("Use Direct Shadows", &mUseShadows);
-		ImGui::Checkbox("Use Reflective Shadow Mapping", &mUseRSM);
-		ImGui::Checkbox("Use Light Propagation Volume", &mUseLPV);
-		ImGui::Checkbox("Use Voxel Cone Tracing", &mUseVCT);
+		ImGui::Checkbox("Direct Light", &mUseDirectLight);
+		ImGui::Checkbox("Direct Shadows", &mUseShadows);
+		ImGui::Checkbox("Reflective Shadow Mapping", &mUseRSM);
+		ImGui::Checkbox("Light Propagation Volume", &mUseLPV);
+		ImGui::Checkbox("Voxel Cone Tracing", &mUseVCT);
 		ImGui::Checkbox("Show AO", &mShowOnlyAO);
 
 		ImGui::Separator();
 		
 		if (ImGui::CollapsingHeader("Global Illumination Config"))
 		{
-			if (ImGui::CollapsingHeader("Reflective Shadow Mapping")) {
+			if (ImGui::CollapsingHeader("RSM")) {
+				ImGui::SliderFloat("RSM GI Intensity", &mRSMGIPower, 0.0f, 15.0f);
 				ImGui::Checkbox("Use CS for main RSM pass", &mRSMComputeVersion);
 				ImGui::Checkbox("Upsample & blur RSM result in CS", &mRSMUseUpsampleAndBlur);
 				ImGui::Separator();
-				ImGui::SliderFloat("RSM Intensity", &mRSMIntensity, 0.0f, 15.0f);
 				ImGui::SliderFloat("RSM Rmax", &mRSMRMax, 0.0f, 1.0f);
 				//ImGui::SliderInt("RSM Samples Count", &mRSMSamplesCount, 1, 1000);
 			}
-			if (ImGui::CollapsingHeader("Light Propagation Volume")) {
+			if (ImGui::CollapsingHeader("LPV")) {
+				ImGui::SliderFloat("LPV GI Intensity", &mLPVGIPower, 0.0f, 15.0f);
 				ImGui::Checkbox("Use downsampled RSM", &mRSMDownsampleForLPV);
 				ImGui::SameLine();
 				ImGui::Checkbox("in CS", &mRSMDownsampleUseCS);
@@ -739,7 +743,8 @@ void DXRSExampleGIScene::UpdateImGui()
 					}
 				}
 			}
-			if (ImGui::CollapsingHeader("Voxel Cone Tracing")) {
+			if (ImGui::CollapsingHeader("VCT")) {
+				ImGui::SliderFloat("VCT GI Intensity", &mVCTGIPower, 0.0f, 15.0f);
 				ImGui::Checkbox("Use CS for main VCT pass", &mVCTUseMainCompute);
 				ImGui::Checkbox("Upsample & blur VCT result in CS", &mVCTMainRTUseUpsampleAndBlur);
 				ImGui::Separator();

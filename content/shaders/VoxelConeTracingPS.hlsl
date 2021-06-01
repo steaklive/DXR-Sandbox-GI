@@ -158,7 +158,7 @@ float4 CalculateIndirectSpecular(float3 worldPos, float3 normal, float4 specular
     float ao = -1.0f;
     result = TraceCone(worldPos, normal, coneDirection, aperture, ao, false, voxelResolution);
     
-    return IndirectSpecularStrength * result * float4(specular.rgb, 1.0f);
+    return IndirectSpecularStrength * result * float4(specular.rgb, 1.0f) * specular.a;
 }
 
 float4 CalculateIndirectDiffuse(float3 worldPos, float3 normal, out float ao, uint voxelResolution)
@@ -209,6 +209,6 @@ PS_OUT PSMain(PS_IN input)
     float4 indirectDiffuse = CalculateIndirectDiffuse(worldPos.rgb, normal.rgb, ao, width);
     float4 indirectSpecular = CalculateIndirectSpecular(worldPos.rgb, normal.rgb, albedo, width);
 
-    output.result = saturate(float4(indirectDiffuse.rgb + indirectSpecular.rgb, ao));
+    output.result = saturate(float4(indirectDiffuse.rgb * albedo.rgb + indirectSpecular.rgb, ao));
     return output;
 }
