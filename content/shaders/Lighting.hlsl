@@ -228,7 +228,7 @@ PSOutput PSMain(PSInput input)
         albedoBuffer.GetDimensions(gWidth, gHeight);
         float3 rsm = rsmBuffer.Sample(BilinearSampler, inPos * float2(1.0f / gWidth, 1.0f / gHeight)).rgb;
         
-        indirectLighting += rsm;
+        indirectLighting += saturate(rsm * albedo.rgb);
     }
     
     // LPV
