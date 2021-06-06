@@ -34,7 +34,6 @@ DXRSExampleGIScene::~DXRSExampleGIScene()
 
 void DXRSExampleGIScene::Init(HWND window, int width, int height)
 {
-	mGamePad = std::make_unique<DirectX::GamePad>();
 	mKeyboard = std::make_unique<DirectX::Keyboard>();
 	mMouse = std::make_unique<DirectX::Mouse>();
 	mMouse->SetWindow(window);
@@ -100,18 +99,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	ImGui_ImplDX12_Init(device, 3, DXGI_FORMAT_R8G8B8A8_UNORM, mUIDescriptorHeap.Get(), mUIDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), mUIDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
 #pragma endregion
-	ThrowIfFailed(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mPostAsyncDescriptorHeap)));
 
-	// create a null descriptor for unbound textures
-	mNullDescriptor = descriptorManager->CreateCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-	// DS buffer
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = 1;
-	device->CreateShaderResourceView(nullptr, &srvDesc, mNullDescriptor.GetCPUHandle());
 	mDepthStencil = new DXRSDepthBuffer(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_D32_FLOAT);
 
 	#pragma region States
@@ -206,8 +194,6 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 #pragma endregion
 
 	auto descriptorHeapManager = mSandboxFramework->GetDescriptorHeapManager();
-	mMainDescriptorHeap = descriptorHeapManager->GetGPUHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	mMainDescriptorHeap->Reset();
 
 	//create upsample & blur buffer
 	DXRSBuffer::Description cbDesc;
