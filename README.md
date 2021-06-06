@@ -35,6 +35,6 @@ Voxel Cone Tracing:
 
 # Requirements
 - VS2019
-- DirectX12 with DXR
+- DirectX12
 - latest Windows SDK
-- GPU with RTX support (if using DXR)
+- NVIDIA GPU with RTX support (if using DXR)
