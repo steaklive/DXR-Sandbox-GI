@@ -37,7 +37,12 @@ No GI -> RSM -> LPV -> VCT -> offline path-tracer
 
 ![picture](screenshots/comparison.png)
 
-# Additional dependencies
+# Additional screenshots
+![picture](screenshots/1.png)
+![picture](screenshots/2.png)
+![picture](screenshots/3.png)
+
+# Dependencies
 - Assimp
 - DirectXTK12
 - ImGUI
