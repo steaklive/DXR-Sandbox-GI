@@ -59,10 +59,8 @@ public:
     D3D_FEATURE_LEVEL           GetDeviceFeatureLevel() const { return mD3DFeatureLevel; }
     
     ID3D12CommandQueue*         GetCommandQueueGraphics() const { return mCommandQueueGraphics.Get(); }
-    ID3D12CommandAllocator*     GetCommandAllocatorGraphics() const { return mCommandAllocatorsGraphics[mBackBufferIndex].Get(); }
-    ID3D12CommandAllocator*     GetCommandAllocatorGraphics2() const { return mCommandAllocatorsGraphics2[mBackBufferIndex].Get(); }
-    ID3D12GraphicsCommandList*  GetCommandListGraphics() const { return mCommandListGraphics.Get(); }
-    ID3D12GraphicsCommandList*  GetCommandListGraphics2() const { return mCommandListGraphics2.Get(); }
+    ID3D12CommandAllocator*     GetCommandAllocatorGraphics(int i = 0) const { return mCommandAllocatorsGraphics[mBackBufferIndex][i].Get(); }
+    ID3D12GraphicsCommandList*  GetCommandListGraphics(int i = 0) const { return mCommandListGraphics[i].Get(); }
 
 	ID3D12CommandQueue*         GetCommandQueueCompute() const { return mCommandQueueCompute.Get(); }
 	ID3D12CommandAllocator*     GetCommandAllocatorCompute() const { return mCommandAllocatorsCompute[mBackBufferIndex].Get(); }
@@ -114,10 +112,8 @@ private:
     DXRS::DescriptorHeapManager*        mDescriptorHeapManager;
 
     ComPtr<ID3D12CommandQueue>          mCommandQueueGraphics;
-    ComPtr<ID3D12GraphicsCommandList>   mCommandListGraphics;
-    ComPtr<ID3D12CommandAllocator>      mCommandAllocatorsGraphics[MAX_BACK_BUFFER_COUNT];
-	ComPtr<ID3D12GraphicsCommandList>   mCommandListGraphics2;
-	ComPtr<ID3D12CommandAllocator>      mCommandAllocatorsGraphics2[MAX_BACK_BUFFER_COUNT];
+    ComPtr<ID3D12GraphicsCommandList>   mCommandListGraphics[2];
+    ComPtr<ID3D12CommandAllocator>      mCommandAllocatorsGraphics[MAX_BACK_BUFFER_COUNT][2];
 
 	ComPtr<ID3D12CommandQueue>          mCommandQueueCompute;
 	ComPtr<ID3D12GraphicsCommandList>   mCommandListCompute;

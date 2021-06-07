@@ -254,8 +254,8 @@ void DXRSExampleGIScene::RenderAsync()
 
 	mSandboxFramework->Prepare(D3D12_RESOURCE_STATE_PRESENT, mUseAsyncCompute ? (mTimer.GetFrameCount() == 1) : true);
 
-	auto commandListGraphics = mSandboxFramework->GetCommandListGraphics();
-	auto commandListGraphics2 = mSandboxFramework->GetCommandListGraphics2();
+	auto commandListGraphics = mSandboxFramework->GetCommandListGraphics(0);
+	auto commandListGraphics2 = mSandboxFramework->GetCommandListGraphics(1);
 	auto commandListCompute = mSandboxFramework->GetCommandListCompute();
 
 	ID3D12CommandList* ppCommandLists[] = { commandListGraphics };

@@ -391,6 +391,6 @@ private:
 		XMMatrixIdentity()
 	};
 
-	bool mUseAsyncCompute = false;
+	bool mUseAsyncCompute = true;
 	bool mUseDynamicObjects = false;
 };

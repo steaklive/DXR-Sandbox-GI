@@ -150,14 +150,14 @@ void DXRSGraphics::CreateResources()
         // Create a command allocator for each back buffer that will be rendered to.
         for (UINT n = 0; n < mBackBufferCount; n++)
         {
-            ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mCommandAllocatorsGraphics[n].ReleaseAndGetAddressOf())));
-            ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mCommandAllocatorsGraphics2[n].ReleaseAndGetAddressOf())));
+            ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mCommandAllocatorsGraphics[n][0].ReleaseAndGetAddressOf())));
+            ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mCommandAllocatorsGraphics[n][1].ReleaseAndGetAddressOf())));
         }
 
         // Create a command list for recording graphics commands.
-        ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocatorsGraphics[0].Get(), nullptr, IID_PPV_ARGS(mCommandListGraphics.ReleaseAndGetAddressOf())));
-        ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocatorsGraphics2[0].Get(), nullptr, IID_PPV_ARGS(mCommandListGraphics2.ReleaseAndGetAddressOf())));
-		ThrowIfFailed(mCommandListGraphics2->Close());
+        ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocatorsGraphics[0][0].Get(), nullptr, IID_PPV_ARGS(mCommandListGraphics[0].ReleaseAndGetAddressOf())));
+        ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocatorsGraphics[0][1].Get(), nullptr, IID_PPV_ARGS(mCommandListGraphics[1].ReleaseAndGetAddressOf())));
+		ThrowIfFailed(mCommandListGraphics[1]->Close());
 
     }
     // Create async compute data
@@ -190,8 +190,8 @@ void DXRSGraphics::CreateResources()
 // Close and flush command list after initialization 
 void DXRSGraphics::FinalizeResources()
 {
-    ThrowIfFailed(mCommandListGraphics->Close());
-    ID3D12CommandList* ppCommandLists[] = { mCommandListGraphics.Get() };
+    ThrowIfFailed(mCommandListGraphics[0]->Close());
+    ID3D12CommandList* ppCommandLists[] = { mCommandListGraphics[0].Get() };
     mCommandQueueGraphics->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     // Create a fence for tracking GPU execution progress.
@@ -259,8 +259,8 @@ void DXRSGraphics::CreateFullscreenQuadBuffers()
         vertexData.RowPitch = vertexBufferSize;
         vertexData.SlicePitch = vertexData.RowPitch;
 
-        UpdateSubresources<1>(mCommandListGraphics.Get(), mFullscreenQuadVertexBuffer.Get(), mFullscreenQuadVertexBufferUpload.Get(), 0, 0, 1, &vertexData);
-        mCommandListGraphics->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mFullscreenQuadVertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+        UpdateSubresources<1>(mCommandListGraphics[0].Get(), mFullscreenQuadVertexBuffer.Get(), mFullscreenQuadVertexBufferUpload.Get(), 0, 0, 1, &vertexData);
+        mCommandListGraphics[0]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mFullscreenQuadVertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
         // Copy buffer - simple way with UPLOAD HEAP TYPE
         //UINT8* pVertexDataBegin;
@@ -446,15 +446,15 @@ bool DXRSGraphics::WindowSizeChanged(int width, int height)
 
 void DXRSGraphics::Prepare(D3D12_RESOURCE_STATES beforeState, bool skipComputeQReset)
 {
-    ThrowIfFailed(mCommandAllocatorsGraphics[mBackBufferIndex]->Reset());
-    ThrowIfFailed(mCommandListGraphics->Reset(mCommandAllocatorsGraphics[mBackBufferIndex].Get(), nullptr));
+    ThrowIfFailed(mCommandAllocatorsGraphics[mBackBufferIndex][0]->Reset());
+    ThrowIfFailed(mCommandListGraphics[0]->Reset(mCommandAllocatorsGraphics[mBackBufferIndex][0].Get(), nullptr));
 
     if (!skipComputeQReset) {
         ThrowIfFailed(mCommandAllocatorsCompute[mBackBufferIndex]->Reset());
         ThrowIfFailed(mCommandListCompute->Reset(mCommandAllocatorsCompute[mBackBufferIndex].Get(), nullptr));
 
-		ThrowIfFailed(mCommandAllocatorsGraphics2[mBackBufferIndex]->Reset());
-		ThrowIfFailed(mCommandListGraphics2->Reset(mCommandAllocatorsGraphics2[mBackBufferIndex].Get(), nullptr));
+		ThrowIfFailed(mCommandAllocatorsGraphics[mBackBufferIndex][1]->Reset());
+		ThrowIfFailed(mCommandListGraphics[1]->Reset(mCommandAllocatorsGraphics[mBackBufferIndex][1].Get(), nullptr));
     }
 }
 
@@ -474,11 +474,11 @@ void DXRSGraphics::Present(D3D12_RESOURCE_STATES beforeState, bool needExecuteCm
         if (beforeState != D3D12_RESOURCE_STATE_PRESENT)
         {
             D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(mRenderTargets[mBackBufferIndex].Get(), beforeState, D3D12_RESOURCE_STATE_PRESENT);
-            mCommandListGraphics->ResourceBarrier(1, &barrier);
+            mCommandListGraphics[0]->ResourceBarrier(1, &barrier);
         }
 
-        ThrowIfFailed(mCommandListGraphics->Close());
-        mCommandQueueGraphics->ExecuteCommandLists(1, CommandListCast(mCommandListGraphics.GetAddressOf()));
+        ThrowIfFailed(mCommandListGraphics[0]->Close());
+        mCommandQueueGraphics->ExecuteCommandLists(1, CommandListCast(mCommandListGraphics[0].GetAddressOf()));
     }
 
     HRESULT hr;
