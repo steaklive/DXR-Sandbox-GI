@@ -18,14 +18,20 @@ Reflective Shadow Mapping:
 - main pass in compute (+async)
 - efficient upsample & blur of main pass' output in compute (+async)
 
+![picture](screenshots/RSM_async.png)
+
 Light Propagation Volumes:
 - flux downsample in compute
 - DX12 bundle for propagation passes
+
+![picture](screenshots/LPV_w_downsampling.png)
 
 Voxel Cone Tracing:
 - main pass in compute (+async)
 - anisotropic mipmapping passes in compute (+async)
 - efficient upsample & blur of main pass' output in compute (+async)
+
+![picture](screenshots/VCT_async.png)
 
 # Additional dependencies
 - Assimp
