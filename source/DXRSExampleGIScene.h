@@ -21,6 +21,7 @@
 #define VCT_SCENE_VOLUME_SIZE 256
 #define VCT_MIPS 6
 #define LOCKED_CAMERA_VIEWS 3
+#define NUM_DYNAMIC_OBJECTS 40
 
 class DXRSExampleGIScene
 {
@@ -87,7 +88,7 @@ private:
 	U_PTR<GraphicsMemory> mGraphicsMemory;
 	U_PTR<CommonStates> mStates;
 
-	std::vector<U_PTR<DXRSModel>> mObjects;
+	std::vector<U_PTR<DXRSModel>> mRenderableObjects;
 
 	// Gbuffer
 	RootSignature mGbufferRS;
@@ -394,4 +395,5 @@ private:
 
 	bool mUseAsyncCompute = true;
 	bool mUseDynamicObjects = false;
+	bool mStopDynamicObjects = false;
 };

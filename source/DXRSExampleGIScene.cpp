@@ -42,15 +42,19 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	mSandboxFramework->CreateResources();
 	mSandboxFramework->CreateFullscreenQuadBuffers();
 
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\room.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-XM_PIDIV2), XMFLOAT4(0.7, 0.7, 0.7, 0.0)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\dragon.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(1.5f, 0.0f, -7.0f), XMFLOAT4(0.044f, 0.627f, 0, 0.0)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\bunny.fbx"), true, XMMatrixIdentity() * XMMatrixRotationY(-0.3752457f) * XMMatrixTranslation(21.0f, 13.9f, -19.0f), XMFLOAT4(0.8f, 0.71f, 0, 0.0)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\torus.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-XM_PIDIV2) * XMMatrixRotationX(1.099557f) * XMMatrixTranslation(21.0f, 4.0f, -9.6f), XMFLOAT4(0.329f, 0.26f, 0.8f, 0.8f)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_big.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-17.25f, -1.15f, -24.15f), XMFLOAT4(0.692f, 0.215f, 0.0f, 0.6f)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_medium.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-21.0f, -0.95f, -13.20f), XMFLOAT4(0.005, 0.8, 0.426, 0.7f)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_small.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-11.25f, -0.45f, -16.20f), XMFLOAT4(0.01, 0.0, 0.8, 0.75f)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\block.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-XM_PIDIV2) * XMMatrixTranslation(3.0f, 8.0f, -30.0f), XMFLOAT4(0.9, 0.15, 1.0, 0.0)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\cube.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-XM_PIDIV2) * XMMatrixRotationY(-0.907571f) * XMMatrixTranslation(21.0f, 5.0f, -19.0f) , XMFLOAT4(0.1, 0.75, 0.8, 0.0)));
+	mRenderableObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\room.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-XM_PIDIV2), XMFLOAT4(0.7, 0.7, 0.7, 0.0)));
+	mRenderableObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\dragon.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(1.5f, 0.0f, -7.0f), XMFLOAT4(0.044f, 0.627f, 0, 0.0)));
+	mRenderableObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\bunny.fbx"), true, XMMatrixIdentity() * XMMatrixRotationY(-0.3752457f) * XMMatrixTranslation(21.0f, 13.9f, -19.0f), XMFLOAT4(0.8f, 0.71f, 0, 0.0)));
+	mRenderableObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\torus.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-XM_PIDIV2) * XMMatrixRotationX(1.099557f) * XMMatrixTranslation(21.0f, 4.0f, -9.6f), XMFLOAT4(0.329f, 0.26f, 0.8f, 0.8f)));
+	mRenderableObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_big.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-17.25f, -1.15f, -24.15f), XMFLOAT4(0.692f, 0.215f, 0.0f, 0.6f)));
+	mRenderableObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_medium.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-21.0f, -0.95f, -13.20f), XMFLOAT4(0.005, 0.8, 0.426, 0.7f)));
+	mRenderableObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_small.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-11.25f, -0.45f, -16.20f), XMFLOAT4(0.01, 0.0, 0.8, 0.75f)));
+	mRenderableObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\block.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-XM_PIDIV2) * XMMatrixTranslation(3.0f, 8.0f, -30.0f), XMFLOAT4(0.9, 0.15, 1.0, 0.0)));
+	mRenderableObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\cube.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-XM_PIDIV2) * XMMatrixRotationY(-0.907571f) * XMMatrixTranslation(21.0f, 5.0f, -19.0f) , XMFLOAT4(0.1, 0.75, 0.8, 0.0)));
+
+	for (int i = 0; i < NUM_DYNAMIC_OBJECTS; i++)
+		mRenderableObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_medium.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(RandomFloat(-35.0f, 35.0f), RandomFloat(5.0f, 30.0f), RandomFloat(-35.0f, 35.0f)),
+			XMFLOAT4(RandomFloat(0.0f, 1.0f), RandomFloat(0.0f, 1.0f), RandomFloat(0.0f, 1.0f), 0.8), true, RandomFloat(-1.0f, 1.0f), RandomFloat(1.0f, 5.0f)));
 
 	if (mSandboxFramework->GetDeviceFeatureLevel() >= D3D_FEATURE_LEVEL_12_1) {
 		CreateRaytracingAccelerationStructures();
@@ -542,14 +546,18 @@ void DXRSExampleGIScene::Update(DXRSTimer const& timer)
 
 void DXRSExampleGIScene::UpdateTransforms(DXRSTimer const& timer) 
 {
-	for (auto& model : mObjects) {
-		if (mUseDynamicObjects && model->GetFileName().find("content\\models\\cube.fbx") != std::string::npos)
-		{
-			model->UpdateWorldMatrix(XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixRotationY(-0.907571f) * XMMatrixTranslation(sin(timer.GetTotalSeconds() * mDynamicDirectionalLightSpeed) * 5.0f, 5.0f, -19.0f));
-			//model->UpdateWorldMatrix(XMMatrixTranslation(sin(timer.GetTotalSeconds() * mDynamicDirectionalLightSpeed) * 10.0f, -0.95f, -13.20f));
+	if (mUseDynamicObjects && !mStopDynamicObjects) {
+		for (auto& model : mRenderableObjects) {
+			if (model->GetIsDynamic())
+			{
+				XMFLOAT3 trans = model->GetTranslation();
+				model->UpdateWorldMatrix(XMMatrixTranslation(
+					trans.x,
+					trans.y + sin(timer.GetTotalSeconds() * model->GetAmplitude()) * model->GetSpeed(),
+					trans.z
+				));
+			}
 		}
-		else 
-			model->UpdateWorldMatrix(model->GetWorldMatrix()); //TODO unnecessary but can be used in the future for custom matrix update
 	}
 }
 
@@ -694,6 +702,10 @@ void DXRSExampleGIScene::UpdateImGui()
 		ImGui::SameLine();
 		ImGui::SliderFloat("Speed", &mDynamicDirectionalLightSpeed, 0.0f, 5.0f);
 		ImGui::Checkbox("Dynamic objects", &mUseDynamicObjects);
+		if (mUseDynamicObjects) {
+			ImGui::SameLine();
+			ImGui::Checkbox("Stop", &mStopDynamicObjects);
+		}
 
 		ImGui::Separator();
 
@@ -818,6 +830,9 @@ void DXRSExampleGIScene::ThrowFailedErrorBlob(ID3DBlob* blob)
 
 void DXRSExampleGIScene::RenderObject(U_PTR<DXRSModel>& aModel, std::function<void(U_PTR<DXRSModel>&)> aCallback)
 {
+	if (!mUseDynamicObjects && aModel->GetIsDynamic())
+		return;
+
 	if (aCallback) {
 		aCallback(aModel);
 	}
@@ -949,7 +964,7 @@ void DXRSExampleGIScene::RenderGbuffer(ID3D12Device* device, ID3D12GraphicsComma
 
 		DXRS::DescriptorHandle cbvHandle;
 
-		for (auto& model : mObjects) {
+		for (auto& model : mRenderableObjects) {
 			RenderObject(model, [this, gpuDescriptorHeap, commandList, &cbvHandle, device](U_PTR<DXRSModel>& anObject) {
 				cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
 				gpuDescriptorHeap->AddToHandle(device, cbvHandle, mGbufferCB->GetCBV());
@@ -1050,7 +1065,7 @@ void DXRSExampleGIScene::RenderShadowMapping(ID3D12Device* device, ID3D12Graphic
 
 		DXRS::DescriptorHandle cbvHandle;
 
-		for (auto& model : mObjects) {
+		for (auto& model : mRenderableObjects) {
 			RenderObject(model, [this, gpuDescriptorHeap, commandList, &cbvHandle, device](U_PTR<DXRSModel>& anObject) {
 				cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
 				gpuDescriptorHeap->AddToHandle(device, cbvHandle, mShadowMappingCB->GetCBV());
@@ -1483,7 +1498,7 @@ void DXRSExampleGIScene::RenderReflectiveShadowMapping(ID3D12Device* device, ID3
 
 				DXRS::DescriptorHandle cbvHandle;
 
-				for (auto& model : mObjects) {
+				for (auto& model : mRenderableObjects) {
 					RenderObject(model, [this, gpuDescriptorHeap, commandList, &cbvHandle, device](U_PTR<DXRSModel>& anObject) {
 						cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
 						gpuDescriptorHeap->AddToHandle(device, cbvHandle, mShadowMappingCB->GetCBV());
@@ -2447,7 +2462,7 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 			srvHandle = gpuDescriptorHeap->GetHandleBlock(1);
 			gpuDescriptorHeap->AddToHandle(device, srvHandle, mShadowDepth->GetSRV());
 
-			for (auto& model : mObjects) {
+			for (auto& model : mRenderableObjects) {
 				RenderObject(model, [this, gpuDescriptorHeap, commandList, &cbvHandle, &uavHandle, &srvHandle, device](U_PTR<DXRSModel>& anObject) {
 					cbvHandle = gpuDescriptorHeap->GetHandleBlock(2);
 					gpuDescriptorHeap->AddToHandle(device, cbvHandle, mVCTVoxelizationCB->GetCBV());
@@ -3086,7 +3101,7 @@ void DXRSExampleGIScene::CreateRaytracingAccelerationStructures(bool toUpdateTLA
 	//Create BLAS
 	if (!toUpdateTLAS)
 	{
-		for (auto& model : mObjects)
+		for (auto& model : mRenderableObjects)
 		{
 			DXRSMesh* mesh = model->Meshes()[0]; //TODO add multimesh support
 
@@ -3166,10 +3181,10 @@ void DXRSExampleGIScene::CreateRaytracingAccelerationStructures(bool toUpdateTLA
 			commandList->ResourceBarrier(1, &uavBarrier);
 		}
 
-		D3D12_RAYTRACING_INSTANCE_DESC* instanceDescriptions = new D3D12_RAYTRACING_INSTANCE_DESC[mObjects.size()];
+		D3D12_RAYTRACING_INSTANCE_DESC* instanceDescriptions = new D3D12_RAYTRACING_INSTANCE_DESC[mRenderableObjects.size()];
 		int noofInstances = 0;
 
-		for (auto& model : mObjects)
+		for (auto& model : mRenderableObjects)
 		{
 			D3D12_RAYTRACING_INSTANCE_DESC& instanceDesc = instanceDescriptions[noofInstances];
 			// Describe the TLAS geometry instance(s)
@@ -3318,7 +3333,7 @@ void DXRSExampleGIScene::CreateRaytracingShaderTable()
 
 	UINT64 offset = 0;
 	const int numDescriptorsPerMesh = 9;
-	for (auto& model : mObjects) {
+	for (auto& model : mRenderableObjects) {
 		auto heap = reinterpret_cast<UINT64*>(heapHandle.ptr + offset);
 		mRaytracingShaderBindingTableHelper.AddHitGroup(L"HitGroup", { heap	});
 		offset += numDescriptorsPerMesh * device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -3364,7 +3379,7 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 	// 1 - CBV for mesh info
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 	const int numDescriptorsPerMesh = 9;
-	desc.NumDescriptors = numDescriptorsPerMesh * mObjects.size();
+	desc.NumDescriptors = numDescriptorsPerMesh * mRenderableObjects.size();
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mRaytracingDescriptorHeap)));
@@ -3373,7 +3388,7 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 
 	int i = 0;
 	//TODO remove first 5 descriptors to root constant views, keep only model/mesh specific
-	for (auto& model : mObjects)
+	for (auto& model : mRenderableObjects)
 	{
 		// UAV
 		if (i > 0) 

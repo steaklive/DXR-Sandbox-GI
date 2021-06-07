@@ -2,8 +2,8 @@
 
 #include "DXRSModel.h"
 
-DXRSModel::DXRSModel(DXRSGraphics& dxWrapper, const std::string& filename, bool flipUVs, XMMATRIX transformWorld, XMFLOAT4 color)
-	: mMeshes(), mMaterials(), mDXWrapper(dxWrapper), mWorldMatrix(transformWorld)
+DXRSModel::DXRSModel(DXRSGraphics& dxWrapper, const std::string& filename, bool flipUVs, XMMATRIX transformWorld, XMFLOAT4 color, bool isDynamic, float speed, float amplitude)
+	: mMeshes(), mMaterials(), mDXWrapper(dxWrapper), mWorldMatrix(transformWorld), mIsDynamic(isDynamic), mSpeed(speed), mAmplitude(amplitude)
 {
 	mDiffuseColor = color;
 
@@ -153,4 +153,13 @@ std::vector<XMFLOAT3> DXRSModel::GenerateAABB()
 	AABB.push_back(maxVertex);
 
 	return AABB;
+}
+
+XMFLOAT3 DXRSModel::GetTranslation() {
+	XMVECTOR translation, rot, scale;
+	XMMatrixDecompose(&scale, &rot, &translation, mWorldMatrix);
+
+	XMFLOAT3 translationF;
+	XMStoreFloat3(&translationF, translation);
+	return translationF;
 }

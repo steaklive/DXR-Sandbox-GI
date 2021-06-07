@@ -5,7 +5,7 @@ RWTexture2D<float4> gOutput : register(u0);
 void Miss(inout Payload payload : SV_RayPayload)
 {
     //uncomment for debugging missed rays
-    gOutput[DispatchRaysIndex().xy] = float4(1, 1, 0, 1);
+    gOutput[DispatchRaysIndex().xy] = float4(0.9f, 0.9f, 0.9f, 1);
 }
 
 //[shader("miss")]
