@@ -32,6 +32,11 @@ Voxel Cone Tracing:
 
 ![picture](screenshots/VCT_async.png)
 
+# Comparison
+No GI -> RSM -> LPV -> VCT -> offline path-tracer
+
+![picture](screenshots/comparison.png)
+
 # Additional dependencies
 - Assimp
 - DirectXTK12
