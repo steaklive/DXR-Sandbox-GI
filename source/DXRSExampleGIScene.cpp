@@ -42,15 +42,15 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	mSandboxFramework->CreateResources();
 	mSandboxFramework->CreateFullscreenQuadBuffers();
 
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\room.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f), XMFLOAT4(0.7, 0.7, 0.7, 0.0)));
+	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\room.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-XM_PIDIV2), XMFLOAT4(0.7, 0.7, 0.7, 0.0)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\dragon.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(1.5f, 0.0f, -7.0f), XMFLOAT4(0.044f, 0.627f, 0, 0.0)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\bunny.fbx"), true, XMMatrixIdentity() * XMMatrixRotationY(-0.3752457f) * XMMatrixTranslation(21.0f, 13.9f, -19.0f), XMFLOAT4(0.8f, 0.71f, 0, 0.0)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\torus.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixRotationX(1.099557f) * XMMatrixTranslation(21.0f, 4.0f, -9.6f), XMFLOAT4(0.329f, 0.26f, 0.8f, 0.8f)));
+	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\torus.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-XM_PIDIV2) * XMMatrixRotationX(1.099557f) * XMMatrixTranslation(21.0f, 4.0f, -9.6f), XMFLOAT4(0.329f, 0.26f, 0.8f, 0.8f)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_big.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-17.25f, -1.15f, -24.15f), XMFLOAT4(0.692f, 0.215f, 0.0f, 0.6f)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_medium.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-21.0f, -0.95f, -13.20f), XMFLOAT4(0.005, 0.8, 0.426, 0.7f)));
 	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_small.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(-11.25f, -0.45f, -16.20f), XMFLOAT4(0.01, 0.0, 0.8, 0.75f)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\block.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixTranslation(3.0f, 8.0f, -30.0f), XMFLOAT4(0.9, 0.15, 1.0, 0.0)));
-	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\cube.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-3.14f / 2.0f) * XMMatrixRotationY(-0.907571f) * XMMatrixTranslation(21.0f, 5.0f, -19.0f) , XMFLOAT4(0.1, 0.75, 0.8, 0.0)));
+	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\block.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-XM_PIDIV2) * XMMatrixTranslation(3.0f, 8.0f, -30.0f), XMFLOAT4(0.9, 0.15, 1.0, 0.0)));
+	mObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\cube.fbx"), true, XMMatrixIdentity() * XMMatrixRotationX(-XM_PIDIV2) * XMMatrixRotationY(-0.907571f) * XMMatrixTranslation(21.0f, 5.0f, -19.0f) , XMFLOAT4(0.1, 0.75, 0.8, 0.0)));
 
 	if (mSandboxFramework->GetDeviceFeatureLevel() >= D3D_FEATURE_LEVEL_12_1) {
 		CreateRaytracingAccelerationStructures();
@@ -164,6 +164,17 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	mRasterizerState.AntialiasedLineEnable = FALSE;
 	mRasterizerState.ForcedSampleCount = 0;
 	mRasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+	mRasterizerStateNoCullNoDepth.FillMode = D3D12_FILL_MODE_SOLID;
+	mRasterizerStateNoCullNoDepth.CullMode = D3D12_CULL_MODE_NONE;
+	mRasterizerStateNoCullNoDepth.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+	mRasterizerStateNoCullNoDepth.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+	mRasterizerStateNoCullNoDepth.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	mRasterizerStateNoCullNoDepth.DepthClipEnable = FALSE;
+	mRasterizerStateNoCullNoDepth.MultisampleEnable = FALSE;
+	mRasterizerStateNoCullNoDepth.AntialiasedLineEnable = FALSE;
+	mRasterizerStateNoCullNoDepth.ForcedSampleCount = 0;
+	mRasterizerStateNoCullNoDepth.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
 	mRasterizerStateShadow.FillMode = D3D12_FILL_MODE_SOLID;
 	mRasterizerStateShadow.CullMode = D3D12_CULL_MODE_BACK;
@@ -617,7 +628,7 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	VCTVoxelizationCBData voxelData = {};
 	float scale = 1.0f;// VCT_SCENE_VOLUME_SIZE / mWorldVoxelScale;
 	voxelData.WorldVoxelCube = XMMatrixTranslation(-VCT_SCENE_VOLUME_SIZE * 0.25f, -VCT_SCENE_VOLUME_SIZE * 0.25f, -VCT_SCENE_VOLUME_SIZE * 0.25f) * XMMatrixScaling(scale, -scale, scale);
-	voxelData.ViewProjection = mCameraView * mCameraProjection;
+	voxelData.ViewProjection = mCameraView* mCameraProjection;
 	voxelData.ShadowViewProjection = mLightViewProjection;
 	voxelData.WorldVoxelScale = mWorldVoxelScale;
 	memcpy(mVCTVoxelizationCB->Map(), &voxelData, sizeof(voxelData));
@@ -2045,7 +2056,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		};
 
 		mVCTVoxelizationPSO.SetRootSignature(mVCTVoxelizationRS);
-		mVCTVoxelizationPSO.SetRasterizerState(mRasterizerState);
+		mVCTVoxelizationPSO.SetRasterizerState(mRasterizerStateNoCullNoDepth);
 		mVCTVoxelizationPSO.SetRenderTargetFormats(0, nullptr, DXGI_FORMAT_D32_FLOAT);
 		mVCTVoxelizationPSO.SetBlendState(mBlendState);
 		mVCTVoxelizationPSO.SetDepthStencilState(mDepthStateDisabled);

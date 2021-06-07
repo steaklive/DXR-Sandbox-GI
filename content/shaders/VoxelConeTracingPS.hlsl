@@ -18,7 +18,7 @@ static const float diffuseConeWeights[] =
 };
 
 static const float specularOneDegree = 0.0174533f; //in radians
-static const int specularMaxDegreesCount = 5;
+static const int specularMaxDegreesCount = 2;
 
 Texture2D<float4> albedoBuffer : register(t0);
 Texture2D<float4> normalBuffer : register(t1);

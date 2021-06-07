@@ -18,7 +18,7 @@ static const float diffuseConeWeights[] =
 };
 
 static const float specularOneDegree = 0.0174533f; //in radians
-static const int specularMaxDegreesCount = 5;
+static const int specularMaxDegreesCount = 2;
 
 Texture2D<float4> albedoBuffer : register(t0);
 Texture2D<float4> normalBuffer : register(t1);
@@ -128,7 +128,7 @@ float4 CalculateIndirectSpecular(float3 worldPos, float3 normal, float4 specular
     float3 viewDirection = normalize(CameraPos.rgb - worldPos);
     float3 coneDirection = normalize(reflect(-viewDirection, normal));
         
-    float aperture = clamp(tan(PI * 0.5 * (1.0f - specular.a)), specularOneDegree * specularMaxDegreesCount, PI);
+    float aperture = clamp(tan(PI * 0.5 * (1.0f - /*specular.a*/0.9f)), specularOneDegree * specularMaxDegreesCount, PI);
 
     float ao = -1.0f;
     result = TraceCone(worldPos, normal, coneDirection, aperture, ao, false, voxelResolution);

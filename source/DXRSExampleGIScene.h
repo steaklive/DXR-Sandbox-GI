@@ -238,7 +238,7 @@ private:
 	float mVCTIndirectDiffuseStrength = 1.0f;
 	float mVCTIndirectSpecularStrength = 1.0f;
 	float mVCTMaxConeTraceDistance = 100.0f;
-	float mVCTAoFalloff = 0.03f;
+	float mVCTAoFalloff = 2.0f;
 	float mVCTSamplingFactor = 0.5f;
 	float mVCTVoxelSampleOffset = 0.0f;
 	float mVCTRTRatio = 0.5f; // from MAX_SCREEN_WIDTH/HEIGHT
@@ -371,6 +371,7 @@ private:
 	D3D12_BLEND_DESC mBlendState;
 	D3D12_BLEND_DESC mBlendStateLPVPropagation;
 	D3D12_RASTERIZER_DESC mRasterizerState;
+	D3D12_RASTERIZER_DESC mRasterizerStateNoCullNoDepth;
 	D3D12_RASTERIZER_DESC mRasterizerStateShadow;
 	D3D12_SAMPLER_DESC mBilinearSampler;
 

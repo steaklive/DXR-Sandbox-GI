@@ -182,6 +182,6 @@ PS_OUT PSMain(PS_IN input)
     if (input.color.a < 0.5f)
         discard;
     
-    output.result = input.color;
+    output.result = float4(input.color.rgb, 1.0f);
     return output;
 }
