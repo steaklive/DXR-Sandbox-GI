@@ -1,6 +1,8 @@
 # About
 Simple C++/DX12 framework for my bachelor thesis "Dynamic real-time global illumination algorithms on modern GPU hardware and software".
+
 Video: https://youtu.be/4YUWw8x4XXc
+
 ![picture](screenshots/main.png)
 
 # Features
