@@ -50,5 +50,6 @@ No GI -> RSM -> LPV -> VCT -> offline path-tracer
 # Requirements
 - VS2019
 - DirectX12
+- Windows 10 (1809+)
 - latest Windows SDK
 - NVIDIA GPU with RTX support (if using DXR)
