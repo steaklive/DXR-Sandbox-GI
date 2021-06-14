@@ -1,6 +1,8 @@
 # About
 Simple C++/DX12 framework for my bachelor thesis "Dynamic real-time global illumination algorithms on modern GPU hardware and software".
 
+Video: https://youtu.be/4YUWw8x4XXc
+
 ![picture](screenshots/main.png)
 
 # Features
@@ -50,5 +52,6 @@ No GI -> RSM -> LPV -> VCT -> offline path-tracer
 # Requirements
 - VS2019
 - DirectX12
+- Windows 10 (1809+)
 - latest Windows SDK
 - NVIDIA GPU with RTX support (if using DXR)
