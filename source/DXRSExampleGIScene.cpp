@@ -56,7 +56,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		mRenderableObjects.emplace_back(new DXRSModel(*mSandboxFramework, mSandboxFramework->GetFilePath("content\\models\\sphere_medium.fbx"), true, XMMatrixIdentity() * XMMatrixTranslation(RandomFloat(-35.0f, 35.0f), RandomFloat(5.0f, 30.0f), RandomFloat(-35.0f, 35.0f)),
 			XMFLOAT4(RandomFloat(0.0f, 1.0f), RandomFloat(0.0f, 1.0f), RandomFloat(0.0f, 1.0f), 0.8), true, RandomFloat(-1.0f, 1.0f), RandomFloat(1.0f, 5.0f)));
 
-	if (mSandboxFramework->GetDeviceFeatureLevel() >= D3D_FEATURE_LEVEL_12_1) {
+	if (mSandboxFramework->GetDeviceFeatureLevel() >= D3D_FEATURE_LEVEL_12_1 && mSandboxFramework->IsRaytracingSupported()) {
 		CreateRaytracingAccelerationStructures();
 		CreateRaytracingShaders();
 		CreateRaytracingPSO();
@@ -3003,7 +3003,7 @@ void DXRSExampleGIScene::InitReflectionsDXR(ID3D12Device* device, DXRS::Descript
 
 	mDXRBuffer = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"DXR Info CB");
 
-	if (mSandboxFramework->GetDeviceFeatureLevel() >= D3D_FEATURE_LEVEL_12_1)
+	if (mSandboxFramework->GetDeviceFeatureLevel() >= D3D_FEATURE_LEVEL_12_1 && mSandboxFramework->IsRaytracingSupported())
 	{
 		CreateRaytracingResourceHeap();
 		CreateRaytracingShaderTable();
@@ -3439,7 +3439,7 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 }
 void DXRSExampleGIScene::RenderReflectionsDXR(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
-	if (mSandboxFramework->GetDeviceFeatureLevel() < D3D_FEATURE_LEVEL_12_1)
+	if (mSandboxFramework->GetDeviceFeatureLevel() < D3D_FEATURE_LEVEL_12_1 || !mSandboxFramework->IsRaytracingSupported())
 		return;
 
 	if (mUseDynamicObjects)

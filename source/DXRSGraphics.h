@@ -96,7 +96,7 @@ public:
 
     std::string GetFilePath(const std::string& input);
     std::wstring GetFilePath(const std::wstring& input);
-
+    bool IsRaytracingSupported() { return mRaytracingTierAvailable; }
 private:
 
     DXRSGraphics(const DXRSGraphics& rhs);
@@ -156,4 +156,5 @@ private:
 
     std::filesystem::path               mCurrentPath;
     std::wstring ExecutableDirectory();
+    bool mRaytracingTierAvailable = false;
 };

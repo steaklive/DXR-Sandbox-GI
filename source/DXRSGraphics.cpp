@@ -120,6 +120,13 @@ void DXRSGraphics::CreateResources()
     else
         mD3DFeatureLevel = mD3DMinimumFeatureLevel;
 
+    D3D12_FEATURE_DATA_D3D12_OPTIONS5 featureSupportData = {};
+	HRESULT hr2 = mDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupportData, sizeof(featureSupportData));
+    if (SUCCEEDED(hr2) && featureSupportData.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
+		mRaytracingTierAvailable = true;
+    else 
+        mRaytracingTierAvailable = false;
+
     // Create the command queue. graphics
     {
         D3D12_COMMAND_QUEUE_DESC queueDesc = {};
