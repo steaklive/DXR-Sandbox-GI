@@ -68,6 +68,11 @@ inline float RandomFloat(float a, float b) {
 	return a + r;
 }
 
+inline float Lerp(float a, float b, float f)
+{
+	return a * (1.0 - f) + (b * f);
+}
+
 template <typename T>
 inline T DivideByMultiple(T value, size_t alignment)
 {

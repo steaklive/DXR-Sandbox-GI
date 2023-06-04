@@ -90,6 +90,8 @@ Texture2D<float4> vctBuffer : register(t9);
 
 Texture2D<float4> dxrReflectionsBuffer : register(t10);
 
+Texture2D<float4> ssaoBuffer : register(t11);
+
 float CalculateShadow(float3 ShadowCoord)
 {   
     const float Dilation = 2.0;
@@ -209,6 +211,7 @@ PSOutput PSMain(PSInput input)
     float3 normal = normalize(normalBuffer[inPos].rgb);
     float4 albedo = albedoBuffer[inPos];
     float4 worldPos = worldPosBuffer[inPos];
+    float4 ssao = ssaoBuffer[inPos];
     
     if (!any(albedo))
     {

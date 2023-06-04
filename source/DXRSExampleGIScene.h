@@ -22,6 +22,7 @@
 #define VCT_MIPS 6
 #define LOCKED_CAMERA_VIEWS 3
 #define NUM_DYNAMIC_OBJECTS 40
+#define SSAO_MAX_KERNEL 16
 
 class DXRSExampleGIScene
 {
@@ -54,6 +55,7 @@ private:
 	void InitVoxelConeTracing(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
 	void InitLighting(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
 	void InitComposite(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitSSAO(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
 
 	void RenderSync();
 	void RenderAsync();
@@ -63,6 +65,7 @@ private:
 	void RenderReflectiveShadowMapping(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, RenderQueue aQueue = GRAPHICS_QUEUE, bool useAsyncCompute = false);
 	void RenderLightPropagationVolume(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, RenderQueue aQueue = GRAPHICS_QUEUE, bool useAsyncCompute = false);
 	void RenderVoxelConeTracing(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, RenderQueue aQueue = GRAPHICS_QUEUE, bool useAsyncCompute = false);
+	void RenderSSAO(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, RenderQueue aQueue = GRAPHICS_QUEUE, bool useAsyncCompute = false);
 	void RenderLighting(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderComposite(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderObject(U_PTR<DXRSModel>& aModel, std::function<void(U_PTR<DXRSModel>&)> aCallback);
@@ -74,6 +77,8 @@ private:
 	void CreateRaytracingShaders();
 	void CreateRaytracingShaderTable();
 	void CreateRaytracingResourceHeap();
+
+	void CreateSSAORandomTexture();
 
 	void ThrowFailedErrorBlob(ID3DBlob* blob);
 
@@ -305,6 +310,29 @@ private:
 	bool mUseVCT = false;
 	bool mShowOnlyAO = false;
 
+	// SSAO
+	GraphicsPSO mSSAOPSO;
+	DXRSRenderTarget* mSSAORT;
+	RootSignature mSSAORS;
+	__declspec(align(16)) struct SSAOCBData
+	{
+		XMMATRIX View;
+		XMMATRIX Projection;
+		XMMATRIX InvView;
+		XMMATRIX InvProjection;
+		XMFLOAT4 KernelOffsets[SSAO_MAX_KERNEL];
+		XMFLOAT4 Radius_Power_NoiseScale;
+		XMFLOAT4 ScreenSize;
+	};
+	XMFLOAT4 mSSAOKernelOffsets[SSAO_MAX_KERNEL];
+	float mSSAORadius = 1.0f;
+	float mSSAOPower = 1.0f;
+	bool mUseSSAO = true;
+	DXRSBuffer* mSSAOCB;
+	ComPtr<ID3D12Resource> mRandomVectorSSAOResource;
+	ComPtr<ID3D12Resource> mRandomVectorSSAOUploadBuffer;
+	DXRS::DescriptorHandle mRandomVectorSSAODescriptorHandleCPU;
+
 	// Shadows
 	GraphicsPSO mShadowMappingPSO;
 	DXRSDepthBuffer* mShadowDepth;
@@ -374,7 +402,8 @@ private:
 	D3D12_RASTERIZER_DESC mRasterizerState;
 	D3D12_RASTERIZER_DESC mRasterizerStateNoCullNoDepth;
 	D3D12_RASTERIZER_DESC mRasterizerStateShadow;
-	D3D12_SAMPLER_DESC mBilinearSampler;
+	D3D12_SAMPLER_DESC mBilinearSamplerClamp;
+	D3D12_SAMPLER_DESC mBilinearSamplerWrap;
 
 	XMFLOAT3 mCameraEye{ 0.0f, 0.0f, 0.0f };
 	XMMATRIX mCameraView;
@@ -393,7 +422,7 @@ private:
 		XMMatrixIdentity()
 	};
 
-	bool mUseAsyncCompute = true;
+	bool mUseAsyncCompute = false;
 	bool mUseDynamicObjects = false;
 	bool mStopDynamicObjects = false;
 };

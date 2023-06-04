@@ -62,6 +62,8 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 		CreateRaytracingPSO();
 	}
 
+	CreateSSAORandomTexture();
+
 	mSandboxFramework->FinalizeResources();
 	ID3D12Device* device = mSandboxFramework->GetD3DDevice();
 
@@ -192,19 +194,24 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	mRasterizerStateShadow.ForcedSampleCount = 0;
 	mRasterizerStateShadow.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
-	mBilinearSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-	mBilinearSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	mBilinearSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	mBilinearSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	mBilinearSamplerClamp.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	mBilinearSamplerClamp.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	mBilinearSamplerClamp.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	mBilinearSamplerClamp.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	//bilinearSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_EQUAL;
-	mBilinearSampler.MipLODBias = 0;
-	mBilinearSampler.MaxAnisotropy = 16;
-	mBilinearSampler.MinLOD = 0.0f;
-	mBilinearSampler.MaxLOD = D3D12_FLOAT32_MAX;
-	mBilinearSampler.BorderColor[0] = 0.0f;
-	mBilinearSampler.BorderColor[1] = 0.0f;
-	mBilinearSampler.BorderColor[2] = 0.0f;
-	mBilinearSampler.BorderColor[3] = 0.0f;
+	mBilinearSamplerClamp.MipLODBias = 0;
+	mBilinearSamplerClamp.MaxAnisotropy = 16;
+	mBilinearSamplerClamp.MinLOD = 0.0f;
+	mBilinearSamplerClamp.MaxLOD = D3D12_FLOAT32_MAX;
+	mBilinearSamplerClamp.BorderColor[0] = 0.0f;
+	mBilinearSamplerClamp.BorderColor[1] = 0.0f;
+	mBilinearSamplerClamp.BorderColor[2] = 0.0f;
+	mBilinearSamplerClamp.BorderColor[3] = 0.0f;
+
+	mBilinearSamplerWrap = mBilinearSamplerClamp;
+	mBilinearSamplerWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	mBilinearSamplerWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	mBilinearSamplerWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 
 #pragma endregion
 
@@ -231,6 +238,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	InitVoxelConeTracing(device, descriptorManager);
 	InitReflectionsDXR(device, descriptorHeapManager);
 	InitLighting(device, descriptorManager);
+	InitSSAO(device, descriptorManager);
 	InitComposite(device, descriptorManager);
 }
 
@@ -508,6 +516,7 @@ void DXRSExampleGIScene::RenderSync()
 	RenderReflectiveShadowMapping(device, commandListGraphics, gpuDescriptorHeap);
 	RenderLightPropagationVolume(device, commandListGraphics, gpuDescriptorHeap);
 	RenderVoxelConeTracing(device, commandListGraphics, gpuDescriptorHeap);
+	RenderSSAO(device, commandListGraphics, gpuDescriptorHeap);
 	if (mUseDXRReflections) {
 		RenderReflectionsDXR(device, commandListGraphics, gpuDescriptorHeap);
 
@@ -652,6 +661,17 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	vctMainData.VoxelSampleOffset = mVCTVoxelSampleOffset;
 	memcpy(mVCTMainCB->Map(), &vctMainData, sizeof(vctMainData));
 
+	SSAOCBData ssaoData = {};
+	ssaoData.View = mCameraView;
+	ssaoData.Projection = mCameraProjection;
+	ssaoData.InvView = XMMatrixInverse(nullptr, mCameraView);
+	ssaoData.InvProjection = XMMatrixInverse(nullptr, mCameraProjection);
+	for (int i = 0; i < SSAO_MAX_KERNEL; i++)
+		ssaoData.KernelOffsets[i] = mSSAOKernelOffsets[i];
+	ssaoData.Radius_Power_NoiseScale = XMFLOAT4(mSSAORadius, mSSAOPower, mSSAORT->GetWidth() / 8.0f, mSSAORT->GetHeight() / 8.0f);
+	ssaoData.ScreenSize = { width, height, 1.0f / width, 1.0f / height };
+	memcpy(mSSAOCB->Map(), &ssaoData, sizeof(ssaoData));
+
 	DXRBuffer dxrData = {};
 	dxrData.ViewMatrix = mCameraView;
 	dxrData.ProjectionMatrix = mCameraProjection;
@@ -711,10 +731,18 @@ void DXRSExampleGIScene::UpdateImGui()
 
 		ImGui::Checkbox("Direct Light", &mUseDirectLight);
 		ImGui::Checkbox("Direct Shadows", &mUseShadows);
+		ImGui::Separator();
 		ImGui::Checkbox("Reflective Shadow Mapping", &mUseRSM);
 		ImGui::Checkbox("Light Propagation Volume", &mUseLPV);
 		ImGui::Checkbox("Voxel Cone Tracing", &mUseVCT);
-		ImGui::Checkbox("Show AO", &mShowOnlyAO);
+		ImGui::Separator();
+		ImGui::Checkbox("SSAO", &mUseSSAO);
+		if (mUseSSAO)
+		{
+			ImGui::SliderFloat("SSAO Radius", &mSSAORadius, 0.01f, 100.0f);
+			ImGui::SliderFloat("SSAO Power", &mSSAOPower, 0.01f, 10.0f);
+		}
+		ImGui::Checkbox("Debug AO", &mShowOnlyAO);
 
 		ImGui::Separator();
 		
@@ -1302,7 +1330,7 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
 		mRSMUpsampleAndBlurRS.Reset(3, 1);
-		mRSMUpsampleAndBlurRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
+		mRSMUpsampleAndBlurRS.InitStaticSampler(0, mBilinearSamplerClamp, D3D12_SHADER_VISIBILITY_ALL);
 		mRSMUpsampleAndBlurRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mRSMUpsampleAndBlurRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mRSMUpsampleAndBlurRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
@@ -2287,7 +2315,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		// PS
 		{
 			mVCTMainRS.Reset(2, 1);
-			mVCTMainRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
+			mVCTMainRS.InitStaticSampler(0, mBilinearSamplerClamp, D3D12_SHADER_VISIBILITY_ALL);
 			mVCTMainRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
 			mVCTMainRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10, D3D12_SHADER_VISIBILITY_ALL);
 			mVCTMainRS.Finalize(device, L"VCT main pass pixel version RS", rootSignatureFlags);
@@ -2340,7 +2368,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		// CS
 		{
 			mVCTMainRS_Compute.Reset(3, 1);
-			mVCTMainRS_Compute.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
+			mVCTMainRS_Compute.InitStaticSampler(0, mBilinearSamplerClamp, D3D12_SHADER_VISIBILITY_ALL);
 			mVCTMainRS_Compute[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 2, D3D12_SHADER_VISIBILITY_ALL);
 			mVCTMainRS_Compute[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10, D3D12_SHADER_VISIBILITY_ALL);
 			mVCTMainRS_Compute[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
@@ -2383,7 +2411,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
 		mVCTMainUpsampleAndBlurRS.Reset(3, 1);
-		mVCTMainUpsampleAndBlurRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
+		mVCTMainUpsampleAndBlurRS.InitStaticSampler(0, mBilinearSamplerClamp, D3D12_SHADER_VISIBILITY_ALL);
 		mVCTMainUpsampleAndBlurRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mVCTMainUpsampleAndBlurRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mVCTMainUpsampleAndBlurRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
@@ -2750,6 +2778,186 @@ void DXRSExampleGIScene::RenderVoxelConeTracing(ID3D12Device* device, ID3D12Grap
 	}
 }
 
+
+void DXRSExampleGIScene::CreateSSAORandomTexture()
+{
+	ID3D12Device* device = mSandboxFramework->GetD3DDevice();
+
+	D3D12_RESOURCE_DESC texDesc;
+	ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
+	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	texDesc.Alignment = 0;
+	texDesc.Width = 8;
+	texDesc.Height = 8;
+	texDesc.DepthOrArraySize = 1;
+	texDesc.MipLevels = 1;
+	texDesc.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &texDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&mRandomVectorSSAOResource)));
+
+	const UINT num2DSubresources = 1;
+	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(mRandomVectorSSAOResource.Get(), 0, num2DSubresources);
+
+	ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(mRandomVectorSSAOUploadBuffer.GetAddressOf())));
+
+	XMFLOAT3 initData[64];
+	for (int i = 0; i < 64; ++i)
+		initData[i] = XMFLOAT3(RandomFloat(-1.0f, 1.0f), RandomFloat(-1.0f, 1.0f), 0.0f);
+
+	D3D12_SUBRESOURCE_DATA data = {};
+	data.pData = initData;
+	data.RowPitch = 8 * sizeof(XMFLOAT3);
+	data.SlicePitch = 0;
+
+	mSandboxFramework->GetCommandListGraphics()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mRandomVectorSSAOResource.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST));
+	UpdateSubresources(mSandboxFramework->GetCommandListGraphics(), mRandomVectorSSAOResource.Get(), mRandomVectorSSAOUploadBuffer.Get(), 0, 0, 1, &data);
+	mSandboxFramework->GetCommandListGraphics()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mRandomVectorSSAOResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+	mRandomVectorSSAODescriptorHandleCPU = mSandboxFramework->GetDescriptorHeapManager()->CreateCPUHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = 1;
+	device->CreateShaderResourceView(mRandomVectorSSAOResource.Get(), &srvDesc, mRandomVectorSSAODescriptorHandleCPU.GetCPUHandle());
+}
+
+void DXRSExampleGIScene::InitSSAO(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
+{
+	mSSAORT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
+		DXGI_FORMAT_R32G32B32A32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"SSAO");
+
+	//create root signature
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+	mSSAORS.Reset(2, 2);
+	mSSAORS.InitStaticSampler(0, mBilinearSamplerClamp, D3D12_SHADER_VISIBILITY_PIXEL);
+	mSSAORS.InitStaticSampler(1, mBilinearSamplerWrap, D3D12_SHADER_VISIBILITY_PIXEL);
+	mSSAORS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
+	mSSAORS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3, D3D12_SHADER_VISIBILITY_PIXEL);
+	mSSAORS.Finalize(device, L"SSAO RS", rootSignatureFlags);
+
+	//PSO
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0xffffffff, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	ComPtr<ID3DBlob> vertexShader;
+	ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+	// Enable better shader debugging with the graphics debugging tools.
+	UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+	UINT compileFlags = 0;
+#endif
+	ID3DBlob* errorBlob = nullptr;
+
+	ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\SSAO.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &errorBlob));
+	if (errorBlob)
+	{
+		OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+		errorBlob->Release();
+	}
+
+	ThrowIfFailed(D3DCompileFromFile(mSandboxFramework->GetFilePath(L"content\\shaders\\SSAO.hlsl").c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, &errorBlob));
+	if (errorBlob)
+	{
+		OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+		errorBlob->Release();
+	}
+
+	DXGI_FORMAT m_rtFormats[1];
+	m_rtFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+	mSSAOPSO.SetRootSignature(mSSAORS);
+	mSSAOPSO.SetRasterizerState(mRasterizerState);
+	mSSAOPSO.SetBlendState(mBlendState);
+	mSSAOPSO.SetDepthStencilState(mDepthStateDisabled);
+	mSSAOPSO.SetInputLayout(_countof(inputElementDescs), inputElementDescs);
+	mSSAOPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+	mSSAOPSO.SetRenderTargetFormats(_countof(m_rtFormats), m_rtFormats, DXGI_FORMAT_D32_FLOAT);
+	mSSAOPSO.SetVertexShader(vertexShader->GetBufferPointer(), vertexShader->GetBufferSize());
+	mSSAOPSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
+	mSSAOPSO.Finalize(device);
+	 
+	for (int i = 0; i < SSAO_MAX_KERNEL; i++)
+	{
+		XMFLOAT4 value = XMFLOAT4(RandomFloat(-1.0f, 1.0f), RandomFloat(-1.0f, 1.0f), RandomFloat(0.0f, 1.0f), 0.0f);
+		float scale = static_cast<float>(i) / static_cast<float>(SSAO_MAX_KERNEL);
+		float scaleFactor = Lerp(0.1f, 1.0f, scale * scale);
+		mSSAOKernelOffsets[i] = XMFLOAT4(value.x * scaleFactor, value.y * scaleFactor, value.z * scaleFactor,1.0);
+	}
+
+	//CB
+	DXRSBuffer::Description cbDesc;
+	cbDesc.mElementSize = sizeof(SSAOCBData);
+	cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
+	cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
+
+	mSSAOCB = new DXRSBuffer(device, descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"SSAO Pass CB");
+
+}
+void DXRSExampleGIScene::RenderSSAO(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap, RenderQueue aQueue /*= GRAPHICS_QUEUE*/, bool useAsyncCompute /*= false*/)
+{
+	if (!mUseSSAO)
+		return;
+
+	PIXBeginEvent(commandList, 0, "SSAO");
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesSSAO[] =
+		{
+			mSSAORT->GetRTV().GetCPUHandle()
+		};
+
+		mSandboxFramework->ResourceBarriersBegin(mBarriers);
+		mSSAORT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+		commandList->OMSetRenderTargets(_countof(rtvHandlesSSAO), rtvHandlesSSAO, FALSE, nullptr);
+		commandList->ClearRenderTargetView(rtvHandlesSSAO[0], clearColorWhite, 0, nullptr);
+
+		commandList->SetPipelineState(mSSAOPSO.GetPipelineStateObject());
+		commandList->SetGraphicsRootSignature(mSSAORS.GetSignature());
+
+		CD3DX12_VIEWPORT viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, mSandboxFramework->GetOutputSize().right, mSandboxFramework->GetOutputSize().bottom);
+		CD3DX12_RECT rect = CD3DX12_RECT(0.0f, 0.0f, mSandboxFramework->GetOutputSize().right, mSandboxFramework->GetOutputSize().bottom);
+		commandList->RSSetViewports(1, &viewport);
+		commandList->RSSetScissorRects(1, &rect);
+
+		DXRS::DescriptorHandle cbvHandleSSAO = gpuDescriptorHeap->GetHandleBlock(1);
+		gpuDescriptorHeap->AddToHandle(device, cbvHandleSSAO, mSSAOCB->GetCBV());
+
+		DXRS::DescriptorHandle srvHandleSSAO = gpuDescriptorHeap->GetHandleBlock(3);
+		gpuDescriptorHeap->AddToHandle(device, srvHandleSSAO, mGbufferRTs[1]->GetSRV());
+		gpuDescriptorHeap->AddToHandle(device, srvHandleSSAO, mRandomVectorSSAODescriptorHandleCPU);
+		gpuDescriptorHeap->AddToHandle(device, srvHandleSSAO, mDepthStencil->GetSRV());
+
+		commandList->SetGraphicsRootDescriptorTable(0, cbvHandleSSAO.GetGPUHandle());
+		commandList->SetGraphicsRootDescriptorTable(1, srvHandleSSAO.GetGPUHandle());
+
+		commandList->IASetVertexBuffers(0, 1, &mSandboxFramework->GetFullscreenQuadBufferView());
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		commandList->DrawInstanced(4, 1, 0, 0);
+	}
+	PIXEndEvent(commandList);
+}
+
 void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
 {
 	//RTs
@@ -2794,11 +3002,11 @@ void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeap
 	lpvSampler.BorderColor[3] = 0.0f;
 
 	mLightingRS.Reset(2, 3);
-	mLightingRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_PIXEL);
+	mLightingRS.InitStaticSampler(0, mBilinearSamplerClamp, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS.InitStaticSampler(1, shadowSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS.InitStaticSampler(2, lpvSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 4, D3D12_SHADER_VISIBILITY_ALL);
-	mLightingRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 11, D3D12_SHADER_VISIBILITY_PIXEL);
+	mLightingRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 12, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS.Finalize(device, L"Lighting pass RS", rootSignatureFlags);
 
 	//PSO
@@ -2892,7 +3100,7 @@ void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsComm
 		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mLPVCB->GetCBV());
 		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mIlluminationFlagsCB->GetCBV());
 
-		DXRS::DescriptorHandle srvHandleLighting = gpuDescriptorHeap->GetHandleBlock(11);
+		DXRS::DescriptorHandle srvHandleLighting = gpuDescriptorHeap->GetHandleBlock(12);
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[0]->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[1]->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[2]->GetSRV());
@@ -2911,6 +3119,7 @@ void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsComm
 			gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mVCTMainRT->GetSRV());
 		
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, (mDXRBlurReflections) ? mDXRReflectionsBlurredRT->GetSRV() : mDXRReflectionsRT->GetSRV());
+		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mSSAORT->GetSRV());
 
 		commandList->SetGraphicsRootDescriptorTable(0, cbvHandleLighting.GetGPUHandle());
 		commandList->SetGraphicsRootDescriptorTable(1, srvHandleLighting.GetGPUHandle());
@@ -2966,6 +3175,7 @@ void DXRSExampleGIScene::InitComposite(ID3D12Device* device, DXRS::DescriptorHea
 	mCompositePSO.SetPixelShader(pixelShader->GetBufferPointer(), pixelShader->GetBufferSize());
 	mCompositePSO.Finalize(device);
 }
+
 void DXRSExampleGIScene::RenderComposite(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
 	PIXBeginEvent(commandList, 0, "Composite");
@@ -3023,7 +3233,7 @@ void DXRSExampleGIScene::InitReflectionsDXR(ID3D12Device* device, DXRS::Descript
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
 		mRaytracingBlurRS.Reset(3, 1);
-		mRaytracingBlurRS.InitStaticSampler(0, mBilinearSampler, D3D12_SHADER_VISIBILITY_ALL);
+		mRaytracingBlurRS.InitStaticSampler(0, mBilinearSamplerClamp, D3D12_SHADER_VISIBILITY_ALL);
 		mRaytracingBlurRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mRaytracingBlurRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
 		mRaytracingBlurRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);

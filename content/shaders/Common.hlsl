@@ -11,12 +11,34 @@
 
 static const float FLT_MAX = asfloat(0x7F7FFFFF);
 
+float LinearizeDepth(float nonLinearDepth, float4x4 invProj)
+{   
+    float4 ndcCoords = float4(0, 0, nonLinearDepth, 1.0f);
+    
+    // Unproject the vector into (homogenous) view-space vector
+    float4 viewCoords = mul(invProj, ndcCoords);
+    
+    // Divide by w, which results in actual view-space z value
+    float linearDepth = -viewCoords.z / viewCoords.w;
+    return linearDepth;
+}
 float3 ReconstructWorldPosFromDepth(float2 uv, float depth, float4x4 invProj, float4x4 invView)
-{
-    float4 viewPos = mul(float4(uv.x, uv.y, depth, 1.0f), invProj);
+{   
+    float ndcX = uv.x * 2 - 1;
+    float ndcY = 1 - uv.y * 2; // Remember to flip y!!!
+    float4 viewPos = mul(invProj, float4(ndcX, ndcY, depth, 1.0f));
     viewPos = viewPos / viewPos.w;
     return mul(invView, viewPos).xyz;
 }
+float3 ReconstructViewPosFromDepth(float2 uv, float depth, float4x4 invProj)
+{
+    float ndcX = uv.x * 2 - 1;
+    float ndcY = 1 - uv.y * 2; // Remember to flip y!!!
+    float4 viewPos = mul(invProj, float4(ndcX, ndcY, depth, 1.0f));
+    viewPos = viewPos / viewPos.w;
+    return viewPos.xyz;
+}
+
 
 struct Payload
 {
