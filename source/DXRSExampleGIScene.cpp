@@ -869,7 +869,7 @@ void DXRSExampleGIScene::RenderObject(U_PTR<DXRSModel>& aModel, std::function<vo
 
 void DXRSExampleGIScene::InitGbuffer(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
 {
-	D3D12_SAMPLER_DESC sampler;
+	D3D12_SAMPLER_DESC sampler = {};
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -1194,7 +1194,7 @@ void DXRSExampleGIScene::InitReflectiveShadowMapping(ID3D12Device* device, DXRS:
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-		D3D12_SAMPLER_DESC rsmSampler;
+		D3D12_SAMPLER_DESC rsmSampler = {};
 		rsmSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 		rsmSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 		rsmSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -2023,7 +2023,7 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 {
 	// voxelization
 	{
-		D3D12_SAMPLER_DESC shadowSampler;
+		D3D12_SAMPLER_DESC shadowSampler = {};
 		shadowSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 		shadowSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 		shadowSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
@@ -3002,7 +3002,7 @@ void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeap
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-	D3D12_SAMPLER_DESC shadowSampler;
+	D3D12_SAMPLER_DESC shadowSampler = {};
 	shadowSampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 	shadowSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 	shadowSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
@@ -3017,7 +3017,7 @@ void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeap
 	shadowSampler.BorderColor[2] = 1.0f;
 	shadowSampler.BorderColor[3] = 1.0f;
 
-	D3D12_SAMPLER_DESC lpvSampler;
+	D3D12_SAMPLER_DESC lpvSampler = {};
 	lpvSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	lpvSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 	lpvSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;

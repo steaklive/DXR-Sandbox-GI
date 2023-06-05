@@ -404,8 +404,8 @@ private:
 	D3D12_RASTERIZER_DESC mRasterizerState;
 	D3D12_RASTERIZER_DESC mRasterizerStateNoCullNoDepth;
 	D3D12_RASTERIZER_DESC mRasterizerStateShadow;
-	D3D12_SAMPLER_DESC mBilinearSamplerClamp;
-	D3D12_SAMPLER_DESC mBilinearSamplerWrap;
+	D3D12_SAMPLER_DESC mBilinearSamplerClamp = {};
+	D3D12_SAMPLER_DESC mBilinearSamplerWrap = {};
 
 	XMFLOAT3 mCameraEye{ 0.0f, 0.0f, 0.0f };
 	XMMATRIX mCameraView;
