@@ -11,6 +11,7 @@ Video: https://youtu.be/4YUWw8x4XXc
 - GI w/ Reflective Shadow Mapping (indirect diffuse)
 - GI w/ Light Propagation Volume (indirect diffuse)
 - GI w/ Voxel Cone Tracing (indirect diffuse + specular + AO)
+- SSAO
 - Asynchronous compute
 - DXR Reflections + Blur
 
