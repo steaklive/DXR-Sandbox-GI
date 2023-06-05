@@ -40,6 +40,7 @@ cbuffer IlluminationFlagsBuffer : register(b3)
     int useVCT;
     int useVCTDebug;
     int useDXR;
+    int useSSAO;
     float rsmGIPower;
     float lpvGIPower;
     float vctGIPower;
@@ -90,7 +91,7 @@ Texture2D<float4> vctBuffer : register(t9);
 
 Texture2D<float4> dxrReflectionsBuffer : register(t10);
 
-Texture2D<float4> ssaoBuffer : register(t11);
+Texture2D<float> ssaoBuffer : register(t11);
 
 float CalculateShadow(float3 ShadowCoord)
 {   
@@ -211,7 +212,7 @@ PSOutput PSMain(PSInput input)
     float3 normal = normalize(normalBuffer[inPos].rgb);
     float4 albedo = albedoBuffer[inPos];
     float4 worldPos = worldPosBuffer[inPos];
-    float4 ssao = ssaoBuffer[inPos];
+    float ssao = ssaoBuffer[inPos];
     
     if (!any(albedo))
     {
@@ -269,6 +270,11 @@ PSOutput PSMain(PSInput input)
             ao = 1.0f - vct.a;
     }  
     
+    if (useSSAO)
+    {
+        ao = 1.0f - ssao;
+    }
+    
     float shadow = 1.0f;
     if (useShadows)
     {
@@ -300,7 +306,7 @@ PSOutput PSMain(PSInput input)
     output.diffuse.rgb = ao * indirectLighting + (directLighting + (useDXR ? lerp(reflectionsDXR, directLighting * albedo.a, dxrReflectionsBlend) : 0.0f)) * shadow;;
     output.diffuse.rgb = saturate(output.diffuse.rgb);
     if (showOnlyAO)
-        output.diffuse.rgb = float3(ao, ao, ao);
+        output.diffuse.rgb = float3(ao.xxx);
     
     return output;
 }

@@ -289,6 +289,7 @@ private:
 		int useVCT;
 		int useVCTDebug;
 		int useDXR;
+		int useSSAO;
 		float rsmGIPower;
 		float lpvGIPower;
 		float vctGIPower;
@@ -313,6 +314,7 @@ private:
 	// SSAO
 	GraphicsPSO mSSAOPSO;
 	DXRSRenderTarget* mSSAORT;
+	DXRSRenderTarget* mSSAOFinalRT; //after upsample/blur
 	RootSignature mSSAORS;
 	__declspec(align(16)) struct SSAOCBData
 	{
@@ -325,9 +327,9 @@ private:
 		XMFLOAT4 ScreenSize;
 	};
 	XMFLOAT4 mSSAOKernelOffsets[SSAO_MAX_KERNEL];
-	float mSSAORadius = 1.0f;
-	float mSSAOPower = 1.0f;
-	bool mUseSSAO = true;
+	float mSSAORadius = 7.2f;
+	float mSSAOPower = 5.7f;
+	bool mUseSSAO = false;
 	DXRSBuffer* mSSAOCB;
 	ComPtr<ID3D12Resource> mRandomVectorSSAOResource;
 	ComPtr<ID3D12Resource> mRandomVectorSSAOUploadBuffer;

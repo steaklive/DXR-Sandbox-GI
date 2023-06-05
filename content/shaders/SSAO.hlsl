@@ -16,7 +16,7 @@ struct PSInput
 
 struct PSOutput
 {
-    float4 color : SV_Target0;
+    float color : SV_Target0;
 };
 
 PSInput VSMain(VSInput input)
@@ -52,10 +52,10 @@ PSOutput PSMain(PSInput input)
     PSOutput output = (PSOutput) 0;
     
     float3 normal = normalsBuffer[input.position.xy].rgb;
-    float depth = LinearizeDepth(depthBuffer[input.position.xy], InvProj);
+    float depth = depthBuffer[input.position.xy];
     
     float2 uv = input.position.xy / ScreenSize.xy;
-    float3 worldPosition = ReconstructViewPosFromDepth(uv, depth, InvProj);
+    float3 viewPosition = ReconstructViewPosFromDepth(uv, depth, InvProj);
     float3 randomVector = randomVectorBuffer.Sample(WrapSampler, uv * Radius_Power_NoiseScale.zw).rgb;
     
     float3 tangent = normalize(randomVector - normal * dot(randomVector, normal));
@@ -66,23 +66,26 @@ PSOutput PSMain(PSInput input)
     for (int i = 0; i < (int) SSAO_MAX_KERNEL_OFFSETS; i++)
     {
         float3 samplePos = mul(KernelOffsets[i].xyz, TBN);
-        samplePos = samplePos * Radius_Power_NoiseScale.x + worldPosition;
+        samplePos = samplePos * Radius_Power_NoiseScale.x + viewPosition;
         
-        float3 sampleDir = normalize(samplePos - worldPosition);
+        float3 sampleDir = normalize(samplePos - viewPosition);
         float factor = max(dot(normal, sampleDir), 0);
 
-        float4 offset = mul(float4(samplePos, 1.0f), Proj);
+        float4 offset = mul(Proj, float4(samplePos, 1.0f));
         offset.xy /= offset.w;
         
-        float sampleD = depthBuffer.Sample(LinearSampler, offset.xy);
+        float2 uvD = offset.xy * 0.5f + 0.5f;
+        uvD.y = 1.0f - uvD.y;
+        
+        float sampleD = depthBuffer.Sample(LinearSampler, uvD);
         sampleD = ReconstructViewPosFromDepth(offset.xy, sampleD, InvProj).z;
         
-        float range = smoothstep(0.0, 1.0, Radius_Power_NoiseScale.x / (abs(worldPosition.z - sampleD) + 0.00001f));
+        float range = smoothstep(0.0, 1.0, Radius_Power_NoiseScale.x / (abs(viewPosition.z - sampleD) + 0.00001f));
         occlusion += range * step(sampleD, samplePos.z) * factor;
     }
     occlusion = 1.0 - (occlusion / SSAO_MAX_KERNEL_OFFSETS);
     occlusion = pow(occlusion, Radius_Power_NoiseScale.y);
     
-    output.color = float4(occlusion, occlusion, occlusion, 1.0f);
+    output.color = occlusion;
     return output;
 }

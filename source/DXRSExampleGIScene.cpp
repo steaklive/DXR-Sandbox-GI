@@ -619,6 +619,7 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	illumData.lpvGIPower = mLPVGIPower;
 	illumData.vctGIPower = mVCTGIPower;
 	illumData.useDXR = mUseDXRReflections ? 1 : 0;
+	illumData.useSSAO = mUseSSAO ? 1 : 0;
 	illumData.dxrReflectionsBlend = mDXRReflectionsBlend;
 	illumData.showOnlyAO = mShowOnlyAO ? 1 : 0;
 	memcpy(mIlluminationFlagsCB->Map(), &illumData, sizeof(illumData));
@@ -2833,7 +2834,10 @@ void DXRSExampleGIScene::CreateSSAORandomTexture()
 void DXRSExampleGIScene::InitSSAO(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
 {
 	mSSAORT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
-		DXGI_FORMAT_R32G32B32A32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"SSAO");
+		DXGI_FORMAT_R8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"SSAO");
+
+	mSSAOFinalRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
+		DXGI_FORMAT_R8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"SSAO Final");
 
 	//create root signature
 	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -2883,7 +2887,7 @@ void DXRSExampleGIScene::InitSSAO(ID3D12Device* device, DXRS::DescriptorHeapMana
 	}
 
 	DXGI_FORMAT m_rtFormats[1];
-	m_rtFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	m_rtFormats[0] = DXGI_FORMAT_R8_UNORM;
 
 	mSSAOPSO.SetRootSignature(mSSAORS);
 	mSSAOPSO.SetRasterizerState(mRasterizerState);
@@ -2954,6 +2958,33 @@ void DXRSExampleGIScene::RenderSSAO(ID3D12Device* device, ID3D12GraphicsCommandL
 		commandList->IASetVertexBuffers(0, 1, &mSandboxFramework->GetFullscreenQuadBufferView());
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		commandList->DrawInstanced(4, 1, 0, 0);
+	}
+	PIXEndEvent(commandList);
+
+	// upsample & blur
+	PIXBeginEvent(commandList, 0, "SSAO upsample & blur CS");
+	{
+		commandList->SetPipelineState(mRSMUpsampleAndBlurPSO.GetPipelineStateObject());
+		commandList->SetComputeRootSignature(mRSMUpsampleAndBlurRS.GetSignature());
+
+		mSandboxFramework->ResourceBarriersBegin(mBarriers);
+		mSSAOFinalRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+		DXRS::DescriptorHandle srvHandleBlurRSM = gpuDescriptorHeap->GetHandleBlock(1);
+		gpuDescriptorHeap->AddToHandle(device, srvHandleBlurRSM, mSSAORT->GetSRV());
+
+		DXRS::DescriptorHandle uavHandleBlurRSM = gpuDescriptorHeap->GetHandleBlock(1);
+		gpuDescriptorHeap->AddToHandle(device, uavHandleBlurRSM, mSSAOFinalRT->GetUAV());
+
+		DXRS::DescriptorHandle cbvHandleBlurRSM = gpuDescriptorHeap->GetHandleBlock(1);
+		gpuDescriptorHeap->AddToHandle(device, cbvHandleBlurRSM, mGIUpsampleAndBlurBuffer->GetCBV());
+
+		commandList->SetComputeRootDescriptorTable(0, srvHandleBlurRSM.GetGPUHandle());
+		commandList->SetComputeRootDescriptorTable(1, uavHandleBlurRSM.GetGPUHandle());
+		commandList->SetComputeRootDescriptorTable(2, cbvHandleBlurRSM.GetGPUHandle());
+
+		commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mSSAOFinalRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mSSAOFinalRT->GetHeight()), 8u), 1u);
 	}
 	PIXEndEvent(commandList);
 }
@@ -3119,7 +3150,7 @@ void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsComm
 			gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mVCTMainRT->GetSRV());
 		
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, (mDXRBlurReflections) ? mDXRReflectionsBlurredRT->GetSRV() : mDXRReflectionsRT->GetSRV());
-		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mSSAORT->GetSRV());
+		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mSSAOFinalRT->GetSRV());
 
 		commandList->SetGraphicsRootDescriptorTable(0, cbvHandleLighting.GetGPUHandle());
 		commandList->SetGraphicsRootDescriptorTable(1, srvHandleLighting.GetGPUHandle());
