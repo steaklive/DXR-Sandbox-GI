@@ -35,6 +35,11 @@ Voxel Cone Tracing:
 
 ![picture](screenshots/VCT_async.png)
 
+SSAO:
+- TODO: downscaled version
+- TODO: move to compute with LDS optimizations
+- TODO: move to async
+
 # Comparison
 No GI -> RSM -> LPV -> VCT -> offline path-tracer
 
