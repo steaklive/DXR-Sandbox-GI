@@ -82,7 +82,7 @@ private:
 
 	void ThrowFailedErrorBlob(ID3DBlob* blob);
 
-	DXRSGraphics* mSandboxFramework;
+	DXRSGraphics* mSandboxFramework = nullptr;
 	std::vector<CD3DX12_RESOURCE_BARRIER> mBarriers;
 
 	U_PTR<Keyboard> mKeyboard;
@@ -97,9 +97,9 @@ private:
 
 	// Gbuffer
 	RootSignature mGbufferRS;
-	std::vector<DXRSRenderTarget*> mGbufferRTs;
+	DXRSRenderTarget* mGbufferRTs[3] = { nullptr };
 	GraphicsPSO mGbufferPSO;
-	DXRSDepthBuffer* mDepthStencil;
+	DXRSDepthBuffer* mDepthStencil = nullptr;
 	__declspec(align(16)) struct GBufferCBData
 	{
 		XMMATRIX ViewProjection;
@@ -108,7 +108,7 @@ private:
 		XMFLOAT4 ScreenSize;
 		XMFLOAT4 LightColor;
 	};
-	DXRSBuffer* mGbufferCB;
+	DXRSBuffer* mGbufferCB = nullptr;
 
 	// RSM
 	RootSignature mRSMRS;
@@ -123,11 +123,11 @@ private:
 	GraphicsPSO mRSMDownsamplePSO;
 	ComputePSO mRSMDownsamplePSO_Compute;
 	ComputePSO mRSMUpsampleAndBlurPSO;
-	DXRSRenderTarget* mRSMRT;
+	DXRSRenderTarget* mRSMRT = nullptr;
 	std::vector<DXRSRenderTarget*> mRSMBuffersRTs;
 	std::vector<DXRSRenderTarget*> mRSMBuffersRTs_CopiesForAsync;
 	std::vector<DXRSRenderTarget*> mRSMDownsampledBuffersRTs;
-	DXRSRenderTarget* mRSMUpsampleAndBlurRT;
+	DXRSRenderTarget* mRSMUpsampleAndBlurRT = nullptr;
 	__declspec(align(16)) struct RSMCBData
 	{
 		XMMATRIX ShadowViewProjection;
@@ -144,9 +144,9 @@ private:
 		XMFLOAT4 LightDir;
 		int ScaleSize;
 	};
-	DXRSBuffer* mRSMCB;
-	DXRSBuffer* mRSMCB2;
-	DXRSBuffer* mRSMDownsampleCB;
+	DXRSBuffer* mRSMCB = nullptr;
+	DXRSBuffer* mRSMCB2 = nullptr;
+	DXRSBuffer* mRSMDownsampleCB = nullptr;
 	float mRSMIntensity = 0.146f;
 	float mRSMRMax = 0.035f;
 	float mRSMRTRatio = 0.33333f; // from MAX_SCREEN_WIDTH/HEIGHT
@@ -169,8 +169,8 @@ private:
 	ComPtr<ID3D12CommandAllocator> mLPVPropagationBundle2Allocator;
 	ComPtr<ID3D12GraphicsCommandList> mLPVPropagationBundle1;
 	ComPtr<ID3D12GraphicsCommandList> mLPVPropagationBundle2;
-	DXRS::GPUDescriptorHeap* mLPVPropagationBundle1UsedGPUHeap;
-	DXRS::GPUDescriptorHeap* mLPVPropagationBundle2UsedGPUHeap;
+	DXRS::GPUDescriptorHeap* mLPVPropagationBundle1UsedGPUHeap = nullptr;
+	DXRS::GPUDescriptorHeap* mLPVPropagationBundle2UsedGPUHeap = nullptr;
 	bool mUseBundleForLPVPropagation = false;
 	bool mLPVPropagationBundlesClosed = false;
 	bool mLPVPropagationBundle1Closed = false;
@@ -182,7 +182,7 @@ private:
 		float LPVPower;
 		float LPVAttenuation;
 	};
-	DXRSBuffer* mLPVCB;
+	DXRSBuffer* mLPVCB = nullptr;
 	int mLPVPropagationSteps = 50;
 	float mLPVCutoff = 0.2f;
 	float mLPVPower = 1.8f;
@@ -205,13 +205,13 @@ private:
 	ComputePSO mVCTMainUpsampleAndBlurPSO;
 	RootSignature mVCTVoxelizationDebugRS;
 	GraphicsPSO mVCTVoxelizationDebugPSO;
-	DXRSRenderTarget* mVCTVoxelization3DRT;
-	DXRSRenderTarget* mVCTVoxelization3DRT_CopyForAsync;
-	DXRSRenderTarget* mVCTVoxelizationDebugRT;
-	DXRSRenderTarget* mVCTMainRT;
-	DXRSRenderTarget* mVCTMainUpsampleAndBlurRT;
-	std::vector<DXRSRenderTarget*> mVCTAnisoMipmappinPrepare3DRTs;
-	std::vector<DXRSRenderTarget*> mVCTAnisoMipmappinMain3DRTs;
+	DXRSRenderTarget* mVCTVoxelization3DRT = nullptr;
+	DXRSRenderTarget* mVCTVoxelization3DRT_CopyForAsync = nullptr;
+	DXRSRenderTarget* mVCTVoxelizationDebugRT = nullptr;
+	DXRSRenderTarget* mVCTMainRT = nullptr;
+	DXRSRenderTarget* mVCTMainUpsampleAndBlurRT = nullptr;
+	DXRSRenderTarget* mVCTAnisoMipmappinPrepare3DRTs[6] = { nullptr };
+	DXRSRenderTarget* mVCTAnisoMipmappinMain3DRTs[6] = { nullptr };
 	__declspec(align(16)) struct VCTVoxelizationCBData
 	{
 		XMMATRIX WorldVoxelCube;
@@ -235,9 +235,9 @@ private:
 		float SamplingFactor;
 		float VoxelSampleOffset;
 	};
-	DXRSBuffer* mVCTVoxelizationCB;
-	DXRSBuffer* mVCTAnisoMipmappingCB;
-	DXRSBuffer* mVCTMainCB;
+	DXRSBuffer* mVCTVoxelizationCB = nullptr;
+	DXRSBuffer* mVCTAnisoMipmappingCB = nullptr;
+	DXRSBuffer* mVCTMainCB = nullptr;
 	std::vector<DXRSBuffer*> mVCTAnisoMipmappingMainCB;
 	bool mVCTRenderDebug = false;
 	float mWorldVoxelScale = VCT_SCENE_VOLUME_SIZE * 0.5f;
@@ -261,7 +261,7 @@ private:
 
 	// Lighting
 	RootSignature mLightingRS;
-	std::vector<DXRSRenderTarget*> mLightingRTs;
+	DXRSRenderTarget* mLightingRT = nullptr;
 	GraphicsPSO mLightingPSO;
 	__declspec(align(16)) struct LightingCBData
 	{
@@ -296,9 +296,9 @@ private:
 		float dxrReflectionsBlend;
 		int showOnlyAO;
 	};
-	DXRSBuffer* mLightingCB;
-	DXRSBuffer* mLightsInfoCB;
-	DXRSBuffer* mIlluminationFlagsCB;
+	DXRSBuffer* mLightingCB = nullptr;
+	DXRSBuffer* mLightsInfoCB = nullptr;
+	DXRSBuffer* mIlluminationFlagsCB = nullptr;
 	float mDirectionalLightColor[4]{ 0.9, 0.9, 0.9, 1.0 };
 	float mDirectionalLightDir[4]{ 0.191, 1.0f, 0.574f, 1.0 };
 	float mDirectionalLightIntensity = 3.0f;
@@ -313,8 +313,8 @@ private:
 
 	// SSAO
 	GraphicsPSO mSSAOPSO;
-	DXRSRenderTarget* mSSAORT;
-	DXRSRenderTarget* mSSAOFinalRT; //after upsample/blur
+	DXRSRenderTarget* mSSAORT = nullptr;
+	DXRSRenderTarget* mSSAOFinalRT = nullptr; //after upsample/blur
 	RootSignature mSSAORS;
 	__declspec(align(16)) struct SSAOCBData
 	{
@@ -330,14 +330,14 @@ private:
 	float mSSAORadius = 7.2f;
 	float mSSAOPower = 5.7f;
 	bool mUseSSAO = false;
-	DXRSBuffer* mSSAOCB;
+	DXRSBuffer* mSSAOCB = nullptr;
 	ComPtr<ID3D12Resource> mRandomVectorSSAOResource;
 	ComPtr<ID3D12Resource> mRandomVectorSSAOUploadBuffer;
 	DXRS::DescriptorHandle mRandomVectorSSAODescriptorHandleCPU;
 
 	// Shadows
 	GraphicsPSO mShadowMappingPSO;
-	DXRSDepthBuffer* mShadowDepth;
+	DXRSDepthBuffer* mShadowDepth = nullptr;
 	XMMATRIX mLightViewProjection;
 	XMMATRIX mLightView;
 	XMMATRIX mLightProj;
@@ -348,13 +348,13 @@ private:
 		XMFLOAT4 LightColor;
 		XMFLOAT4 LightDir;
 	};
-	DXRSBuffer* mShadowMappingCB;
+	DXRSBuffer* mShadowMappingCB = nullptr;
 	float mShadowIntensity = 0.5f;
 
 	// DXR reflections 
-	IDxcBlob* mRaygenBlob;
-	IDxcBlob* mClosestHitBlob;
-	IDxcBlob* mMissBlob;
+	IDxcBlob* mRaygenBlob = nullptr;
+	IDxcBlob* mClosestHitBlob = nullptr;
+	IDxcBlob* mMissBlob = nullptr;
 	RootSignature mRaygenRS;
 	RootSignature mClosestHitRS;
 	RootSignature mMissRS;
@@ -366,12 +366,12 @@ private:
 	ComPtr<ID3D12RootSignature> mGlobalRaytracingRootSignature;
 	ComputePSO mRaytracingBlurPSO;
 	RootSignature  mRaytracingBlurRS;
-	DXRSRenderTarget* mDXRReflectionsRT;
-	DXRSRenderTarget* mDXRReflectionsBlurredRT;
-	DXRSRenderTarget* mDXRReflectionsBlurredRT_Copy;
-	DXRSBuffer* mTLASBuffer; // top level acceleration structure of the scene
-	DXRSBuffer* mTLASScratchBuffer;
-	DXRSBuffer* mTLASInstanceDescriptionBuffer;
+	DXRSRenderTarget* mDXRReflectionsRT = nullptr;
+	DXRSRenderTarget* mDXRReflectionsBlurredRT = nullptr;
+	DXRSRenderTarget* mDXRReflectionsBlurredRT_Copy = nullptr;
+	DXRSBuffer* mTLASBuffer = nullptr; // top level acceleration structure of the scene
+	DXRSBuffer* mTLASScratchBuffer = nullptr;
+	DXRSBuffer* mTLASInstanceDescriptionBuffer = nullptr;
 	__declspec(align(16)) struct DXRBuffer
 	{
 		XMMATRIX ViewMatrix;
@@ -382,7 +382,7 @@ private:
 		XMFLOAT4 CamPos;
 		XMFLOAT2 ScreenResolution;
 	};
-	DXRSBuffer*	mDXRBuffer; //cbuffer for DXR reflections pass
+	DXRSBuffer*	mDXRCB = nullptr; //cbuffer for DXR reflections pass
 	bool mUseDXRReflections = false;
 	bool mDXRBlurReflections = true;
 	int mDXRBlurPasses = 1;

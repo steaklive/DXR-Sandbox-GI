@@ -681,7 +681,7 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	dxrData.ShadowViewProjection = mLightViewProjection;
 	dxrData.CamPos = XMFLOAT4(mCameraEye.x, mCameraEye.y, mCameraEye.z, 1.0f);
 	dxrData.ScreenResolution = XMFLOAT2(width, height);
-	memcpy(mDXRBuffer->Map(), &dxrData, sizeof(dxrData));
+	memcpy(mDXRCB->Map(), &dxrData, sizeof(dxrData));
 }
 
 void DXRSExampleGIScene::UpdateImGui()
@@ -883,13 +883,13 @@ void DXRSExampleGIScene::InitGbuffer(ID3D12Device* device, DXRS::DescriptorHeapM
 	DXGI_FORMAT rtFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-	mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Albedo"));
+	mGbufferRTs[0] = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Albedo");
 
 	rtFormat = DXGI_FORMAT_R16G16B16A16_SNORM;
-	mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Normals"));
+	mGbufferRTs[1] = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"Normals");
 
 	rtFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	mGbufferRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"World Positions"));
+	mGbufferRTs[2] = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, rtFormat, flags, L"World Positions");
 
 	// root signature
 	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -2191,12 +2191,12 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 		int size = VCT_SCENE_VOLUME_SIZE >> 1;
-		mVCTAnisoMipmappinPrepare3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare X+ 3D", size, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		mVCTAnisoMipmappinPrepare3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare X- 3D", size, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		mVCTAnisoMipmappinPrepare3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare Y+ 3D", size, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		mVCTAnisoMipmappinPrepare3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare Y- 3D", size, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		mVCTAnisoMipmappinPrepare3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare Z+ 3D", size, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		mVCTAnisoMipmappinPrepare3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare Z- 3D", size, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+		mVCTAnisoMipmappinPrepare3DRTs[0] = new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare X+ 3D", size, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mVCTAnisoMipmappinPrepare3DRTs[1] = new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare X- 3D", size, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mVCTAnisoMipmappinPrepare3DRTs[2] = new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare Y+ 3D", size, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mVCTAnisoMipmappinPrepare3DRTs[3] = new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare Y- 3D", size, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mVCTAnisoMipmappinPrepare3DRTs[4] = new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare Z+ 3D", size, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mVCTAnisoMipmappinPrepare3DRTs[5] = new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Prepare Z- 3D", size, 1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		mVCTAnisoMipmappingPrepareRS.Reset(3, 0);
 		mVCTAnisoMipmappingPrepareRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
@@ -2245,12 +2245,12 @@ void DXRSExampleGIScene::InitVoxelConeTracing(ID3D12Device* device, DXRS::Descri
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 		int size = VCT_SCENE_VOLUME_SIZE >> 1;
-		mVCTAnisoMipmappinMain3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main X+ 3D", size, VCT_MIPS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		mVCTAnisoMipmappinMain3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main X- 3D", size, VCT_MIPS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		mVCTAnisoMipmappinMain3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main Y+ 3D", size, VCT_MIPS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		mVCTAnisoMipmappinMain3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main Y- 3D", size, VCT_MIPS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		mVCTAnisoMipmappinMain3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main Z+ 3D", size, VCT_MIPS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		mVCTAnisoMipmappinMain3DRTs.push_back(new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main Z- 3D", size, VCT_MIPS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+		mVCTAnisoMipmappinMain3DRTs[0] = new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main X+ 3D", size, VCT_MIPS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mVCTAnisoMipmappinMain3DRTs[1] = new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main X- 3D", size, VCT_MIPS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mVCTAnisoMipmappinMain3DRTs[2] = new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main Y+ 3D", size, VCT_MIPS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mVCTAnisoMipmappinMain3DRTs[3] = new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main Y- 3D", size, VCT_MIPS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mVCTAnisoMipmappinMain3DRTs[4] = new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main Z+ 3D", size, VCT_MIPS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mVCTAnisoMipmappinMain3DRTs[5] = new DXRSRenderTarget(device, descriptorManager, size, size, format, flags, L"Voxelization Scene Mip Main Z- 3D", size, VCT_MIPS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		mVCTAnisoMipmappingMainRS.Reset(2, 0);
 		mVCTAnisoMipmappingMainRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 1, D3D12_SHADER_VISIBILITY_ALL);
@@ -2992,8 +2992,8 @@ void DXRSExampleGIScene::RenderSSAO(ID3D12Device* device, ID3D12GraphicsCommandL
 void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
 {
 	//RTs
-	mLightingRTs.push_back(new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
-		DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Lighting"));
+	mLightingRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT,
+		DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Lighting Buffer");
 
 	//create root signature
 	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -3115,11 +3115,11 @@ void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsComm
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandlesLighting[] =
 		{
-			mLightingRTs[0]->GetRTV().GetCPUHandle()
+			mLightingRT->GetRTV().GetCPUHandle()
 		};
 
 		mSandboxFramework->ResourceBarriersBegin(mBarriers);
-		mLightingRTs[0]->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		mLightingRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
 
 		commandList->OMSetRenderTargets(_countof(rtvHandlesLighting), rtvHandlesLighting, FALSE, nullptr);
@@ -3223,7 +3223,7 @@ void DXRSExampleGIScene::RenderComposite(ID3D12Device* device, ID3D12GraphicsCom
 		commandList->ClearRenderTargetView(mSandboxFramework->GetRenderTargetView(), Colors::Green, 0, nullptr);
 		
 		DXRS::DescriptorHandle srvHandleComposite = gpuDescriptorHeap->GetHandleBlock(1);
-		gpuDescriptorHeap->AddToHandle(device, srvHandleComposite, mLightingRTs[0]->GetSRV());
+		gpuDescriptorHeap->AddToHandle(device, srvHandleComposite, mLightingRT->GetSRV());
 		
 		commandList->SetGraphicsRootDescriptorTable(0, srvHandleComposite.GetGPUHandle());
 		commandList->IASetVertexBuffers(0, 1, &mSandboxFramework->GetFullscreenQuadBufferView());
@@ -3242,7 +3242,7 @@ void DXRSExampleGIScene::InitReflectionsDXR(ID3D12Device* device, DXRS::Descript
 	cbDesc.mState = D3D12_RESOURCE_STATE_GENERIC_READ;
 	cbDesc.mDescriptorType = DXRSBuffer::DescriptorType::CBV;
 
-	mDXRBuffer = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"DXR Info CB");
+	mDXRCB = new DXRSBuffer(mSandboxFramework->GetD3DDevice(), descriptorManager, mSandboxFramework->GetCommandListGraphics(), cbDesc, L"DXR Info CB");
 
 	if (mSandboxFramework->GetDeviceFeatureLevel() >= D3D_FEATURE_LEVEL_12_1 && mSandboxFramework->IsRaytracingSupported())
 	{
@@ -3447,7 +3447,7 @@ void DXRSExampleGIScene::CreateRaytracingAccelerationStructures(bool toUpdateTLA
 			desc.mResourceFlags = D3D12_RESOURCE_FLAG_NONE;
 			desc.mHeapType = D3D12_HEAP_TYPE_UPLOAD;
 			desc.mDescriptorType = DXRSBuffer::DescriptorType::Raw;
-			mTLASInstanceDescriptionBuffer = new DXRSBuffer(device, mSandboxFramework->GetDescriptorHeapManager(), commandList, desc, L"Instance Description Buffer");
+			mTLASInstanceDescriptionBuffer = new DXRSBuffer(device, mSandboxFramework->GetDescriptorHeapManager(), commandList, desc, L"TLAS Instance Description Buffer");
 		}
 
 		// Copy the instance data to the buffer
@@ -3455,6 +3455,8 @@ void DXRSExampleGIScene::CreateRaytracingAccelerationStructures(bool toUpdateTLA
 		mTLASInstanceDescriptionBuffer->GetResource()->Map(0, nullptr, reinterpret_cast<void**>(&data));
 		memcpy(data, instanceDescriptions, noofInstances * sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
 		mTLASInstanceDescriptionBuffer->GetResource()->Unmap(0, nullptr);
+
+		delete[] instanceDescriptions;
 
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
 
@@ -3609,6 +3611,7 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 	//TODO add multimesh support
 
 	// Create a SRV/UAV/CBV descriptor heap.
+	// TODO remove first 5 descriptors to root constant views, keep only model/mesh specific
 	// 1 - UAV for the RT output
 	// 1 - SRV for the TLAS
 	// 1 - SRV for normals
@@ -3628,7 +3631,6 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle = mRaytracingDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
 	int i = 0;
-	//TODO remove first 5 descriptors to root constant views, keep only model/mesh specific
 	for (auto& model : mRenderableObjects)
 	{
 		// UAV
@@ -3694,7 +3696,7 @@ void DXRSExampleGIScene::RenderReflectionsDXR(ID3D12Device* device, ID3D12Graphi
 		commandListDXR->SetDescriptorHeaps(_countof(heaps), heaps);
 
 		commandListDXR->SetComputeRootSignature(mGlobalRaytracingRootSignature.Get());
-		commandListDXR->SetComputeRootConstantBufferView(0, mDXRBuffer->GetResource()->GetGPUVirtualAddress());
+		commandListDXR->SetComputeRootConstantBufferView(0, mDXRCB->GetResource()->GetGPUVirtualAddress());
 		commandListDXR->SetComputeRootConstantBufferView(1, mLightsInfoCB->GetResource()->GetGPUVirtualAddress());
 
 		//TODO
