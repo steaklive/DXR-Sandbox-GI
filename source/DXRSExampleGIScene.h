@@ -69,9 +69,9 @@ private:
 	void RenderLighting(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderComposite(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 	void RenderObject(U_PTR<DXRSModel>& aModel, std::function<void(U_PTR<DXRSModel>&)> aCallback);
-	void RenderReflectionsDXR(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
+	void RenderDXR(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap);
 
-	void InitReflectionsDXR(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
+	void InitDXRPasses(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager);
 	void CreateRaytracingPSO();
 	void CreateRaytracingAccelerationStructures(bool toUpdateTLAS = false);
 	void CreateRaytracingShaders();
@@ -288,7 +288,8 @@ private:
 		int useLPV;
 		int useVCT;
 		int useVCTDebug;
-		int useDXR;
+		int useDXRReflections;
+		int useDXRAmbientOcclusion;
 		int useSSAO;
 		float rsmGIPower;
 		float lpvGIPower;
@@ -351,7 +352,7 @@ private:
 	DXRSBuffer* mShadowMappingCB = nullptr;
 	float mShadowIntensity = 0.5f;
 
-	// DXR reflections 
+	// DXR reflections, ao 
 	IDxcBlob* mRaygenBlob = nullptr;
 	IDxcBlob* mClosestHitBlob = nullptr;
 	IDxcBlob* mMissBlob = nullptr;
@@ -369,6 +370,8 @@ private:
 	DXRSRenderTarget* mDXRReflectionsRT = nullptr;
 	DXRSRenderTarget* mDXRReflectionsBlurredRT = nullptr;
 	DXRSRenderTarget* mDXRReflectionsBlurredRT_Copy = nullptr;
+	DXRSRenderTarget* mDXRAmbientOcclusionRT = nullptr;
+	DXRSRenderTarget* mDXRAmbientOcclusionBlurredRT = nullptr;
 	DXRSBuffer* mTLASBuffer = nullptr; // top level acceleration structure of the scene
 	DXRSBuffer* mTLASScratchBuffer = nullptr;
 	DXRSBuffer* mTLASInstanceDescriptionBuffer = nullptr;
@@ -381,12 +384,18 @@ private:
 		XMMATRIX ShadowViewProjection;
 		XMFLOAT4 CamPos;
 		XMFLOAT2 ScreenResolution;
+		XMFLOAT2 RTAORadiusPower;
+		int FrameIndex;
 	};
-	DXRSBuffer*	mDXRCB = nullptr; //cbuffer for DXR reflections pass
+	DXRSBuffer*	mDXRCB = nullptr; //cbuffer for DXR passes
 	bool mUseDXRReflections = false;
 	bool mDXRBlurReflections = true;
 	int mDXRBlurPasses = 1;
 	float mDXRReflectionsBlend = 0.8f;
+	
+	float mDXRAORadius = 1.0f;
+	float mDXRAOPower = 1.0f;
+	bool mUseDXRAmbientOcclusion = false;
 
 	// Upsample & Blur
 	__declspec(align(16)) struct UpsampleAndBlurBuffer

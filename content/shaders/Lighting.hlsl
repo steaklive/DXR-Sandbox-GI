@@ -39,7 +39,8 @@ cbuffer IlluminationFlagsBuffer : register(b3)
     int useLPV;
     int useVCT;
     int useVCTDebug;
-    int useDXR;
+    int useDXRReflections;
+    int useDXRAmbientOcclusion;
     int useSSAO;
     float rsmGIPower;
     float lpvGIPower;
@@ -90,8 +91,9 @@ Texture3D<float4> blueSH : register(t8);
 Texture2D<float4> vctBuffer : register(t9);
 
 Texture2D<float4> dxrReflectionsBuffer : register(t10);
+Texture2D<float> dxrAmbientOcclusionBuffer : register(t11);
 
-Texture2D<float> ssaoBuffer : register(t11);
+Texture2D<float> ssaoBuffer : register(t12);
 
 float CalculateShadow(float3 ShadowCoord)
 {   
@@ -212,7 +214,6 @@ PSOutput PSMain(PSInput input)
     float3 normal = normalize(normalBuffer[inPos].rgb);
     float4 albedo = albedoBuffer[inPos];
     float4 worldPos = worldPosBuffer[inPos];
-    float ssao = ssaoBuffer[inPos];
     
     if (!any(albedo))
     {
@@ -272,7 +273,14 @@ PSOutput PSMain(PSInput input)
     
     if (useSSAO)
     {
+        float ssao = ssaoBuffer[inPos];
         ao = 1.0f - ssao;
+    }
+    
+    if (useDXRAmbientOcclusion)
+    {
+        float rtao = dxrAmbientOcclusionBuffer[inPos];
+        ao = rtao;
     }
     
     float shadow = 1.0f;
@@ -303,7 +311,7 @@ PSOutput PSMain(PSInput input)
         directLighting = max(direct, 0.0f) * NdotL * lightIntensity * lightColor;
     }
     
-    output.diffuse.rgb = ao * indirectLighting + (directLighting + (useDXR ? lerp(reflectionsDXR, directLighting * albedo.a, dxrReflectionsBlend) : 0.0f)) * shadow;;
+    output.diffuse.rgb = ao * indirectLighting + (directLighting + (useDXRReflections ? lerp(reflectionsDXR, directLighting * albedo.a, dxrReflectionsBlend) : 0.0f)) * shadow;;
     output.diffuse.rgb = saturate(output.diffuse.rgb);
     if (showOnlyAO)
         output.diffuse.rgb = float3(ao.xxx);

@@ -62,6 +62,12 @@ float CalculateShadow(float3 ShadowCoord)
 }
 
 [shader("closesthit")]
+void AoClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attribs)
+{
+    payload.rayHitT = RayTCurrent();
+}
+    
+[shader("closesthit")]
 void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attributes)
 {
     // Get the base index of the triangle's first 32 bit index.

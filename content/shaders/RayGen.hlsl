@@ -9,6 +9,8 @@ cbuffer DXRConstantBuffer : register(b0)
     float4x4 ShadowViewProjection;
     float4 CamPosition;
     float2 ScreenResolution;
+    float2 RTAORadiusPower;
+    int FrameIndex;
 }
 
 cbuffer LightsConstantBuffer : register(b1)
@@ -20,7 +22,8 @@ cbuffer LightsConstantBuffer : register(b1)
 };
 
 // Raytracing output texture, accessed as a UAV
-RWTexture2D<float4> gOutput : register(u0);
+RWTexture2D<float4> gOutputReflections : register(u0);
+RWTexture2D<float4> gOutputAmbientOcclusion : register(u1);
 
 // Raytracing acceleration structure, accessed as a SRV
 RaytracingAccelerationStructure SceneBVH : register(t0);
@@ -29,11 +32,9 @@ Texture2D<float4> GBufferNormals : register(t1);
 Texture2D<float4> GBufferWorldPos : register(t2);
 Texture2D<float4> GBufferAlbedo : register(t3);
 
-
 [shader("raygeneration")] 
 void RayGen() {
     // Initialize the ray payload
-    
     uint2 DTid = DispatchRaysIndex().xy;
     float2 xy = DTid.xy + 0.5;
 
@@ -68,6 +69,33 @@ void RayGen() {
     payload.skipShading = false;
     payload.rayHitT = FLT_MAX;
     TraceRay(SceneBVH, RAY_FLAG_NONE /*RAY_FLAG_CULL_BACK_FACING_TRIANGLES*/, ~0, 0, 0, 0, rayDesc, payload);
+}
+
+[shader("raygeneration")]
+void AoRayGen()
+{
+    uint2 DTid = DispatchRaysIndex().xy;
+    float2 xy = DTid.xy + 0.5;
+    
+    float3 worldPos = GBufferWorldPos.Load(int3(xy, 0)).rgb;
+    float3 normals = normalize(GBufferNormals.Load(int3(xy, 0)).rgb);
+    
+    uint randSeed = initRand(xy.x + xy.y * xy.x, FrameIndex);
+    float3 worldDir = GetCosHemisphereSample(randSeed, normals);
+    
+    Payload payload;
+    payload.skipShading = false;
+    payload.rayHitT = FLT_MAX;
+    
+    RayDesc rayAO;
+    rayAO.Origin = OffsetRay(worldPos, normals);
+    rayAO.Direction = normalize(worldDir);
+    rayAO.TMin = 0.02f;
+    rayAO.TMax = RTAORadiusPower.r;
+    
+    TraceRay(SceneBVH, RAY_FLAG_NONE, 0xFF, 0, 0, 0, rayAO, payload);
+    
+    gOutputAmbientOcclusion[xy] = payload.rayHitT < 0.0f ? 1.0f : pow(saturate(payload.rayHitT / RTAORadiusPower.r), RTAORadiusPower.g);
 }
 
 //[shader("raygeneration")]

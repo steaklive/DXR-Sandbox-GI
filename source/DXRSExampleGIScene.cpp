@@ -236,7 +236,7 @@ void DXRSExampleGIScene::Init(HWND window, int width, int height)
 	InitReflectiveShadowMapping(device, descriptorManager);
 	InitLightPropagationVolume(device, descriptorManager);
 	InitVoxelConeTracing(device, descriptorManager);
-	InitReflectionsDXR(device, descriptorHeapManager);
+	InitDXRPasses(device, descriptorHeapManager);
 	InitLighting(device, descriptorManager);
 	InitSSAO(device, descriptorManager);
 	InitComposite(device, descriptorManager);
@@ -431,12 +431,20 @@ void DXRSExampleGIScene::RenderAsync()
 		mGbufferRTs[2]->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListGraphics);
 
-		if (mUseDXRReflections) {
-			RenderReflectionsDXR(device, commandListGraphics, gpuDescriptorHeap);
+		if (mUseDXRReflections || mUseDXRAmbientOcclusion) 
+		{
+			RenderDXR(device, commandListGraphics, gpuDescriptorHeap);
 
 			mSandboxFramework->ResourceBarriersBegin(mBarriers);
-			mDXRReflectionsRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-			mDXRReflectionsBlurredRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			if (mUseDXRReflections)
+			{
+				mDXRReflectionsRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+				mDXRReflectionsBlurredRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			}
+			if (mUseDXRAmbientOcclusion)
+			{
+
+			}
 			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListGraphics);
 		}
 
@@ -517,13 +525,27 @@ void DXRSExampleGIScene::RenderSync()
 	RenderLightPropagationVolume(device, commandListGraphics, gpuDescriptorHeap);
 	RenderVoxelConeTracing(device, commandListGraphics, gpuDescriptorHeap);
 	RenderSSAO(device, commandListGraphics, gpuDescriptorHeap);
-	if (mUseDXRReflections) {
-		RenderReflectionsDXR(device, commandListGraphics, gpuDescriptorHeap);
+	if (mUseDXRAmbientOcclusion || mUseDXRReflections)
+	{
+		if (mUseDynamicObjects)
+			CreateRaytracingAccelerationStructures(true);
 
-		mSandboxFramework->ResourceBarriersBegin(mBarriers);
-		mDXRReflectionsRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		mDXRReflectionsBlurredRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListGraphics);
+		{
+			RenderDXR(device, commandListGraphics, gpuDescriptorHeap);
+
+			mSandboxFramework->ResourceBarriersBegin(mBarriers);
+			if (mUseDXRReflections)
+			{
+				mDXRReflectionsRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+				mDXRReflectionsBlurredRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			}
+			if (mUseDXRAmbientOcclusion)
+			{
+				mDXRAmbientOcclusionRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+				//TODO mDXRAmbientOcclusionBlurredRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			}
+			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListGraphics);
+		}
 	}
 
 	RenderLighting(device, commandListGraphics, gpuDescriptorHeap);
@@ -618,7 +640,8 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	illumData.rsmGIPower = mRSMGIPower;
 	illumData.lpvGIPower = mLPVGIPower;
 	illumData.vctGIPower = mVCTGIPower;
-	illumData.useDXR = mUseDXRReflections ? 1 : 0;
+	illumData.useDXRReflections = mUseDXRReflections ? 1 : 0;
+	illumData.useDXRReflections = mUseDXRAmbientOcclusion ? 1 : 0;
 	illumData.useSSAO = mUseSSAO ? 1 : 0;
 	illumData.dxrReflectionsBlend = mDXRReflectionsBlend;
 	illumData.showOnlyAO = mShowOnlyAO ? 1 : 0;
@@ -681,6 +704,8 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	dxrData.ShadowViewProjection = mLightViewProjection;
 	dxrData.CamPos = XMFLOAT4(mCameraEye.x, mCameraEye.y, mCameraEye.z, 1.0f);
 	dxrData.ScreenResolution = XMFLOAT2(width, height);
+	dxrData.RTAORadiusPower = XMFLOAT2(mDXRAORadius, mDXRAOPower);
+	dxrData.FrameIndex = mSandboxFramework->GetCurrentFrameIndex();
 	memcpy(mDXRCB->Map(), &dxrData, sizeof(dxrData));
 }
 
@@ -810,6 +835,12 @@ void DXRSExampleGIScene::UpdateImGui()
 					ImGui::SliderInt("Blur steps", &mDXRBlurPasses, 1, 100);
 
 				ImGui::SliderFloat("Blend", &mDXRReflectionsBlend, 0.0f, 1.0f);
+			}
+			ImGui::Checkbox("DXR Ambient Occlusion", &mUseDXRAmbientOcclusion);
+			if (mUseDXRAmbientOcclusion)
+			{
+				ImGui::SliderFloat("RTAO radius", &mDXRAORadius, 0.0f, 50.0f);
+				ImGui::SliderFloat("RTAO power", &mDXRAOPower, 0.01f, 15.0f);
 			}
 		}
 
@@ -3037,7 +3068,7 @@ void DXRSExampleGIScene::InitLighting(ID3D12Device* device, DXRS::DescriptorHeap
 	mLightingRS.InitStaticSampler(1, shadowSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS.InitStaticSampler(2, lpvSampler, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 0, 4, D3D12_SHADER_VISIBILITY_ALL);
-	mLightingRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 12, D3D12_SHADER_VISIBILITY_PIXEL);
+	mLightingRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 13, D3D12_SHADER_VISIBILITY_PIXEL);
 	mLightingRS.Finalize(device, L"Lighting pass RS", rootSignatureFlags);
 
 	//PSO
@@ -3150,6 +3181,7 @@ void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsComm
 			gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mVCTMainRT->GetSRV());
 		
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, (mDXRBlurReflections) ? mDXRReflectionsBlurredRT->GetSRV() : mDXRReflectionsRT->GetSRV());
+		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mDXRAmbientOcclusionRT->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mSSAOFinalRT->GetSRV());
 
 		commandList->SetGraphicsRootDescriptorTable(0, cbvHandleLighting.GetGPUHandle());
@@ -3233,9 +3265,10 @@ void DXRSExampleGIScene::RenderComposite(ID3D12Device* device, ID3D12GraphicsCom
 	PIXEndEvent(commandList);
 }
 
-void DXRSExampleGIScene::InitReflectionsDXR(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
+void DXRSExampleGIScene::InitDXRPasses(ID3D12Device* device, DXRS::DescriptorHeapManager* descriptorManager)
 {
 	mDXRReflectionsRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Reflections RT");
+	mDXRAmbientOcclusionRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Ambient Occlusion RT");
 
 	DXRSBuffer::Description cbDesc;
 	cbDesc.mElementSize = sizeof(DXRBuffer);
@@ -3312,16 +3345,16 @@ void DXRSExampleGIScene::CreateRaytracingPSO()
 
 	pipeline.SetGlobalRootSignature(mGlobalRaytracingRootSignature.Get());
 
-	pipeline.AddLibrary(mRaygenBlob, { L"RayGen"/*, L"ShadowRayGen" */});
-	pipeline.AddLibrary(mMissBlob, { L"Miss"/*, L"ShadowMiss" */});
-	pipeline.AddLibrary(mClosestHitBlob, { L"ClosestHit"/*, L"ShadowClosestHit" */});
+	pipeline.AddLibrary(mRaygenBlob, { L"RayGen"/*, L"ShadowRayGen" */, L"AoRayGen"});
+	pipeline.AddLibrary(mMissBlob, { L"Miss"/*, L"ShadowMiss" */, L"AoMiss"});
+	pipeline.AddLibrary(mClosestHitBlob, { L"ClosestHit"/*, L"ShadowClosestHit" */, L"AoClosestHit"});
 
 	pipeline.AddHitGroup(L"HitGroup", L"ClosestHit");
 	//pipeline.AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit");
 
-	pipeline.AddRootSignatureAssociation(mRaygenRS.GetSignature(), { L"RayGen"/*, L"ShadowRayGen" */});
-	pipeline.AddRootSignatureAssociation(mMissRS.GetSignature(), { L"Miss"/*, L"ShadowMiss" */});
-	pipeline.AddRootSignatureAssociation(mClosestHitRS.GetSignature(), { L"HitGroup"/*, L"ShadowHitGroup" */});
+	pipeline.AddRootSignatureAssociation(mRaygenRS.GetSignature(), { L"RayGen"/*, L"ShadowRayGen" */, L"AoRayGen" });
+	pipeline.AddRootSignatureAssociation(mMissRS.GetSignature(), { L"Miss"/*, L"ShadowMiss" */, L"AoMiss" });
+	pipeline.AddRootSignatureAssociation(mClosestHitRS.GetSignature(), { L"HitGroup"/*, L"ShadowHitGroup" */, L"AoClosestHit" });
 
 	pipeline.SetMaxPayloadSize(/*sizeof(XMFLOAT4)*/8);
 	pipeline.SetMaxAttributeSize(sizeof(XMFLOAT2)); // barycentric coordinates - not used
@@ -3526,7 +3559,7 @@ void DXRSExampleGIScene::CreateRaytracingShaders()
 		// create root signature
 		mRaygenRS.Reset(1, 0);
 		mRaygenRS[0].InitAsDescriptorTable(2);
-		mRaygenRS[0].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, 0);
+		mRaygenRS[0].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, 0);
 		mRaygenRS[0].SetTableRange(1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4, 0);
 		mRaygenRS.Finalize(device, L"Raygen RS", rootSignatureFlags);
 	}
@@ -3572,7 +3605,9 @@ void DXRSExampleGIScene::CreateRaytracingShaderTable()
 	auto heapPointer = reinterpret_cast<UINT64*>(heapHandle.ptr);
 
 	mRaytracingShaderBindingTableHelper.AddRayGenerationProgram(L"RayGen", { heapPointer });
+	mRaytracingShaderBindingTableHelper.AddRayGenerationProgram(L"AoRayGen", { heapPointer });
 	mRaytracingShaderBindingTableHelper.AddMissProgram(L"Miss", { heapPointer });
+	mRaytracingShaderBindingTableHelper.AddMissProgram(L"AoMiss", { heapPointer });
 
 	UINT64 offset = 0;
 	const int numDescriptorsPerMesh = 9;
@@ -3611,8 +3646,9 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 	//TODO add multimesh support
 
 	// Create a SRV/UAV/CBV descriptor heap.
-	// TODO remove first 5 descriptors to root constant views, keep only model/mesh specific
-	// 1 - UAV for the RT output
+	// TODO remove first 6 descriptors to root constant views, keep only model/mesh specific
+	// 1 - UAV for the RT reflections output
+	// 1 - UAV for the RT ao output
 	// 1 - SRV for the TLAS
 	// 1 - SRV for normals
 	// 1 - SRV for depth
@@ -3622,7 +3658,7 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 	// 1 - SRV for shadow
 	// 1 - CBV for mesh info
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-	const int numDescriptorsPerMesh = 9;
+	const int numDescriptorsPerMesh = 10;
 	desc.NumDescriptors = numDescriptorsPerMesh * mRenderableObjects.size();
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -3637,6 +3673,9 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 		if (i > 0) 
 			cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, mDXRReflectionsRT->GetUAV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CopyDescriptorsSimple(1, cpuDescriptorHandle, mDXRAmbientOcclusionRT->GetUAV().GetCPUHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		// Add for TLAS SRV
 		cpuDescriptorHandle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -3680,16 +3719,16 @@ void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 	}
 
 }
-void DXRSExampleGIScene::RenderReflectionsDXR(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
+void DXRSExampleGIScene::RenderDXR(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, DXRS::GPUDescriptorHeap* gpuDescriptorHeap)
 {
 	if (mSandboxFramework->GetDeviceFeatureLevel() < D3D_FEATURE_LEVEL_12_1 || !mSandboxFramework->IsRaytracingSupported())
 		return;
 
-	if (mUseDynamicObjects)
-		CreateRaytracingAccelerationStructures(true);
+	if (!mUseDXRAmbientOcclusion && !mUseDXRReflections)
+		return;
 
 	//DXR pass
-	PIXBeginEvent(commandList, 0, "DXR reflections");
+	PIXBeginEvent(commandList, 0, "DXR");
 	{
 		ID3D12GraphicsCommandList4* commandListDXR = (ID3D12GraphicsCommandList4*)commandList;
 		ID3D12DescriptorHeap* heaps[] = { mRaytracingDescriptorHeap.Get() };
@@ -3709,6 +3748,7 @@ void DXRSExampleGIScene::RenderReflectionsDXR(ID3D12Device* device, ID3D12Graphi
 
 		mSandboxFramework->ResourceBarriersBegin(mBarriers);
 		mDXRReflectionsRT->TransitionTo(mBarriers, commandListDXR, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mDXRAmbientOcclusionRT->TransitionTo(mBarriers, commandListDXR, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
 
 		// RT dispatch
@@ -3739,14 +3779,18 @@ void DXRSExampleGIScene::RenderReflectionsDXR(ID3D12Device* device, ID3D12Graphi
 		commandListDXR->SetPipelineState1(mRaytracingPSO.Get());
 
 		// Dispatch the rays for reflections and write to the raytracing output
-		commandListDXR->DispatchRays(&desc);
+		if (mUseDXRReflections)
+		{
+			commandListDXR->DispatchRays(&desc);
+		}
 
-		//// Dispatch the rays for shadows and write to the raytracing output
-		//desc.RayGenerationShaderRecord.StartAddress = mRaytracingShaderTableBuffer->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes / 2; //offset to shadow raygen shader
-		//commandListDXR->DispatchRays(&desc);
-		//
-		//CD3DX12_RESOURCE_BARRIER transitionDepthBack = CD3DX12_RESOURCE_BARRIER::Transition(mSandboxFramework->GetDepthStencil(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		//commandListDXR->ResourceBarrier(1, &transitionDepthBack);
+		if (mUseDXRAmbientOcclusion)
+		{
+			// Dispatch the rays for AO and write to the raytracing output
+			desc.RayGenerationShaderRecord.StartAddress = mRaytracingShaderTableBuffer->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes / 2; //offset to AO raygen shader
+			//desc.MissShaderTable.StartAddress = mRaytracingShaderTableBuffer->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes + missSectionSizeInBytes / 2; //offset to AO miss shader
+			commandListDXR->DispatchRays(&desc);
+		}
 	}
 	PIXEndEvent(commandList);
 
