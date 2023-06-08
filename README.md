@@ -40,6 +40,9 @@ SSAO:
 - TODO: move to compute with LDS optimizations
 - TODO: move to async
 
+RTAO:
+- TODO: replace blur with proper filtering
+
 # Comparison
 No GI -> RSM -> LPV -> VCT -> offline path-tracer
 
