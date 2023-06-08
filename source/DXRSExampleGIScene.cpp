@@ -542,7 +542,7 @@ void DXRSExampleGIScene::RenderSync()
 			if (mUseDXRAmbientOcclusion)
 			{
 				mDXRAmbientOcclusionRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-				//TODO mDXRAmbientOcclusionBlurredRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+				mDXRAmbientOcclusionBlurredRT->TransitionTo(mBarriers, commandListGraphics, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 			}
 			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandListGraphics);
 		}
@@ -841,6 +841,7 @@ void DXRSExampleGIScene::UpdateImGui()
 			{
 				ImGui::SliderFloat("RTAO radius", &mDXRAORadius, 0.0f, 50.0f);
 				ImGui::SliderFloat("RTAO power", &mDXRAOPower, 0.01f, 15.0f);
+				ImGui::Checkbox("RTAO Blur", &mDXRBlurAo);
 			}
 		}
 
@@ -3162,7 +3163,7 @@ void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsComm
 		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mLPVCB->GetCBV());
 		gpuDescriptorHeap->AddToHandle(device, cbvHandleLighting, mIlluminationFlagsCB->GetCBV());
 
-		DXRS::DescriptorHandle srvHandleLighting = gpuDescriptorHeap->GetHandleBlock(12);
+		DXRS::DescriptorHandle srvHandleLighting = gpuDescriptorHeap->GetHandleBlock(13);
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[0]->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[1]->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mGbufferRTs[2]->GetSRV());
@@ -3180,8 +3181,8 @@ void DXRSExampleGIScene::RenderLighting(ID3D12Device* device, ID3D12GraphicsComm
 		else
 			gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mVCTMainRT->GetSRV());
 		
-		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, (mDXRBlurReflections) ? mDXRReflectionsBlurredRT->GetSRV() : mDXRReflectionsRT->GetSRV());
-		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mDXRAmbientOcclusionRT->GetSRV());
+		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mDXRBlurReflections ? mDXRReflectionsBlurredRT->GetSRV() : mDXRReflectionsRT->GetSRV());
+		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mDXRBlurAo ? mDXRAmbientOcclusionBlurredRT->GetSRV() : mDXRAmbientOcclusionRT->GetSRV());
 		gpuDescriptorHeap->AddToHandle(device, srvHandleLighting, mSSAOFinalRT->GetSRV());
 
 		commandList->SetGraphicsRootDescriptorTable(0, cbvHandleLighting.GetGPUHandle());
@@ -3288,6 +3289,7 @@ void DXRSExampleGIScene::InitDXRPasses(ID3D12Device* device, DXRS::DescriptorHea
 		//RTs
 		mDXRReflectionsBlurredRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Reflections Blurred RT");
 		mDXRReflectionsBlurredRT_Copy = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Reflections Blurred RT C");
+		mDXRAmbientOcclusionBlurredRT = new DXRSRenderTarget(device, descriptorManager, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"DXR Ao Blurred RT");
 
 		//create root signature
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -3857,7 +3859,8 @@ void DXRSExampleGIScene::RenderDXR(ID3D12Device* device, ID3D12GraphicsCommandLi
 	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	// upsample and blur
-	if (mDXRBlurReflections) {
+	if (mUseDXRReflections && mDXRBlurReflections) 
+	{
 		PIXBeginEvent(commandList, 0, "DXR reflections blur CS");
 		for (int i = 0; i < mDXRBlurPasses; i++)
 		{
@@ -3896,6 +3899,36 @@ void DXRSExampleGIScene::RenderDXR(ID3D12Device* device, ID3D12GraphicsCommandLi
 			commandList->SetComputeRootDescriptorTable(2, cbvHandleBlur.GetGPUHandle());
 
 			commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mDXRReflectionsBlurredRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mDXRReflectionsBlurredRT->GetHeight()), 8u), 1u);
+		}
+		PIXEndEvent(commandList);
+	}
+
+	if (mUseDXRAmbientOcclusion && mDXRBlurAo)
+	{
+		// upsample & blur
+		PIXBeginEvent(commandList, 0, "RTAO upsample & blur CS");
+		{
+			commandList->SetPipelineState(mRSMUpsampleAndBlurPSO.GetPipelineStateObject());
+			commandList->SetComputeRootSignature(mRSMUpsampleAndBlurRS.GetSignature());
+
+			mSandboxFramework->ResourceBarriersBegin(mBarriers);
+			mDXRAmbientOcclusionBlurredRT->TransitionTo(mBarriers, commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
+
+			DXRS::DescriptorHandle srvHandleBlurRSM = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, srvHandleBlurRSM, mDXRAmbientOcclusionRT->GetSRV());
+
+			DXRS::DescriptorHandle uavHandleBlurRSM = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, uavHandleBlurRSM, mDXRAmbientOcclusionBlurredRT->GetUAV());
+
+			DXRS::DescriptorHandle cbvHandleBlurRSM = gpuDescriptorHeap->GetHandleBlock(1);
+			gpuDescriptorHeap->AddToHandle(device, cbvHandleBlurRSM, mGIUpsampleAndBlurBuffer->GetCBV());
+
+			commandList->SetComputeRootDescriptorTable(0, srvHandleBlurRSM.GetGPUHandle());
+			commandList->SetComputeRootDescriptorTable(1, uavHandleBlurRSM.GetGPUHandle());
+			commandList->SetComputeRootDescriptorTable(2, cbvHandleBlurRSM.GetGPUHandle());
+
+			commandList->Dispatch(DivideByMultiple(static_cast<UINT>(mDXRAmbientOcclusionBlurredRT->GetWidth()), 8u), DivideByMultiple(static_cast<UINT>(mDXRAmbientOcclusionBlurredRT->GetHeight()), 8u), 1u);
 		}
 		PIXEndEvent(commandList);
 	}

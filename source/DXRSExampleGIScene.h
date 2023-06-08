@@ -398,6 +398,7 @@ private:
 	
 	float mDXRAORadius = 1.0f;
 	float mDXRAOPower = 1.0f;
+	bool mDXRBlurAo = false;
 	bool mUseDXRAmbientOcclusion = false;
 
 	// Upsample & Blur
