@@ -13,7 +13,7 @@ Video: https://youtu.be/4YUWw8x4XXc
 - GI w/ Voxel Cone Tracing (indirect diffuse + specular + AO)
 - SSAO
 - Asynchronous compute
-- DXR Reflections + Blur
+- DXR: Reflections + Blur, Ambient Occlusion + Blur
 
 # Optimizations
 Reflective Shadow Mapping:
