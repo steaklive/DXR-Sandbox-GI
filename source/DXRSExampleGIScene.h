@@ -360,9 +360,12 @@ private:
 	RootSignature mClosestHitRS;
 	RootSignature mMissRS;
 	ComPtr<ID3D12DescriptorHeap> mRaytracingDescriptorHeap;
-	ComPtr<ID3D12StateObject>  mRaytracingPSO;
-	ComPtr<ID3D12StateObjectProperties> mRaytracingPSOProperties;
-	ComPtr<ID3D12Resource> mRaytracingShaderTableBuffer;
+	ComPtr<ID3D12StateObject>  mRaytracingReflectionsPSO;
+	ComPtr<ID3D12StateObject>  mRaytracingAmbienOcclusionPSO;
+	ComPtr<ID3D12StateObjectProperties> mRaytracingReflectionsPSOProperties;
+	ComPtr<ID3D12StateObjectProperties> mRaytracingAmbientOcclusionPSOProperties;
+	ComPtr<ID3D12Resource> mRaytracingShaderTableReflectionsBuffer;
+	ComPtr<ID3D12Resource> mRaytracingShaderTableAoBuffer;
 	ShaderBindingTableGenerator mRaytracingShaderBindingTableHelper;
 	ComPtr<ID3D12RootSignature> mGlobalRaytracingRootSignature;
 	ComputePSO mRaytracingBlurPSO;

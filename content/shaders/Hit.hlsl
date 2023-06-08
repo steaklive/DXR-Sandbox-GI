@@ -9,7 +9,8 @@ struct Vertex
 };
 
 //RaytracingAccelerationStructure SceneBVH : register(t0);
-RWTexture2D<float4> gOutput : register(u0);
+RWTexture2D<float4> gOutputReflections : register(u0);
+RWTexture2D<float4> gOutputAo : register(u1);
 
 Texture2D<float4> GBufferNormals : register(t1);
 Texture2D<float4> GBufferWorldPos : register(t2);
@@ -30,6 +31,8 @@ cbuffer DXRConstantBuffer : register(b0)
     float4x4 ShadowViewProjection;
     float4 CamPosition;
     float2 ScreenResolution;
+    float2 RTAORadiusPower;
+    int FrameIndex;
 }
 
 cbuffer LightsConstantBuffer : register(b1)
@@ -106,8 +109,8 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     
     float3 outputColor = (lightIntensity * NdotL) * lightColor * albedoColor * shadow;
 
-    outputColor = gOutput[DispatchRaysIndex().xy] + reflectivity * outputColor;
+    outputColor = gOutputReflections[DispatchRaysIndex().xy] + reflectivity * outputColor;
     
-    gOutput[DispatchRaysIndex().xy] = float4(outputColor, 1.0);
+    gOutputReflections[DispatchRaysIndex().xy] = float4(outputColor, 1.0);
 
 }

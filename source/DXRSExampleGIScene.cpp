@@ -641,7 +641,7 @@ void DXRSExampleGIScene::UpdateBuffers(DXRSTimer const& timer)
 	illumData.lpvGIPower = mLPVGIPower;
 	illumData.vctGIPower = mVCTGIPower;
 	illumData.useDXRReflections = mUseDXRReflections ? 1 : 0;
-	illumData.useDXRReflections = mUseDXRAmbientOcclusion ? 1 : 0;
+	illumData.useDXRAmbientOcclusion = mUseDXRAmbientOcclusion ? 1 : 0;
 	illumData.useSSAO = mUseSSAO ? 1 : 0;
 	illumData.dxrReflectionsBlend = mDXRReflectionsBlend;
 	illumData.showOnlyAO = mShowOnlyAO ? 1 : 0;
@@ -3328,7 +3328,6 @@ void DXRSExampleGIScene::InitDXRPasses(ID3D12Device* device, DXRS::DescriptorHea
 void DXRSExampleGIScene::CreateRaytracingPSO()
 {
 	ID3D12Device5* device = mSandboxFramework->GetDXRDevice();
-	RayTracingPipelineGenerator pipeline(device);
 
 	CD3DX12_ROOT_PARAMETER1 globalRootSignatureParameters[2];
 	globalRootSignatureParameters[0].InitAsConstantBufferView(0); // dxr buffer
@@ -3343,29 +3342,58 @@ void DXRSExampleGIScene::CreateRaytracingPSO()
 	device->CreateRootSignature(0, pGlobalRootSignatureBlob->GetBufferPointer(), pGlobalRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&mGlobalRaytracingRootSignature));
 	mGlobalRaytracingRootSignature->SetName(L"Global Raytracing RS");
 
-	pipeline.SetGlobalRootSignature(mGlobalRaytracingRootSignature.Get());
+	{
+		RayTracingPipelineGenerator pipelineReflections(device);
+		pipelineReflections.SetGlobalRootSignature(mGlobalRaytracingRootSignature.Get());
 
-	pipeline.AddLibrary(mRaygenBlob, { L"RayGen"/*, L"ShadowRayGen" */, L"AoRayGen"});
-	pipeline.AddLibrary(mMissBlob, { L"Miss"/*, L"ShadowMiss" */, L"AoMiss"});
-	pipeline.AddLibrary(mClosestHitBlob, { L"ClosestHit"/*, L"ShadowClosestHit" */, L"AoClosestHit"});
+		pipelineReflections.AddLibrary(mRaygenBlob, { L"RayGen"/*, L"ShadowRayGen"*/ , L"AoRayGen" });
+		pipelineReflections.AddLibrary(mMissBlob, { L"Miss"/*, L"ShadowMiss"*/, L"AoMiss" });
+		pipelineReflections.AddLibrary(mClosestHitBlob, { L"ClosestHit"/*, L"ShadowClosestHit" , L"AoClosestHit"*/ });
 
-	pipeline.AddHitGroup(L"HitGroup", L"ClosestHit");
-	//pipeline.AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit");
+		pipelineReflections.AddHitGroup(L"HitGroup", L"ClosestHit");
+		//pipeline.AddHitGroup(L"AoHitGroup", L"AoClosestHit");
+		//pipeline.AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit");
 
-	pipeline.AddRootSignatureAssociation(mRaygenRS.GetSignature(), { L"RayGen"/*, L"ShadowRayGen" */, L"AoRayGen" });
-	pipeline.AddRootSignatureAssociation(mMissRS.GetSignature(), { L"Miss"/*, L"ShadowMiss" */, L"AoMiss" });
-	pipeline.AddRootSignatureAssociation(mClosestHitRS.GetSignature(), { L"HitGroup"/*, L"ShadowHitGroup" */, L"AoClosestHit" });
+		pipelineReflections.AddRootSignatureAssociation(mRaygenRS.GetSignature(), { L"RayGen"/*, L"ShadowRayGen"*/ , L"AoRayGen" });
+		pipelineReflections.AddRootSignatureAssociation(mMissRS.GetSignature(), { L"Miss"/*, L"ShadowMiss"*/ , L"AoMiss" });
+		pipelineReflections.AddRootSignatureAssociation(mClosestHitRS.GetSignature(), { L"HitGroup"/*, L"ShadowHitGroup" , L"AoHitGroup"*/ });
 
-	pipeline.SetMaxPayloadSize(/*sizeof(XMFLOAT4)*/8);
-	pipeline.SetMaxAttributeSize(sizeof(XMFLOAT2)); // barycentric coordinates - not used
-	pipeline.SetMaxRecursionDepth(1);
+		pipelineReflections.SetMaxPayloadSize(/*sizeof(XMFLOAT4)*/8);
+		pipelineReflections.SetMaxAttributeSize(sizeof(XMFLOAT2)); // barycentric coordinates - not used
+		pipelineReflections.SetMaxRecursionDepth(1);
 
-	// Compile the pipeline for execution on the GPU
-	mRaytracingPSO = pipeline.Generate();
+		// Compile the pipeline for execution on the GPU
+		mRaytracingReflectionsPSO = pipelineReflections.Generate();
 
-	// Cast the state object into a properties object, allowing to later access
-	// the shader pointers by name
-	ThrowIfFailed(mRaytracingPSO->QueryInterface(IID_PPV_ARGS(&mRaytracingPSOProperties)));
+		// Cast the state object into a properties object, allowing to later access
+		// the shader pointers by name
+		ThrowIfFailed(mRaytracingReflectionsPSO->QueryInterface(IID_PPV_ARGS(&mRaytracingReflectionsPSOProperties)));
+	}
+	{
+		RayTracingPipelineGenerator pipelineAo(device);
+		pipelineAo.SetGlobalRootSignature(mGlobalRaytracingRootSignature.Get());
+
+		pipelineAo.AddLibrary(mRaygenBlob, { L"AoRayGen" });
+		pipelineAo.AddLibrary(mMissBlob, { L"AoMiss" });
+		pipelineAo.AddLibrary(mClosestHitBlob, { L"AoClosestHit" });
+
+		pipelineAo.AddHitGroup(L"HitGroup", L"AoClosestHit");
+
+		pipelineAo.AddRootSignatureAssociation(mRaygenRS.GetSignature(), { L"AoRayGen" });
+		pipelineAo.AddRootSignatureAssociation(mMissRS.GetSignature(), { L"AoMiss" });
+		pipelineAo.AddRootSignatureAssociation(mClosestHitRS.GetSignature(), { L"HitGroup" });
+
+		pipelineAo.SetMaxPayloadSize(/*sizeof(XMFLOAT4)*/8);
+		pipelineAo.SetMaxAttributeSize(sizeof(XMFLOAT2)); // barycentric coordinates - not used
+		pipelineAo.SetMaxRecursionDepth(1);
+
+		// Compile the pipeline for execution on the GPU
+		mRaytracingAmbienOcclusionPSO = pipelineAo.Generate();
+
+		// Cast the state object into a properties object, allowing to later access
+		// the shader pointers by name
+		ThrowIfFailed(mRaytracingAmbienOcclusionPSO->QueryInterface(IID_PPV_ARGS(&mRaytracingAmbientOcclusionPSOProperties)));
+	}
 }
 void DXRSExampleGIScene::CreateRaytracingAccelerationStructures(bool toUpdateTLAS)
 {
@@ -3571,7 +3599,7 @@ void DXRSExampleGIScene::CreateRaytracingShaders()
 		// create root signature
 		mClosestHitRS.Reset(1, 0);
 		mClosestHitRS[0].InitAsDescriptorTable(3);
-		mClosestHitRS[0].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, 0);
+		mClosestHitRS[0].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, 0);
 		mClosestHitRS[0].SetTableRange(1, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 7, 0);
 		mClosestHitRS[0].SetTableRange(2, D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1, 0);
 
@@ -3584,7 +3612,7 @@ void DXRSExampleGIScene::CreateRaytracingShaders()
 
 		mMissRS.Reset(1, 0);
 		mMissRS[0].InitAsDescriptorTable(1);
-		mMissRS[0].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1, 0);
+		mMissRS[0].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, 0);
 		mMissRS.Finalize(device, L"Miss RS", rootSignatureFlags);
 	}
 }
@@ -3605,12 +3633,10 @@ void DXRSExampleGIScene::CreateRaytracingShaderTable()
 	auto heapPointer = reinterpret_cast<UINT64*>(heapHandle.ptr);
 
 	mRaytracingShaderBindingTableHelper.AddRayGenerationProgram(L"RayGen", { heapPointer });
-	mRaytracingShaderBindingTableHelper.AddRayGenerationProgram(L"AoRayGen", { heapPointer });
 	mRaytracingShaderBindingTableHelper.AddMissProgram(L"Miss", { heapPointer });
-	mRaytracingShaderBindingTableHelper.AddMissProgram(L"AoMiss", { heapPointer });
 
 	UINT64 offset = 0;
-	const int numDescriptorsPerMesh = 9;
+	const int numDescriptorsPerMesh = 10;
 	for (auto& model : mRenderableObjects) {
 		auto heap = reinterpret_cast<UINT64*>(heapHandle.ptr + offset);
 		mRaytracingShaderBindingTableHelper.AddHitGroup(L"HitGroup", { heap	});
@@ -3633,10 +3659,27 @@ void DXRSExampleGIScene::CreateRaytracingShaderTable()
 	bufDesc.SampleDesc.Quality = 0;
 	bufDesc.Width = sbtSize;
 
-	ThrowIfFailed(device->CreateCommittedResource(&UploadHeapProps, D3D12_HEAP_FLAG_NONE, &bufDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&mRaytracingShaderTableBuffer)));
+	ThrowIfFailed(device->CreateCommittedResource(&UploadHeapProps, D3D12_HEAP_FLAG_NONE, &bufDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&mRaytracingShaderTableReflectionsBuffer)));
+	mRaytracingShaderBindingTableHelper.Generate(mRaytracingShaderTableReflectionsBuffer.Get(), mRaytracingReflectionsPSOProperties.Get());
+	
+	// Ambient Occlusion
+	mRaytracingShaderBindingTableHelper.Reset();
+	
+	mRaytracingShaderBindingTableHelper.AddRayGenerationProgram(L"AoRayGen", { heapPointer });
+	mRaytracingShaderBindingTableHelper.AddMissProgram(L"AoMiss", { heapPointer });
+	
+	for (auto& model : mRenderableObjects) {
+		auto heap = reinterpret_cast<UINT64*>(heapHandle.ptr + offset);
+		mRaytracingShaderBindingTableHelper.AddHitGroup(L"HitGroup", { heap });
+		//mRaytracingShaderBindingTableHelper.AddHitGroup(L"AoHitGroup", { heap });
+		offset += numDescriptorsPerMesh * device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	}
+	bufDesc.Width = mRaytracingShaderBindingTableHelper.ComputeSBTSize();
 
+	ThrowIfFailed(device->CreateCommittedResource(&UploadHeapProps, D3D12_HEAP_FLAG_NONE, &bufDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&mRaytracingShaderTableAoBuffer)));
+	
 	// Compile the SBT from the shader and parameters info
-	mRaytracingShaderBindingTableHelper.Generate(mRaytracingShaderTableBuffer.Get(), mRaytracingPSOProperties.Get());
+	mRaytracingShaderBindingTableHelper.Generate(mRaytracingShaderTableAoBuffer.Get(), mRaytracingAmbientOcclusionPSOProperties.Get());
 }
 void DXRSExampleGIScene::CreateRaytracingResourceHeap()
 {
@@ -3751,44 +3794,60 @@ void DXRSExampleGIScene::RenderDXR(ID3D12Device* device, ID3D12GraphicsCommandLi
 		mDXRAmbientOcclusionRT->TransitionTo(mBarriers, commandListDXR, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		mSandboxFramework->ResourceBarriersEnd(mBarriers, commandList);
 
-		// RT dispatch
-		D3D12_DISPATCH_RAYS_DESC desc = {};
-
-		// The ray generation shaders are always at the beginning of the SBT.
-		uint32_t rayGenerationSectionSizeInBytes = mRaytracingShaderBindingTableHelper.GetRayGenSectionSize();
-		desc.RayGenerationShaderRecord.StartAddress = mRaytracingShaderTableBuffer->GetGPUVirtualAddress();
-		desc.RayGenerationShaderRecord.SizeInBytes = rayGenerationSectionSizeInBytes;
-
-		uint32_t missSectionSizeInBytes = mRaytracingShaderBindingTableHelper.GetMissSectionSize();
-		desc.MissShaderTable.StartAddress = mRaytracingShaderTableBuffer->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes;
-		desc.MissShaderTable.SizeInBytes = missSectionSizeInBytes;
-		desc.MissShaderTable.StrideInBytes = mRaytracingShaderBindingTableHelper.GetMissEntrySize();
-
-		uint32_t hitGroupsSectionSize = mRaytracingShaderBindingTableHelper.GetHitGroupSectionSize();
-		desc.HitGroupTable.StartAddress = mRaytracingShaderTableBuffer->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes + missSectionSizeInBytes;
-		desc.HitGroupTable.SizeInBytes = hitGroupsSectionSize;
-		desc.HitGroupTable.StrideInBytes = mRaytracingShaderBindingTableHelper.GetHitGroupEntrySize();
-
-		// Dimensions of the image to render, identical to a kernel launch dimension
-		auto size = mSandboxFramework->GetOutputSize();
-		desc.Width = float(size.right);
-		desc.Height = float(size.bottom);
-		desc.Depth = 1;
-
-		// Bind the raytracing pipeline
-		commandListDXR->SetPipelineState1(mRaytracingPSO.Get());
-
-		// Dispatch the rays for reflections and write to the raytracing output
 		if (mUseDXRReflections)
 		{
+			D3D12_DISPATCH_RAYS_DESC desc = {};
+
+			// The ray generation shaders are always at the beginning of the SBT.
+			uint32_t rayGenerationSectionSizeInBytes = mRaytracingShaderBindingTableHelper.GetRayGenSectionSize();
+			desc.RayGenerationShaderRecord.StartAddress = mRaytracingShaderTableReflectionsBuffer->GetGPUVirtualAddress();
+			desc.RayGenerationShaderRecord.SizeInBytes = rayGenerationSectionSizeInBytes;
+
+			uint32_t missSectionSizeInBytes = mRaytracingShaderBindingTableHelper.GetMissSectionSize();
+			desc.MissShaderTable.StartAddress = mRaytracingShaderTableReflectionsBuffer->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes;
+			desc.MissShaderTable.SizeInBytes = missSectionSizeInBytes;
+			desc.MissShaderTable.StrideInBytes = mRaytracingShaderBindingTableHelper.GetMissEntrySize();
+
+			uint32_t hitGroupsSectionSize = mRaytracingShaderBindingTableHelper.GetHitGroupSectionSize();
+			desc.HitGroupTable.StartAddress = mRaytracingShaderTableReflectionsBuffer->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes + missSectionSizeInBytes;
+			desc.HitGroupTable.SizeInBytes = hitGroupsSectionSize;
+			desc.HitGroupTable.StrideInBytes = mRaytracingShaderBindingTableHelper.GetHitGroupEntrySize();
+
+			// Dimensions of the image to render, identical to a kernel launch dimension
+			auto size = mSandboxFramework->GetOutputSize();
+			desc.Width = float(size.right);
+			desc.Height = float(size.bottom);
+			desc.Depth = 1;
+
+			commandListDXR->SetPipelineState1(mRaytracingReflectionsPSO.Get());
 			commandListDXR->DispatchRays(&desc);
 		}
 
 		if (mUseDXRAmbientOcclusion)
 		{
-			// Dispatch the rays for AO and write to the raytracing output
-			desc.RayGenerationShaderRecord.StartAddress = mRaytracingShaderTableBuffer->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes / 2; //offset to AO raygen shader
-			//desc.MissShaderTable.StartAddress = mRaytracingShaderTableBuffer->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes + missSectionSizeInBytes / 2; //offset to AO miss shader
+			D3D12_DISPATCH_RAYS_DESC desc = {};
+
+			// The ray generation shaders are always at the beginning of the SBT.
+			uint32_t rayGenerationSectionSizeInBytes = mRaytracingShaderBindingTableHelper.GetRayGenSectionSize();
+			desc.RayGenerationShaderRecord.StartAddress = mRaytracingShaderTableAoBuffer->GetGPUVirtualAddress();
+			desc.RayGenerationShaderRecord.SizeInBytes = rayGenerationSectionSizeInBytes;
+
+			uint32_t missSectionSizeInBytes = mRaytracingShaderBindingTableHelper.GetMissSectionSize();
+			desc.MissShaderTable.StartAddress = mRaytracingShaderTableAoBuffer->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes;
+			desc.MissShaderTable.SizeInBytes = missSectionSizeInBytes;
+			desc.MissShaderTable.StrideInBytes = mRaytracingShaderBindingTableHelper.GetMissEntrySize();
+
+			uint32_t hitGroupsSectionSize = mRaytracingShaderBindingTableHelper.GetHitGroupSectionSize();
+			desc.HitGroupTable.StartAddress = mRaytracingShaderTableAoBuffer->GetGPUVirtualAddress() + rayGenerationSectionSizeInBytes + missSectionSizeInBytes;
+			desc.HitGroupTable.SizeInBytes = hitGroupsSectionSize;
+			desc.HitGroupTable.StrideInBytes = mRaytracingShaderBindingTableHelper.GetHitGroupEntrySize();
+
+			auto size = mSandboxFramework->GetOutputSize();
+			desc.Width = float(size.right);
+			desc.Height = float(size.bottom);
+			desc.Depth = 1;
+
+			commandListDXR->SetPipelineState1(mRaytracingAmbienOcclusionPSO.Get());
 			commandListDXR->DispatchRays(&desc);
 		}
 	}
